@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+.venvs/
+venv/
+
+# Local data and model artifacts
+datasets/
+weights/
+runs/
+system/data/
+system/reports/
+system/assets/
+*.pth
+*.pyt
+*.pt
+*.ckpt
+*.onnx
+*.tar
+*.tar.gz
+*.zip
+
+# Runtime logs
+*.log
+tmux.log
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/
+
