@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>鉴源盾</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <h1>鉴源盾</h1>
+          <p>面向 AIGC/Deepfake 内容传播链路的主动取证与抗攻击溯源平台</p>
+        </div>
+        <nav class="module-list" id="moduleList"></nav>
+      </aside>
+
+      <section class="workspace">
+        <header class="topbar">
+          <div>
+            <h2>全量真实评测工作台</h2>
+            <p>LFW 真实图片 · MEA/HiDDeN/SepMark 官方 checkpoint · LIDMark smoke checkpoint · WaveGuard baseline 接入</p>
+          </div>
+          <div class="health" id="health">health: -</div>
+        </header>
+
+        <section class="summary-row">
+          <div class="stat"><span>HiDDeN</span><strong id="hiddenStatus">-</strong><small id="hiddenCount">-</small></div>
+          <div class="stat"><span>SepMark</span><strong id="sepmarkStatus">-</strong><small id="sepmarkCount">-</small></div>
+          <div class="stat"><span>LIDMark</span><strong id="lidmarkStatus">-</strong><small id="lidmarkCount">-</small></div>
+          <div class="stat"><span>WaveGuard</span><strong id="waveguardStatus">-</strong><small id="waveguardCount">-</small></div>
+          <div class="stat"><span>报告</span><strong id="reportStatus">-</strong><small>JSON / CSV / Markdown</small></div>
+        </section>
+
+        <section class="panel conclusion-panel">
+          <div class="panel-head">
+            <h3>答辩结论</h3>
+            <span>真实 checkpoint / 真实 LFW / 攻防对照</span>
+          </div>
+          <div class="conclusion-grid">
+            <div><span>当前主线</span><strong id="mainConclusion">-</strong></div>
+            <div><span>弱 baseline</span><strong id="contrastConclusion">-</strong></div>
+            <div><span>边界声明</span><strong id="boundaryConclusion">-</strong></div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h3>方法对比</h3>
+            <span id="aggregatePath">pending</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>方法</th>
+                  <th>checkpoint</th>
+                  <th>数据</th>
+                  <th>样本</th>
+                  <th>clean BER</th>
+                  <th>clean Acc</th>
+                  <th>答辩可用</th>
+                  <th>状态</th>
+                </tr>
+              </thead>
+              <tbody id="comparisonRows"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="split">
+          <article class="panel">
+            <div class="panel-head">
+              <h3>SepMark LFW benchmark</h3>
+              <span>official MEA checkpoint · decoder_C / decoder_RF</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>attack</th><th>BER-C</th><th>Acc-C</th><th>BER-RF</th><th>Acc-RF</th><th>Success</th></tr>
+                </thead>
+                <tbody id="sepmarkRows"></tbody>
+              </table>
+            </div>
+            <img id="sepmarkGrid" class="benchmark-image" alt="SepMark benchmark grid" />
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <h3>HiDDeN LFW 全量 benchmark</h3>
+              <span>official MEA checkpoint</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>attack</th><th>BER</th><th>Bit Acc</th><th>PSNR</th><th>SSIM</th><th>Success</th></tr>
+                </thead>
+                <tbody id="hiddenRows"></tbody>
+              </table>
+            </div>
+            <img id="hiddenGrid" class="benchmark-image" alt="HiDDeN benchmark grid" />
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <h3>攻击退化曲线</h3>
+              <span>clean / JPEG / resize / noise</span>
+            </div>
+            <img id="degradationCurve" class="benchmark-image" alt="attack degradation curve" />
+            <div class="path-list" id="reportPaths"></div>
+          </article>
+        </section>
+
+        <section class="split">
+          <article class="panel">
+            <div class="panel-head">
+              <h3>LIDMark LFW eval</h3>
+              <span>smoke checkpoint，不是 official full model</span>
+            </div>
+            <pre id="lidmarkJson">{}</pre>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <h3>WaveGuard baseline</h3>
+              <span>single smoke + small LFW benchmark</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>attack</th><th>BER-det</th><th>Acc-det</th><th>BER-tr</th><th>Acc-tr</th><th>Success</th></tr>
+                </thead>
+                <tbody id="waveguardRows"></tbody>
+              </table>
+            </div>
+            <pre id="waveguardJson">{}</pre>
+          </article>
+        </section>
+      </section>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>
