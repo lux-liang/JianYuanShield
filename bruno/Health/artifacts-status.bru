@@ -1,0 +1,25 @@
+meta {
+  name: Artifacts Status
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{base_url}}/api/artifacts/status
+}
+
+headers {
+  accept: application/json
+}
+
+tests {
+  test("returns 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("has readiness fields", function() {
+    expect(res.body).to.have.property("ready_for_demo");
+    expect(res.body).to.have.property("checks");
+    expect(res.body).to.have.property("summary");
+  });
+}

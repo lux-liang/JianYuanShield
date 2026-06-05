@@ -1,0 +1,26 @@
+meta {
+  name: Competition Report
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/api/competition-report
+}
+
+headers {
+  accept: application/json
+}
+
+tests {
+  test("returns 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("has report paths", function() {
+    expect(res.body).to.have.property("json_path");
+    expect(res.body).to.have.property("csv_path");
+    expect(res.body).to.have.property("markdown_path");
+    expect(res.body).to.have.property("exists");
+  });
+}

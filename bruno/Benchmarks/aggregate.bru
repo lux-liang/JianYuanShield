@@ -1,0 +1,24 @@
+meta {
+  name: Aggregate Benchmark
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{base_url}}/api/benchmark/aggregate
+}
+
+headers {
+  accept: application/json
+}
+
+tests {
+  test("returns 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("has aggregate fields", function() {
+    expect(res.body).to.have.property("comparison");
+    expect(res.body).to.have.property("paths");
+  });
+}
