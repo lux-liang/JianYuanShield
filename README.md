@@ -73,6 +73,26 @@ Run a local system check:
 python3 scripts/check_system.py
 ```
 
+Run release checks and create a snapshot:
+
+```bash
+./scripts/build_release_snapshot.sh
+```
+
+This command runs the system check, backend smoke tests, and release snapshot generation. It does not run long benchmark jobs.
+
+Create a release snapshot:
+
+```bash
+python3 scripts/create_release_snapshot.py
+```
+
+Default output:
+
+```text
+system/reports/release_snapshot.json
+```
+
 Run backend smoke tests:
 
 ```bash

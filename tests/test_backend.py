@@ -15,6 +15,7 @@ from system.backend.errors import http_exception_handler, validation_exception_h
 from system.backend.normalization import BENCHMARK_SCHEMA_VERSION, normalize_benchmark
 from system.backend.routes import health
 from system.backend.settings import settings
+from scripts.create_release_snapshot import build_snapshot
 
 
 class BackendSmokeTests(unittest.TestCase):
@@ -67,6 +68,15 @@ class BackendSmokeTests(unittest.TestCase):
         self.assertEqual(payload["error"]["code"], "validation_error")
         self.assertEqual(payload["error"]["path"], "/api/tasks/demo-run")
         self.assertIn("details", payload["error"])
+
+    def test_release_snapshot_shape(self) -> None:
+        snapshot = build_snapshot()
+        self.assertEqual(snapshot["schema_version"], "release_snapshot.v1")
+        self.assertIn("git", snapshot)
+        self.assertIn("runtime", snapshot)
+        self.assertIn("artifacts", snapshot)
+        self.assertIn("reports", snapshot)
+        self.assertIn("ready_for_demo", snapshot["artifacts"])
 
     def test_artifacts_status_shape(self) -> None:
         payload = artifacts_status_payload()
