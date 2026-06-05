@@ -1,0 +1,24 @@
+meta {
+  name: HiDDeN LFW Full
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/api/benchmark/hidden-lfw-full
+}
+
+headers {
+  accept: application/json
+}
+
+tests {
+  test("returns 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("has normalized benchmark schema", function() {
+    expect(res.body).to.have.property("normalized");
+    expect(res.body.normalized.schema_version).to.equal("benchmark.v1");
+  });
+}

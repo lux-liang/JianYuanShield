@@ -1,0 +1,23 @@
+meta {
+  name: Samples
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/api/samples
+}
+
+headers {
+  accept: application/json
+}
+
+tests {
+  test("returns 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("returns samples list", function() {
+    expect(res.body).to.be.an("array");
+  });
+}

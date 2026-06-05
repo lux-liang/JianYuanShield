@@ -1,0 +1,23 @@
+meta {
+  name: Health
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{base_url}}/api/health
+}
+
+headers {
+  accept: application/json
+}
+
+tests {
+  test("returns 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("backend is ok", function() {
+    expect(res.body.ok).to.equal(true);
+  });
+}

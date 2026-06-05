@@ -1,0 +1,23 @@
+meta {
+  name: Modules
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{base_url}}/api/modules
+}
+
+headers {
+  accept: application/json
+}
+
+tests {
+  test("returns 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("returns module list", function() {
+    expect(res.body).to.be.an("array");
+  });
+}

@@ -3,52 +3,96 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>鉴源盾</title>
+    <title>鉴源盾 · 取证证据工作台</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <main class="app-shell">
       <aside class="sidebar">
         <div class="brand">
-          <h1>鉴源盾</h1>
-          <p>面向 AIGC/Deepfake 内容传播链路的主动取证与抗攻击溯源平台</p>
+          <div class="brand-mark">JYS</div>
+          <div>
+            <h1>鉴源盾</h1>
+            <p>主动取证与抗攻击溯源平台</p>
+          </div>
         </div>
+
+        <section class="evidence-card">
+          <span class="eyebrow">Evidence Readiness</span>
+          <strong id="evidenceReady">syncing</strong>
+          <div class="readiness-track"><span id="readinessBar"></span></div>
+          <small id="lastUpdated">等待后端数据</small>
+          <div class="artifact-checklist" id="artifactChecklist"></div>
+        </section>
+
         <nav class="module-list" id="moduleList"></nav>
       </aside>
 
       <section class="workspace">
         <header class="topbar">
           <div>
+            <span class="eyebrow">Deepfake Active Forensics</span>
             <h2>全量真实评测工作台</h2>
-            <p>LFW 真实图片 · MEA/HiDDeN/SepMark 官方 checkpoint · LIDMark smoke checkpoint · WaveGuard baseline 接入</p>
+            <p>LFW 真实图片 · MEA/HiDDeN/SepMark · LIDMark smoke · WaveGuard baseline</p>
           </div>
-          <div class="health" id="health">health: -</div>
+          <div class="top-actions">
+            <span class="api-pill" id="apiEndpoint">API 8026</span>
+            <span class="health" id="health">health: -</span>
+          </div>
         </header>
 
-        <section class="summary-row">
-          <div class="stat"><span>HiDDeN</span><strong id="hiddenStatus">-</strong><small id="hiddenCount">-</small></div>
-          <div class="stat"><span>SepMark</span><strong id="sepmarkStatus">-</strong><small id="sepmarkCount">-</small></div>
-          <div class="stat"><span>LIDMark</span><strong id="lidmarkStatus">-</strong><small id="lidmarkCount">-</small></div>
-          <div class="stat"><span>WaveGuard</span><strong id="waveguardStatus">-</strong><small id="waveguardCount">-</small></div>
-          <div class="stat"><span>报告</span><strong id="reportStatus">-</strong><small>JSON / CSV / Markdown</small></div>
+        <section class="hero-panel">
+          <div class="hero-copy">
+            <span class="eyebrow">Defense Conclusion</span>
+            <h3 id="mainConclusion">SepMark clean Acc-C - / Acc-RF -</h3>
+            <p id="contrastConclusion">HiDDeN clean Acc -，作为真实弱对照</p>
+          </div>
+          <div class="boundary-box">
+            <span>边界声明</span>
+            <strong id="boundaryConclusion">LIDMark=smoke，WaveGuard=checkpoint load，未伪造成正式指标</strong>
+          </div>
         </section>
 
-        <section class="panel conclusion-panel">
-          <div class="panel-head">
-            <h3>答辩结论</h3>
-            <span>真实 checkpoint / 真实 LFW / 攻防对照</span>
+        <section class="summary-row">
+          <div class="stat" data-status-card="hiddenStatus">
+            <span>HiDDeN</span>
+            <strong id="hiddenStatus">-</strong>
+            <small id="hiddenCount">-</small>
           </div>
-          <div class="conclusion-grid">
-            <div><span>当前主线</span><strong id="mainConclusion">-</strong></div>
-            <div><span>弱 baseline</span><strong id="contrastConclusion">-</strong></div>
-            <div><span>边界声明</span><strong id="boundaryConclusion">-</strong></div>
+          <div class="stat" data-status-card="sepmarkStatus">
+            <span>SepMark</span>
+            <strong id="sepmarkStatus">-</strong>
+            <small id="sepmarkCount">-</small>
+          </div>
+          <div class="stat" data-status-card="lidmarkStatus">
+            <span>LIDMark</span>
+            <strong id="lidmarkStatus">-</strong>
+            <small id="lidmarkCount">-</small>
+          </div>
+          <div class="stat" data-status-card="waveguardStatus">
+            <span>WaveGuard</span>
+            <strong id="waveguardStatus">-</strong>
+            <small id="waveguardCount">-</small>
+          </div>
+          <div class="stat" data-status-card="reportStatus">
+            <span>报告</span>
+            <strong id="reportStatus">-</strong>
+            <small>JSON / CSV / Markdown</small>
           </div>
         </section>
 
         <section class="panel">
           <div class="panel-head">
-            <h3>方法对比</h3>
-            <span id="aggregatePath">pending</span>
+            <div>
+              <h3>方法对比</h3>
+              <span id="aggregatePath">pending</span>
+            </div>
+            <div class="segmented" aria-label="method filter">
+              <button class="active" data-filter="all" type="button">全部</button>
+              <button data-filter="real" type="button">真实</button>
+              <button data-filter="smoke" type="button">Smoke</button>
+              <button data-filter="pending" type="button">Pending</button>
+            </div>
           </div>
           <div class="table-wrap">
             <table>
@@ -69,11 +113,14 @@
           </div>
         </section>
 
-        <section class="split">
+        <section class="evidence-grid">
           <article class="panel">
             <div class="panel-head">
-              <h3>SepMark LFW benchmark</h3>
-              <span>official MEA checkpoint · decoder_C / decoder_RF</span>
+              <div>
+                <h3>SepMark LFW benchmark</h3>
+                <span>official MEA checkpoint · decoder_C / decoder_RF</span>
+              </div>
+              <span class="panel-badge">主 baseline</span>
             </div>
             <div class="table-wrap">
               <table>
@@ -88,8 +135,11 @@
 
           <article class="panel">
             <div class="panel-head">
-              <h3>HiDDeN LFW 全量 benchmark</h3>
-              <span>official MEA checkpoint</span>
+              <div>
+                <h3>HiDDeN LFW 全量 benchmark</h3>
+                <span>official MEA checkpoint</span>
+              </div>
+              <span class="panel-badge muted">弱对照</span>
             </div>
             <div class="table-wrap">
               <table>
@@ -102,29 +152,38 @@
             <img id="hiddenGrid" class="benchmark-image" alt="HiDDeN benchmark grid" />
           </article>
 
-          <article class="panel">
+          <article class="panel wide">
             <div class="panel-head">
-              <h3>攻击退化曲线</h3>
-              <span>clean / JPEG / resize / noise</span>
+              <div>
+                <h3>攻击退化曲线</h3>
+                <span>clean / JPEG / resize / noise</span>
+              </div>
+              <span class="panel-badge">evidence chart</span>
             </div>
-            <img id="degradationCurve" class="benchmark-image" alt="attack degradation curve" />
+            <img id="degradationCurve" class="benchmark-image chart-image" alt="attack degradation curve" />
             <div class="path-list" id="reportPaths"></div>
           </article>
         </section>
 
-        <section class="split">
+        <section class="evidence-grid lower">
           <article class="panel">
             <div class="panel-head">
-              <h3>LIDMark LFW eval</h3>
-              <span>smoke checkpoint，不是 official full model</span>
+              <div>
+                <h3>LIDMark LFW eval</h3>
+                <span>smoke checkpoint，不是 official full model</span>
+              </div>
+              <span class="panel-badge warning">smoke</span>
             </div>
             <pre id="lidmarkJson">{}</pre>
           </article>
 
           <article class="panel">
             <div class="panel-head">
-              <h3>WaveGuard baseline</h3>
-              <span>single smoke + small LFW benchmark</span>
+              <div>
+                <h3>WaveGuard baseline</h3>
+                <span>single smoke + small/full LFW benchmark</span>
+              </div>
+              <span class="panel-badge warning">baseline</span>
             </div>
             <div class="table-wrap">
               <table>

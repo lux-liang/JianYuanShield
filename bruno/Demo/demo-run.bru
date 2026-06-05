@@ -1,0 +1,33 @@
+meta {
+  name: Demo Run
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/api/tasks/demo-run
+}
+
+headers {
+  accept: application/json
+  content-type: application/json
+}
+
+body {
+  {
+    "sample_id": "{{demo_sample_id}}",
+    "project": "LIDMark",
+    "attack": "multi_embedding+jpeg_50+blur"
+  }
+}
+
+tests {
+  test("returns 200", function() {
+    expect(res.status).to.equal(200);
+  });
+
+  test("returns task id and artifacts", function() {
+    expect(res.body).to.have.property("task_id");
+    expect(res.body).to.have.property("artifacts");
+  });
+}
