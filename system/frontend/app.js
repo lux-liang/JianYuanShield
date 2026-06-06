@@ -501,3 +501,167 @@ document.querySelectorAll("[data-signature-file]").forEach((link) => {
 initializeDemo().catch(renderErrorState);
 load();
 setInterval(load, 30000);
+
+// ═══════════════════════════════════════════════════
+// 三场景真实推理
+// ═══════════════════════════════════════════════════
+
+// Scenario tab switching
+document.querySelectorAll('[data-scenario]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('[data-scenario]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    ['creator','compliance','mea'].forEach(s => {
+      const el = document.getElementById(`scene-${s}`);
+      if (el) el.style.display = (s === btn.dataset.scenario) ? '' : 'none';
+    });
+  });
+});
+
+function verdictBadge(v) {
+  const map = {
+    compliant: '<span style="color:#22c55e">✅ 合规水印已验证</span>',
+    degraded:  '<span style="color:#f59e0b">⚠️ 水印降级</span>',
+    no_watermark: '<span style="color:#ef4444">❌ 无合规水印</span>',
+  };
+  return map[v] || (v || '—');
+}
+
+function renderInferResult(r) {
+  const imgs = r.artifacts_b64 || {};
+  document.getElementById('inferImages').innerHTML = Object.entries(imgs)
+    .filter(([k]) => ['original','watermarked','attacked','heatmap'].includes(k))
+    .map(([k, b64]) => `<figure>
+      <img src="data:image/png;base64,${b64}" alt="${escapeHTML(k)}" style="max-width:180px">
+      <figcaption>${escapeHTML(k)}</figcaption>
+    </figure>`).join('');
+
+  const m = r.metrics || {};
+  const acc = m.bit_accuracy_c != null ? m.bit_accuracy_c
+              : m.bit_accuracy_detector != null ? m.bit_accuracy_detector
+              : m.bit_accuracy;
+  const psnr = m.psnr;
+  const comp = r.compliance || {};
+  document.getElementById('inferMetrics').innerHTML = `
+    <div class="infer-metric-row">
+      <span>Bit Accuracy</span><strong>${acc != null ? (acc*100).toFixed(1)+'%' : '—'}</strong>
+      <span>PSNR</span><strong>${psnr != null ? psnr.toFixed(1)+' dB' : '—'}</strong>
+      <span>合规结论</span><strong>${verdictBadge(comp.verdict)}</strong>
+      <span>推理模式</span><strong>${r.mode === 'real_checkpoint' ? '✅ 真实模型' : '⚠️ 模拟'}</strong>
+    </div>`;
+  document.getElementById('inferEvidence').textContent = JSON.stringify({
+    task_id: r.task_id, model: r.model, attack: r.attack,
+    metrics: r.metrics, compliance: r.compliance, evidence: r.evidence,
+  }, null, 2);
+  document.getElementById('inferStatus').textContent = `完成 · task_id: ${r.task_id}`;
+}
+
+document.getElementById('inferForm') && document.getElementById('inferForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = document.getElementById('inferBtn');
+  btn.disabled = true;
+  document.getElementById('inferStatus').textContent = '推理中…';
+  document.getElementById('inferImages').innerHTML = '';
+  document.getElementById('inferMetrics').innerHTML = '';
+  try {
+    const fd = new FormData();
+    fd.append('file', document.getElementById('inferFile').files[0]);
+    fd.append('model', document.getElementById('inferModel').value);
+    fd.append('attack', document.getElementById('inferAttack').value);
+    fd.append('return_b64', 'true');
+    const res = await fetch(`${API}/api/infer/single`, { method: 'POST', body: fd });
+    const r = await res.json();
+    if (!res.ok) throw new Error((r.error && r.error.message) || res.statusText);
+    renderInferResult(r);
+  } catch (err) {
+    document.getElementById('inferStatus').textContent = '错误: ' + err.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('batchForm') && document.getElementById('batchForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = document.getElementById('batchBtn');
+  btn.disabled = true;
+  document.getElementById('batchStatus').textContent = '检测中…';
+  document.getElementById('batchResults').innerHTML = '';
+  try {
+    const fd = new FormData();
+    const files = document.getElementById('batchFiles').files;
+    for (const f of files) fd.append('files', f);
+    fd.append('model', document.getElementById('batchModel').value);
+    const res = await fetch(`${API}/api/compliance/batch`, { method: 'POST', body: fd });
+    const r = await res.json();
+    if (!res.ok) throw new Error((r.error && r.error.message) || res.statusText);
+    const rate = ((r.compliance_rate || 0) * 100).toFixed(0);
+    document.getElementById('batchStatus').textContent =
+      `检测完成 · ${r.total} 张 · 合规率 ${rate}% · 模式: ${r.mode}`;
+    document.getElementById('batchResults').innerHTML = `
+      <div class="batch-summary" style="display:flex;gap:16px;margin:8px 0">
+        <span>✅ 合规 <strong>${r.compliant}</strong></span>
+        <span>⚠️ 降级 <strong>${r.degraded}</strong></span>
+        <span>❌ 无标识 <strong>${r.no_watermark}</strong></span>
+      </div>
+      <table style="width:100%;font-size:12px;border-collapse:collapse">
+        <thead><tr><th style="text-align:left">文件</th><th>状态</th><th>Bit Acc</th></tr></thead>
+        <tbody>${(r.results || []).map(row => `<tr>
+          <td>${escapeHTML(row.filename)}</td>
+          <td>${row.label}</td>
+          <td>${row.bit_accuracy != null ? (row.bit_accuracy*100).toFixed(1)+'%' : '—'}</td>
+        </tr>`).join('')}</tbody>
+      </table>`;
+  } catch (err) {
+    document.getElementById('batchStatus').textContent = '错误: ' + err.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+document.getElementById('meaForm') && document.getElementById('meaForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = document.getElementById('meaBtn');
+  btn.disabled = true;
+  document.getElementById('meaStatus').textContent = '对比推理中（2个模型）…';
+  document.getElementById('meaResults').innerHTML = '';
+  try {
+    const file = document.getElementById('meaFile').files[0];
+    const attack = document.getElementById('meaAttack').value;
+    const results = await Promise.all(['SepMark','WaveGuard'].map(async model => {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('model', model);
+      fd.append('attack', attack);
+      fd.append('return_b64', 'true');
+      const res = await fetch(`${API}/api/infer/single`, { method: 'POST', body: fd });
+      return res.json();
+    }));
+    document.getElementById('meaStatus').textContent = '对比完成';
+    document.getElementById('meaResults').innerHTML = `<div style="display:flex;gap:16px;flex-wrap:wrap">` +
+      results.map(r => {
+        const m = r.metrics || {};
+        const acc = m.bit_accuracy_c != null ? m.bit_accuracy_c
+                    : m.bit_accuracy_detector != null ? m.bit_accuracy_detector : m.bit_accuracy;
+        const imgs = r.artifacts_b64 || {};
+        return `<div style="flex:1;min-width:240px;border:1px solid var(--border);border-radius:6px;padding:12px">
+          <h4 style="margin:0 0 8px">${escapeHTML(r.model)} <small style="opacity:.6">${escapeHTML(r.mode)}</small></h4>
+          <div style="display:flex;gap:4px;margin-bottom:8px">
+            ${['watermarked','attacked','heatmap'].filter(k => imgs[k]).map(k =>
+              `<figure style="margin:0;text-align:center">
+                <img src="data:image/png;base64,${imgs[k]}" alt="${k}" style="max-width:90px;border-radius:4px">
+                <figcaption style="font-size:10px;opacity:.7">${k}</figcaption>
+              </figure>`).join('')}
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:12px">
+            <span>Bit Accuracy</span><strong>${acc != null ? (acc*100).toFixed(1)+'%' : '—'}</strong>
+            <span>PSNR</span><strong>${m.psnr != null ? m.psnr.toFixed(1)+' dB' : '—'}</strong>
+            <span>合规</span><strong>${(r.compliance || {}).verdict === 'compliant' ? '✅' : '❌'}</strong>
+          </div>
+        </div>`;
+      }).join('') + `</div>`;
+  } catch (err) {
+    document.getElementById('meaStatus').textContent = '错误: ' + err.message;
+  } finally {
+    btn.disabled = false;
+  }
+});

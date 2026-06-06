@@ -72,6 +72,80 @@
           <pre id="demoEvidence">{}</pre>
         </section>
 
+
+        <!-- ═══ 三场景真实推理 ═══ -->
+        <section class="panel" id="scenarioPanel">
+          <div class="panel-head">
+            <div>
+              <h3>三场景真实取证演示</h3>
+              <span>上传任意图片 · 真实 checkpoint 推理 · 《AI标识办法》合规检测</span>
+            </div>
+            <div class="segmented" aria-label="scenario">
+              <button class="active" data-scenario="creator" type="button">创作者保护</button>
+              <button data-scenario="compliance" type="button">平台合规检测</button>
+              <button data-scenario="mea" type="button">MEA 横评</button>
+            </div>
+          </div>
+
+          <!-- 场景1: 创作者保护 -->
+          <div id="scene-creator" class="scene-block">
+            <p class="scene-desc">上传原创图片 → 嵌入水印 → 模拟攻击 → 取证结果 + 司法证据哈希</p>
+            <form id="inferForm" class="demo-form">
+              <label>图片<input type="file" id="inferFile" accept="image/*" required></label>
+              <label>模型<select id="inferModel">
+                <option value="SepMark">SepMark（推荐）</option>
+                <option value="WaveGuard">WaveGuard</option>
+              </select></label>
+              <label>攻击<select id="inferAttack">
+                <option value="clean">无攻击（clean）</option>
+                <option value="jpeg50">JPEG 50（平台转码）</option>
+                <option value="jpeg70">JPEG 70</option>
+                <option value="resize">缩放传播</option>
+                <option value="noise">高斯噪声</option>
+                <option value="blur">模糊</option>
+              </select></label>
+              <button id="inferBtn" class="primary-action" type="submit">取证</button>
+            </form>
+            <div id="inferStatus" class="demo-status">等待上传</div>
+            <div id="inferImages" class="demo-artifacts"></div>
+            <div id="inferMetrics" class="infer-metrics"></div>
+            <pre id="inferEvidence" style="font-size:11px;max-height:160px;overflow:auto">{}</pre>
+          </div>
+
+          <!-- 场景2: 平台合规批量 -->
+          <div id="scene-compliance" class="scene-block" style="display:none">
+            <p class="scene-desc">批量上传图片 → 检测隐式水印合规状态 → 对应《AI标识办法》第5条</p>
+            <form id="batchForm" class="demo-form">
+              <label>批量图片（多选）<input type="file" id="batchFiles" accept="image/*" multiple required></label>
+              <label>检测模型<select id="batchModel">
+                <option value="SepMark">SepMark</option>
+                <option value="WaveGuard">WaveGuard</option>
+              </select></label>
+              <button id="batchBtn" class="primary-action" type="submit">批量检测</button>
+            </form>
+            <div id="batchStatus" class="demo-status">等待上传</div>
+            <div id="batchResults"></div>
+          </div>
+
+          <!-- 场景3: MEA 横评 -->
+          <div id="scene-mea" class="scene-block" style="display:none">
+            <p class="scene-desc">同一图片，SepMark vs WaveGuard，相同攻击 → 横向对比抗攻击性能</p>
+            <form id="meaForm" class="demo-form">
+              <label>图片<input type="file" id="meaFile" accept="image/*" required></label>
+              <label>攻击<select id="meaAttack">
+                <option value="jpeg50">JPEG 50（平台转码）</option>
+                <option value="jpeg70">JPEG 70</option>
+                <option value="resize">缩放传播</option>
+                <option value="noise">高斯噪声</option>
+                <option value="clean">无攻击</option>
+              </select></label>
+              <button id="meaBtn" class="primary-action" type="submit">对比评测</button>
+            </form>
+            <div id="meaStatus" class="demo-status">等待上传</div>
+            <div id="meaResults" class="mea-results"></div>
+          </div>
+        </section>
+
         <section class="panel audit-panel">
           <div class="panel-head">
             <div><h3>证据与实验协议审计</h3><span>自动识别异常指标、协议差异和证据文件哈希</span></div>

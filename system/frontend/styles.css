@@ -830,3 +830,19 @@ pre {
     font-size: 20px;
   }
 }
+
+/* ── 三场景真实推理 ── */
+.scene-block { padding: 12px 0; }
+.scene-desc { margin: 0 0 10px; opacity: .7; font-size: 13px; }
+.infer-metric-row {
+  display: grid;
+  grid-template-columns: repeat(4, auto 1fr);
+  gap: 6px 12px;
+  align-items: center;
+  margin: 8px 0;
+  font-size: 13px;
+}
+.infer-metric-row span { opacity: .6; }
+.infer-metric-row strong { font-variant-numeric: tabular-nums; }
+.mea-results { margin-top: 12px; }
+.batch-summary strong { font-size: 15px; }

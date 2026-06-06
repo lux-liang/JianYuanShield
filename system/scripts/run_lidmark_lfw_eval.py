@@ -1,3 +1,4 @@
+import os
 from __future__ import annotations
 
 import argparse
@@ -32,7 +33,11 @@ from utils import Config, make_loader, update_config_resolution  # noqa: E402
 
 REPORT_DIR = ROOT / "runs/lidmark_lfw_eval_full"
 ASSET_DIR = ROOT / "system/assets/lidmark_lfw_eval_full"
-CHECKPOINT = ROOT / "weights/lidmark/smoke_128/checkpoints_distortions/checkpoint_epoch_2.pth"
+CHECKPOINT = Path(os.environ.get('JYS_LIDMARK_CHECKPOINT',
+    str(ROOT / 'weights/lidmark/smoke_128/checkpoints_distortions/checkpoint_epoch_2.pth')))
+if 'JYS_LIDMARK_REPORT_DIR' in os.environ:
+    REPORT_DIR = Path(os.environ['JYS_LIDMARK_REPORT_DIR'])
+    ASSET_DIR  = REPORT_DIR / 'assets' 
 
 
 def tensor_to_uint8(tensor: torch.Tensor) -> np.ndarray:
