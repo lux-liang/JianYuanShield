@@ -14,8 +14,16 @@ from PIL import Image
 from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 
 
-ROOT = Path("/home/luxliang/work/vpsg_competition_candidates")
-LIDMARK_CODE = ROOT / "LIDMark"
+PROJECT_DIR = Path(__file__).resolve().parents[2]
+if str(PROJECT_DIR) not in sys.path:
+    sys.path.insert(0, str(PROJECT_DIR))
+
+from system.evaluation.run_metadata import build_run_metadata  # noqa: E402
+from system.evaluation.runtime import MODEL_SOURCE_ROOT, PROJECT_ROOT  # noqa: E402
+
+
+ROOT = PROJECT_ROOT
+LIDMARK_CODE = MODEL_SOURCE_ROOT / "LIDMark"
 sys.path.insert(0, str(LIDMARK_CODE))
 
 from model.lidmark import LIDMark  # noqa: E402
@@ -173,6 +181,12 @@ def main() -> None:
     if rows:
         append_rows(csv_path, rows)
     summary = summarize(csv_path, attacks, min(args.num_images, len(loader)))
+    summary["run_metadata"] = build_run_metadata(
+        model="LIDMark",
+        checkpoint=CHECKPOINT,
+        seed=cfg.seed,
+        command=sys.argv,
+    )
     (REPORT_DIR / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
     progress_path.write_text(json.dumps({"processed_images": processed, "updated_at": int(time.time()), "status": "complete"}, indent=2), encoding="utf-8")
     print(json.dumps(summary, indent=2))
@@ -180,4 +194,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

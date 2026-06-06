@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="/home/luxliang/work/vpsg_competition_candidates"
+ROOT="${JYS_PROJECT_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 SESSION="${SESSION:-jianyuanshield_pipeline}"
-PY="$ROOT/.venvs/lidmark/bin/python"
+PY="${JYS_BENCHMARK_PYTHON:-$ROOT/.venvs/lidmark/bin/python}"
 
 tmux has-session -t "$SESSION" 2>/dev/null && {
   echo "tmux session already running: $SESSION"

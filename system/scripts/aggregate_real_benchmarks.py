@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import json
+import sys
 from pathlib import Path
 
 import matplotlib
@@ -9,7 +10,14 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 
-ROOT = Path("/home/luxliang/work/vpsg_competition_candidates")
+PROJECT_DIR = Path(__file__).resolve().parents[2]
+if str(PROJECT_DIR) not in sys.path:
+    sys.path.insert(0, str(PROJECT_DIR))
+
+from system.evaluation.runtime import PROJECT_ROOT  # noqa: E402
+
+
+ROOT = PROJECT_ROOT
 OUT = ROOT / "system/reports/aggregate_real_benchmarks"
 ASSETS = ROOT / "system/assets/aggregate_real_benchmarks"
 

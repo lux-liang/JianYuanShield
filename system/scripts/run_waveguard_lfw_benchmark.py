@@ -1,12 +1,21 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import torch
 
 
-ROOT = Path("/home/luxliang/work/vpsg_competition_candidates")
+PROJECT_DIR = Path(__file__).resolve().parents[2]
+if str(PROJECT_DIR) not in sys.path:
+    sys.path.insert(0, str(PROJECT_DIR))
+
+from system.evaluation.run_metadata import build_run_metadata  # noqa: E402
+from system.evaluation.runtime import PROJECT_ROOT  # noqa: E402
+
+
+ROOT = PROJECT_ROOT
 REPORT_DIR = ROOT / "system/reports/waveguard_lfw_benchmark"
 
 
@@ -34,6 +43,12 @@ def main() -> None:
             report["status"] = "checkpoint_load_ok"
         except Exception as exc:
             report["attempts"].append({"checkpoint": str(path), "load_ok": False, "error": repr(exc)})
+    report["run_metadata"] = build_run_metadata(
+        model="WaveGuard",
+        checkpoint=candidates[0] if candidates else None,
+        seed=2026,
+        command=sys.argv,
+    )
     (REPORT_DIR / "summary.json").write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
     (REPORT_DIR / "progress.json").write_text(json.dumps({"status": report["status"]}, indent=2), encoding="utf-8")
     print(json.dumps(report, indent=2, ensure_ascii=False))
@@ -41,4 +56,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

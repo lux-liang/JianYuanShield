@@ -18,8 +18,16 @@ from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 from torchvision import transforms
 
 
-ROOT = Path("/home/luxliang/work/vpsg_competition_candidates")
-SEPMARK_CODE = ROOT / "MEA/codes/SepMark"
+PROJECT_DIR = Path(__file__).resolve().parents[2]
+if str(PROJECT_DIR) not in sys.path:
+    sys.path.insert(0, str(PROJECT_DIR))
+
+from system.evaluation.run_metadata import build_run_metadata  # noqa: E402
+from system.evaluation.runtime import MODEL_SOURCE_ROOT, PROJECT_ROOT  # noqa: E402
+
+
+ROOT = PROJECT_ROOT
+SEPMARK_CODE = MODEL_SOURCE_ROOT / "MEA/codes/SepMark"
 DEFAULT_EC = ROOT / "weights/mea/SepMark/results/FullFineTuningWithOnlyMessage/models/EC_115.pth"
 DEFAULT_IMAGE_ROOT = ROOT / "datasets/lfw_full_upload/unknown"
 REPORT_DIR = ROOT / "system/reports/sepmark_lfw_benchmark"
@@ -305,6 +313,13 @@ def main() -> None:
 
     write_progress(args.num_images, processed_images, attacks, status="complete")
     summary = summarize(results_path, args, "complete")
+    summary["run_metadata"] = build_run_metadata(
+        model="SepMark",
+        checkpoint=args.checkpoint,
+        seed=args.seed,
+        command=sys.argv,
+    )
+    (REPORT_DIR / "summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
     make_grid(samples)
     print(json.dumps(summary, indent=2, ensure_ascii=False))
 

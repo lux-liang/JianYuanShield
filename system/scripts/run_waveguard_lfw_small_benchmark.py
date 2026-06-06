@@ -16,8 +16,16 @@ from PIL import Image, ImageDraw
 from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 
 
-ROOT = Path("/home/luxliang/work/vpsg_competition_candidates")
-CODE = ROOT / "MEA/codes/WaveGuard"
+PROJECT_DIR = Path(__file__).resolve().parents[2]
+if str(PROJECT_DIR) not in sys.path:
+    sys.path.insert(0, str(PROJECT_DIR))
+
+from system.evaluation.run_metadata import build_run_metadata  # noqa: E402
+from system.evaluation.runtime import MODEL_SOURCE_ROOT, PROJECT_ROOT  # noqa: E402
+
+
+ROOT = PROJECT_ROOT
+CODE = MODEL_SOURCE_ROOT / "MEA/codes/WaveGuard"
 DEFAULT_CKPT = ROOT / "weights/mea/WaveGuard/exp_highpass/2025.07.24-20.10.50/model_state_16.pth"
 DEFAULT_IMAGES = ROOT / "datasets/lfw_full_upload/unknown"
 REPORT_DIR = ROOT / "system/reports/waveguard_lfw_small_benchmark"
@@ -269,6 +277,13 @@ def main() -> None:
 
     write_progress(args.num_images, args.num_images, attacks, "complete")
     summary = summarize(results_path, "complete", args)
+    summary["run_metadata"] = build_run_metadata(
+        model="WaveGuard",
+        checkpoint=args.checkpoint,
+        seed=2026,
+        command=sys.argv,
+    )
+    (REPORT_DIR / "summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
     make_grid(samples)
     print(json.dumps(summary, indent=2, ensure_ascii=False))
 

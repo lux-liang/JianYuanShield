@@ -12,8 +12,16 @@ from PIL import Image
 from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 
 
-ROOT = Path("/home/luxliang/work/vpsg_competition_candidates")
-CODE = ROOT / "MEA/codes/WaveGuard"
+PROJECT_DIR = Path(__file__).resolve().parents[2]
+if str(PROJECT_DIR) not in sys.path:
+    sys.path.insert(0, str(PROJECT_DIR))
+
+from system.evaluation.run_metadata import build_run_metadata  # noqa: E402
+from system.evaluation.runtime import MODEL_SOURCE_ROOT, PROJECT_ROOT  # noqa: E402
+
+
+ROOT = PROJECT_ROOT
+CODE = MODEL_SOURCE_ROOT / "MEA/codes/WaveGuard"
 CKPT = ROOT / "weights/mea/WaveGuard/exp_highpass/2025.07.24-20.10.50/model_state_16.pth"
 IMAGE = ROOT / "datasets/lfw_full_upload/unknown/lfw_00000.jpg"
 REPORT = ROOT / "system/reports/waveguard_lfw_benchmark/single_smoke.json"
@@ -159,6 +167,12 @@ def main() -> None:
         },
         "warning": "Single-image smoke only; not a full LFW benchmark.",
         "updated_at": int(time.time()),
+        "run_metadata": build_run_metadata(
+            model="WaveGuard",
+            checkpoint=CKPT,
+            seed=2026,
+            command=sys.argv,
+        ),
     }
     REPORT.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
     summary_path = ROOT / "system/reports/waveguard_lfw_benchmark/summary.json"

@@ -17,8 +17,16 @@ from PIL import Image
 from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 
 
-ROOT = Path("/home/luxliang/work/vpsg_competition_candidates")
-HIDDEN_CODE = ROOT / "MEA/codes/HiDDeN"
+PROJECT_DIR = Path(__file__).resolve().parents[2]
+if str(PROJECT_DIR) not in sys.path:
+    sys.path.insert(0, str(PROJECT_DIR))
+
+from system.evaluation.run_metadata import build_run_metadata  # noqa: E402
+from system.evaluation.runtime import MODEL_SOURCE_ROOT, PROJECT_ROOT  # noqa: E402
+
+
+ROOT = PROJECT_ROOT
+HIDDEN_CODE = MODEL_SOURCE_ROOT / "MEA/codes/HiDDeN"
 sys.path.insert(0, str(HIDDEN_CODE))
 
 import utils  # noqa: E402
@@ -315,6 +323,12 @@ def main() -> None:
     if pending_rows:
         append_rows(csv_path, pending_rows)
     summary = summarize(csv_path, attacks, Path(args.checkpoint_file), len(images))
+    summary["run_metadata"] = build_run_metadata(
+        model="HiDDeN",
+        checkpoint=Path(args.checkpoint_file),
+        seed=20260603,
+        command=sys.argv,
+    )
     (REPORT_DIR / "summary.json").write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")
     make_grid(csv_path, ASSET_DIR / "grid.png")
     write_progress(progress_path, {"processed_images": len(images), "total_images": len(images), "attacks": attacks, "updated_at": int(time.time()), "status": "complete"})
@@ -323,4 +337,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
