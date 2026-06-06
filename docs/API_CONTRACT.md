@@ -429,3 +429,30 @@ GET /artifacts/{path}
 ```
 
 Frontend error handling expects the unified error response shape for non-2xx API responses.
+# JianYuanShield API Contract
+
+## Core
+
+- `GET /api/health`
+- `GET /api/artifacts/status`
+- `GET /api/evidence/audit`
+- `GET /api/samples`
+- `POST /api/tasks/demo-run`
+- `GET /api/reports/{task_id}`
+
+## Benchmarks
+
+- `GET /api/benchmark/hidden-lfw-full`
+- `GET /api/benchmark/sepmark`
+- `GET /api/benchmark/lidmark-lfw-eval`
+- `GET /api/benchmark/waveguard`
+- `GET /api/benchmark/aggregate`
+
+## Competition Report
+
+- `GET /api/competition-report`
+- `GET /api/competition-report/download/json`
+- `GET /api/competition-report/download/csv`
+- `GET /api/competition-report/download/markdown`
+
+Demo task responses use `forensic-task.v1` and include SHA-256 evidence. Evidence audits use `evidence-audit.v1`.

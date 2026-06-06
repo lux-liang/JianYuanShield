@@ -7,3 +7,4 @@ scikit-image>=0.26
 matplotlib>=3.10
 torch>=2.12
 torchvision>=0.27
+cryptography>=46
