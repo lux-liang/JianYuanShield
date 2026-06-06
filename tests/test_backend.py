@@ -12,6 +12,7 @@ from system.backend.app import app
 from system.backend.artifacts import artifacts_status_payload
 from system.backend.benchmarks import aggregate_benchmark_payload, hidden_lfw_full_payload, modules_payload
 from system.backend.errors import http_exception_handler, validation_exception_handler
+from system.backend.evidence import evidence_audit_payload
 from system.backend.normalization import BENCHMARK_SCHEMA_VERSION, normalize_benchmark
 from system.backend.routes import health
 from system.backend.settings import settings
@@ -26,6 +27,10 @@ class BackendSmokeTests(unittest.TestCase):
         self.assertIn("/api/artifacts/status", paths)
         self.assertIn("/api/benchmark/aggregate", paths)
         self.assertIn("/api/competition-report", paths)
+        self.assertIn("/api/evidence/audit", paths)
+        self.assertIn("/api/evidence/signature", paths)
+        self.assertIn("/api/evidence/signature/download/{file_name}", paths)
+        self.assertIn("/api/competition-report/download/{format_name}", paths)
 
     def test_health_includes_runtime_fields(self) -> None:
         payload = health()
@@ -107,6 +112,19 @@ class BackendSmokeTests(unittest.TestCase):
             self.assertIn("function", item)
             self.assertIn("result", item)
 
+    def test_evidence_audit_shape(self) -> None:
+        payload = evidence_audit_payload()
+        self.assertEqual(payload["schema_version"], "evidence-audit.v1")
+        self.assertIn(payload["status"], {"verified", "review_required"})
+        self.assertIn("ready_for_demo", payload)
+        self.assertIn("ready_for_claims", payload)
+        self.assertIn("blocking_findings", payload)
+        self.assertIn("signature", payload)
+        self.assertIn("integration_gates", payload)
+        self.assertIn("protocol", payload)
+        self.assertIn("findings", payload)
+        self.assertIn("evidence_files", payload)
+
     def test_normalize_benchmark_maps_attacks_to_stable_shape(self) -> None:
         normalized = normalize_benchmark(
             summary={
@@ -135,6 +153,8 @@ class BackendSmokeTests(unittest.TestCase):
         self.assertEqual(normalized["num_images"], 12)
         self.assertEqual(normalized["attacks"][0]["attack"], "clean")
         self.assertEqual(normalized["attacks"][0]["metrics"]["mean_bit_accuracy"], 0.99)
+        self.assertEqual(normalized["evaluation_protocol"], "evaluation_protocol.v1")
+        self.assertIn("ber", normalized["metric_semantics"])
 
 
 if __name__ == "__main__":

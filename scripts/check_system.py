@@ -126,6 +126,28 @@ def check_artifacts(checks: list[Check]) -> dict[str, Any]:
         return {"ready_for_demo": False, "checks": {}, "missing": ["artifacts_status_failed"], "summary": {}}
 
 
+def check_claims(checks: list[Check]) -> dict[str, Any]:
+    try:
+        from system.backend.evidence import evidence_audit_payload
+
+        payload = evidence_audit_payload()
+        blockers = payload.get("blocking_findings", [])
+        add(
+            checks,
+            "research claims",
+            bool(payload.get("ready_for_claims")),
+            (
+                f"status={payload.get('status')}; "
+                f"blocking_findings={len(blockers)}"
+            ),
+            warn=True,
+        )
+        return payload
+    except Exception as exc:
+        add(checks, "research claims", False, repr(exc), critical=True)
+        return {"ready_for_claims": False, "blocking_findings": [{"code": "claims_check_failed"}]}
+
+
 def check_api(checks: list[Check], api: str) -> None:
     url = api.rstrip("/") + "/api/health"
     try:
@@ -136,18 +158,20 @@ def check_api(checks: list[Check], api: str) -> None:
         add(checks, "api health", False, f"{url}; {exc.__class__.__name__}", warn=True)
 
 
-def print_report(checks: list[Check], ready_for_demo: bool) -> None:
+def print_report(checks: list[Check], ready_for_demo: bool, ready_for_claims: bool) -> None:
     width = max(len(check.name) for check in checks)
     for check in checks:
         print(f"[{check.status:<4}] {check.name:<{width}}  {check.detail}")
     print()
     print(f"ready_for_demo: {'yes' if ready_for_demo else 'no'}")
+    print(f"ready_for_claims: {'yes' if ready_for_claims else 'no'}")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Check JianYuanShield runtime, assets, and reports.")
     parser.add_argument("--api", default="http://127.0.0.1:8026", help="Backend base URL for optional health check.")
     parser.add_argument("--strict", action="store_true", help="Return non-zero when demo assets/reports are not ready.")
+    parser.add_argument("--strict-claims", action="store_true", help="Return non-zero when research claims are blocked.")
     args = parser.parse_args()
 
     checks: list[Check] = []
@@ -155,16 +179,20 @@ def main() -> int:
     check_backend(checks)
     check_frontend(checks)
     artifacts = check_artifacts(checks)
+    claims = check_claims(checks)
     check_api(checks, args.api)
 
     core_ok = all(check.status == "OK" for check in checks if check.critical)
     ready_for_demo = core_ok and bool(artifacts.get("ready_for_demo"))
+    ready_for_claims = core_ok and bool(claims.get("ready_for_claims"))
 
-    print_report(checks, ready_for_demo)
+    print_report(checks, ready_for_demo, ready_for_claims)
     if not core_ok:
         return 1
     if args.strict and not ready_for_demo:
         return 2
+    if args.strict_claims and not ready_for_claims:
+        return 3
     return 0
 
 
