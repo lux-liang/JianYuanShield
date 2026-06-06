@@ -1,0 +1,37 @@
+version: "3.9"
+
+services:
+  jianyuanshield:
+    build: .
+    image: jianyuanshield:latest
+    container_name: jianyuanshield
+    ports:
+      - "8026:8026"   # FastAPI backend
+      - "8027:8027"   # Static frontend
+    volumes:
+      # Model weights (host-side, not baked into image)
+      - ./weights:/app/weights:ro
+      # Runtime data: runs, reports, evidence
+      - ./runs:/app/runs
+      - ./system/reports:/app/system/reports
+      - ./system/assets:/app/system/assets
+      # LIDMark/KAD-Net training runs
+      - /data1/luxliang/work/vpsg_competition_candidates/runs:/app/data/runs:ro
+    environment:
+      - PYTHONPATH=/app
+      - JYS_DATA_ROOT=/app/data
+      - JYS_BACKEND_PORT=8026
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8026/api/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
