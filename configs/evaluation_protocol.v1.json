@@ -1,0 +1,86 @@
+{
+  "schema_version": "evaluation_protocol.v1",
+  "seed": 20260603,
+  "success_threshold": 0.9,
+  "image": {
+    "canonical_color_space": "RGB",
+    "canonical_dtype": "uint8",
+    "canonical_range": [0, 255],
+    "target_size": [256, 256],
+    "resize_interpolation": "bicubic",
+    "crop_policy": "center_crop_after_short_side_resize"
+  },
+  "quality_metrics": {
+    "watermarked_reference": "original",
+    "attacked_reference": "original",
+    "data_range": 255,
+    "ssim_channel_axis": 2
+  },
+  "message_metrics": {
+    "bit_decision": "value > 0",
+    "ber": "mean(original_bits != decoded_bits)",
+    "accuracy": "1 - ber",
+    "success": "accuracy >= success_threshold"
+  },
+  "attacks": [
+    {"id": "clean", "type": "identity", "parameters": {}},
+    {"id": "jpeg50", "type": "jpeg", "parameters": {"quality": 50}},
+    {"id": "jpeg70", "type": "jpeg", "parameters": {"quality": 70}},
+    {"id": "jpeg90", "type": "jpeg", "parameters": {"quality": 90}},
+    {"id": "resize_0.5x", "type": "resize_roundtrip", "parameters": {"scale": 0.5, "down": "area", "up": "linear"}},
+    {"id": "gaussian_noise_sigma_3", "type": "gaussian_noise", "parameters": {"sigma": 3.0, "seed_scope": "per_image"}},
+    {"id": "crop_center_0.8", "type": "crop_roundtrip", "parameters": {"ratio": 0.8}},
+    {"id": "rotate_5", "type": "rotate", "parameters": {"degrees": 5.0}},
+    {"id": "gaussian_blur_5", "type": "gaussian_blur", "parameters": {"kernel": 5, "sigma": 1.2}},
+    {"id": "brightness_0.85", "type": "brightness", "parameters": {"factor": 0.85}},
+    {"id": "contrast_1.2", "type": "contrast", "parameters": {"factor": 1.2}},
+    {"id": "webp50", "type": "webp", "parameters": {"quality": 50}},
+    {"id": "platform_wechat_v1", "type": "platform_transcode", "parameters": {"long_edge": 1280, "jpeg_quality": 75, "evidence_level": "documented_proxy"}},
+    {"id": "platform_douyin_v1", "type": "platform_transcode", "parameters": {"long_edge": 1080, "jpeg_quality": 70, "evidence_level": "documented_proxy"}},
+    {"id": "deepfake_proxy_v1", "type": "localized_face_edit_proxy", "parameters": {"radius_ratio": 0.27, "blur_kernel": 21, "hue_shift": 6, "evidence_level": "proxy_not_real_deepfake"}}
+  ],
+  "models": {
+    "LIDMark": {
+      "family": "spatial_proactive_forensics",
+      "native_color_space": "RGB",
+      "native_range": [-1, 1],
+      "input_size": [128, 128],
+      "adapter_status": "smoke_only",
+      "primary_decoder": "identity"
+    },
+    "HiDDeN": {
+      "family": "MEA",
+      "native_color_space": "RGB",
+      "native_range": [-1, 1],
+      "input_size": "checkpoint_config",
+      "adapter_status": "full_benchmark",
+      "primary_decoder": "decoder"
+    },
+    "SepMark": {
+      "family": "MEA",
+      "native_color_space": "RGB",
+      "native_range": [-1, 1],
+      "input_size": [256, 256],
+      "adapter_status": "full_benchmark",
+      "primary_decoder": "decoder_C",
+      "secondary_decoder": "decoder_RF"
+    },
+    "WaveGuard": {
+      "family": "frequency_proactive_forensics",
+      "native_color_space": "YUV",
+      "native_range": [-1, 1],
+      "input_size": [256, 256],
+      "adapter_status": "full_benchmark",
+      "primary_decoder": "detector",
+      "secondary_decoder": "tracer"
+    },
+    "KAD-Net": {
+      "family": "kolmogorov_arnold_proactive_forensics",
+      "native_color_space": "RGB",
+      "native_range": "model_config",
+      "input_size": "model_config",
+      "adapter_status": "integration_pending",
+      "primary_decoder": "pending"
+    }
+  }
+}
