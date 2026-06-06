@@ -70,8 +70,16 @@ class KADNetAdapter(ModelAdapter):
 
         self._device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
 
-        encoder = ST_Encoder(MSG_LEN).to(self._device)
-        decoder = ST_Decoder(MSG_LEN).to(self._device)
+        # Parse attention type from run directory name (e.g. _se_se_ → encoder=se, decoder=se)
+        parts = run_dir.name.split("_")
+        # Format: ST_KAD_Net_{size}_{msg_len}_{...}_{attn_enc}_{attn_dec}_{...}
+        attn_enc = parts[8] if len(parts) > 8 else None
+        attn_dec = parts[9] if len(parts) > 9 else None
+        attn_enc = attn_enc if attn_enc and attn_enc != "none" else None
+        attn_dec = attn_dec if attn_dec and attn_dec != "none" else None
+
+        encoder = ST_Encoder(MSG_LEN, attention=attn_enc).to(self._device)
+        decoder = ST_Decoder(MSG_LEN, attention=attn_dec).to(self._device)
 
         state = torch.load(str(ckpt_path), map_location=self._device, weights_only=False)
         enc_state = {k[len("encoder."):]: v for k, v in state.items() if k.startswith("encoder.")}
@@ -115,15 +123,15 @@ class KADNetAdapter(ModelAdapter):
         )
 
     def decode(self, image: np.ndarray) -> DecodeResult:
+        import torch
         self.validate_image(image)
         self._load_models()
 
         t = self._preprocess(image)
         with torch.no_grad():
             decoded = self._decoder(t)
-        # ST_Decoder output: logits or sigmoid probabilities — apply sigmoid to be safe
-        import torch
-        probs = torch.sigmoid(decoded).cpu().numpy()[0] if decoded.min() < 0 else decoded.cpu().numpy()[0]
+        # ST_Decoder output: logits or probabilities — apply sigmoid to be safe
+        probs = torch.sigmoid(decoded).cpu().numpy()[0] if float(decoded.min()) < 0 else decoded.cpu().numpy()[0]
         bits = (probs >= 0.5).astype(np.uint8)
 
         return DecodeResult(
