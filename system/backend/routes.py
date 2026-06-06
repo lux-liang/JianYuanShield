@@ -144,3 +144,41 @@ def competition_report_download(format_name: str):
 @router.get("/api/modules")
 def modules() -> list[dict[str, Any]]:
     return modules_payload()
+
+
+# ── new inference & compliance endpoints ──────────────────────────────────────
+
+from fastapi import UploadFile, File, Form
+from .infer import run_single_infer, run_compliance_batch
+
+
+@router.post('/api/infer/single')
+async def infer_single(
+    file: UploadFile = File(...),
+    model: str = Form('SepMark'),
+    attack: str = Form('clean'),
+    return_b64: bool = Form(True),
+) -> dict[str, Any]:
+    data = await file.read()
+    return run_single_infer(data, model=model, attack=attack, return_b64=return_b64)
+
+
+@router.post('/api/compliance/batch')
+async def compliance_batch(
+    files: list[UploadFile] = File(...),
+    model: str = Form('SepMark'),
+) -> dict[str, Any]:
+    images = [(f.filename or f'image_{i}', await f.read())
+              for i, f in enumerate(files)]
+    return run_compliance_batch(images, model=model)
+
+
+@router.get('/api/models/status')
+def models_status() -> dict[str, Any]:
+    from .model_adapters import SepMarkAdapter, WaveGuardAdapter
+    return {
+        'SepMark':   {'available': SepMarkAdapter.available(),  'loaded': SepMarkAdapter._instance is not None},
+        'WaveGuard': {'available': WaveGuardAdapter.available(), 'loaded': WaveGuardAdapter._instance is not None},
+        'LIDMark':   {'available': False, 'loaded': False, 'note': 'training in progress'},
+        'KAD-Net':   {'available': False, 'loaded': False, 'note': 'training in progress'},
+    }

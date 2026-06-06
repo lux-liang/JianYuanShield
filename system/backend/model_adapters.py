@@ -1,0 +1,305 @@
+from __future__ import annotations
+
+import os
+import sys
+import threading
+from pathlib import Path
+from typing import Any
+
+import cv2
+import numpy as np
+import torch
+from PIL import Image
+from torchvision import transforms
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+MODEL_SOURCE_ROOT = Path(os.environ.get("JYS_MODEL_SOURCE_ROOT",
+    "/data1/luxliang/work/vpsg_competition_candidates"))
+
+SEPMARK_CODE  = MODEL_SOURCE_ROOT / "MEA/codes/SepMark"
+WAVEGUARD_CODE = MODEL_SOURCE_ROOT / "MEA/codes/WaveGuard"
+SEPMARK_CKPT  = MODEL_SOURCE_ROOT / "weights/mea/SepMark/results/FullFineTuningWithOnlyMessage/models/EC_115.pth"
+WAVEGUARD_CKPT = MODEL_SOURCE_ROOT / "weights/mea/WaveGuard/exp_highpass/2025.07.24-20.10.50/model_state_16.pth"
+
+_lock = threading.Lock()
+
+
+# ── helpers ──────────────────────────────────────────────────────────────────
+
+def _to_tensor_rgb(array: np.ndarray, device: torch.device) -> torch.Tensor:
+    t = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize([0.5]*3, [0.5]*3),
+    ])
+    return t(Image.fromarray(array.astype(np.uint8))).unsqueeze(0).to(device)
+
+
+def _to_uint8_rgb(tensor: torch.Tensor) -> np.ndarray:
+    arr = (tensor.detach().cpu().clamp(-1, 1).permute(1, 2, 0).numpy() + 1.0) * 127.5
+    return np.clip(arr + 0.5, 0, 255).astype(np.uint8)
+
+
+def _apply_attack_rgb(arr: np.ndarray, attack: str) -> np.ndarray:
+    if "jpeg" in attack:
+        quality = 50 if "50" in attack else (70 if "70" in attack else 90)
+        ok, buf = cv2.imencode(".jpg", cv2.cvtColor(arr, cv2.COLOR_RGB2BGR),
+                               [int(cv2.IMWRITE_JPEG_QUALITY), quality])
+        if ok:
+            arr = cv2.cvtColor(cv2.imdecode(buf, cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
+    if "resize" in attack:
+        h, w = arr.shape[:2]
+        small = cv2.resize(arr, (w // 2, h // 2), interpolation=cv2.INTER_AREA)
+        arr = cv2.resize(small, (w, h), interpolation=cv2.INTER_LINEAR)
+    if "blur" in attack:
+        arr = cv2.GaussianBlur(arr, (5, 5), 0)
+    if "noise" in attack:
+        rng = np.random.default_rng(42)
+        arr = np.clip(arr.astype(np.float32) + rng.normal(0, 3, arr.shape), 0, 255).astype(np.uint8)
+    return arr
+
+
+def _bit_error(msg: torch.Tensor, decoded: torch.Tensor) -> float:
+    return float((msg.cpu().gt(0) != decoded.cpu().gt(0)).float().mean().item())
+
+
+def _random_message(length: int, device: torch.device, rng_range: float = 0.1) -> torch.Tensor:
+    vals = np.random.choice([-rng_range, rng_range], (1, length))
+    return torch.tensor(vals, dtype=torch.float32, device=device)
+
+
+def _heatmap(ref: np.ndarray, cand: np.ndarray) -> np.ndarray:
+    diff = np.mean(np.abs(ref.astype(np.float32) - cand.astype(np.float32)), axis=2)
+    diff = np.clip(diff / max(float(diff.max()), 1.0) * 255, 0, 255).astype(np.uint8)
+    return cv2.cvtColor(cv2.applyColorMap(diff, cv2.COLORMAP_JET), cv2.COLOR_BGR2RGB)
+
+
+# ── SepMark adapter ──────────────────────────────────────────────────────────
+
+class SepMarkAdapter:
+    _instance: "SepMarkAdapter | None" = None
+    MSG_LEN = 128
+    IMG_SIZE = 256
+
+    def __init__(self) -> None:
+        self.device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+        import importlib.util as _ilu, types as _types
+        # Register SepMark network as sm_network package to isolate from WaveGuard network
+        _sm_code = SEPMARK_CODE / "network"
+        _sm_pkg = _types.ModuleType("sm_network")
+        _sm_pkg.__path__ = [str(_sm_code)]
+        _sm_pkg.__package__ = "sm_network"
+        sys.modules["sm_network"] = _sm_pkg
+        def _sm_sub(name):
+            sp = _ilu.spec_from_file_location(f"sm_network.{name}", _sm_code / f"{name}.py")
+            m = _ilu.module_from_spec(sp); m.__package__ = "sm_network"
+            sys.modules[f"sm_network.{name}"] = m; sp.loader.exec_module(m); return m
+        # Pre-load sub-modules that __init__.py needs via relative imports
+        _sm_sub("ResBlock"); _sm_sub("ConvBlock")
+        # Now exec the package __init__.py
+        _init_sp = _ilu.spec_from_file_location("sm_network", _sm_code / "__init__.py",
+            submodule_search_locations=[str(_sm_code)])
+        _init_sp.loader.exec_module(_sm_pkg)
+        # Load Encoder_U and Decoder_U under sm_network namespace
+        _sm_eu = _sm_sub("Encoder_U")
+        _sm_du = _sm_sub("Decoder_U")
+        DW_Encoder = _sm_eu.DW_Encoder
+        DW_Decoder = _sm_du.DW_Decoder
+
+        enc = DW_Encoder(self.MSG_LEN, attention="se").to(self.device)
+        dec_c = DW_Decoder(self.MSG_LEN, attention="se").to(self.device)
+        dec_rf = DW_Decoder(self.MSG_LEN, attention="se").to(self.device)
+        state = torch.load(SEPMARK_CKPT, map_location=self.device)
+
+        def strip(prefix: str) -> dict:
+            return {k[len(prefix):]: v for k, v in state.items() if k.startswith(prefix)}
+
+        enc.load_state_dict(strip("encoder."), strict=False)
+        dec_c.load_state_dict(strip("decoder_C."), strict=False)
+        dec_rf.load_state_dict(strip("decoder_RF."), strict=False)
+        self.encoder = enc.eval()
+        self.decoder_c = dec_c.eval()
+        self.decoder_rf = dec_rf.eval()
+
+    @classmethod
+    def get(cls) -> "SepMarkAdapter":
+        with _lock:
+            if cls._instance is None:
+                cls._instance = cls()
+            return cls._instance
+
+    @classmethod
+    def available(cls) -> bool:
+        return SEPMARK_CKPT.exists()
+
+    def run(self, image_rgb: np.ndarray, attack: str = "clean") -> dict[str, Any]:
+        img = Image.fromarray(image_rgb).convert("RGB").resize(
+            (self.IMG_SIZE, self.IMG_SIZE), Image.BICUBIC)
+        arr = np.array(img)
+        tensor = _to_tensor_rgb(arr, self.device)
+        msg = _random_message(self.MSG_LEN, self.device)
+
+        with torch.no_grad():
+            encoded_t = self.encoder(tensor, msg).clamp(-1, 1)
+
+        original_u8 = arr
+        encoded_u8 = _to_uint8_rgb(encoded_t[0])
+        attacked_arr = _apply_attack_rgb(encoded_u8.copy(), attack)
+        attacked_t = _to_tensor_rgb(attacked_arr, self.device)
+
+        with torch.no_grad():
+            dec_c_out = self.decoder_c(attacked_t)
+            dec_rf_out = self.decoder_rf(attacked_t)
+
+        ber_c = _bit_error(msg, dec_c_out)
+        ber_rf = _bit_error(msg, dec_rf_out)
+        from skimage.metrics import peak_signal_noise_ratio, structural_similarity
+        psnr = float(peak_signal_noise_ratio(original_u8, encoded_u8, data_range=255))
+        ssim = float(structural_similarity(original_u8, encoded_u8, channel_axis=2, data_range=255))
+
+        return {
+            "model": "SepMark",
+            "checkpoint": "real",
+            "attack": attack,
+            "ber_c": round(ber_c, 4),
+            "bit_accuracy_c": round(1 - ber_c, 4),
+            "ber_rf": round(ber_rf, 4),
+            "bit_accuracy_rf": round(1 - ber_rf, 4),
+            "psnr": round(psnr, 4),
+            "ssim": round(ssim, 4),
+            "success": bool((1 - ber_c) >= 0.9 or (1 - ber_rf) >= 0.9),
+            "images": {
+                "original": original_u8,
+                "watermarked": encoded_u8,
+                "attacked": attacked_arr,
+                "heatmap": _heatmap(original_u8, encoded_u8),
+                "diff": _heatmap(encoded_u8, attacked_arr),
+            },
+        }
+
+
+# ── WaveGuard adapter ─────────────────────────────────────────────────────────
+
+class WaveGuardAdapter:
+    _instance: "WaveGuardAdapter | None" = None
+    MSG_LEN = 30
+    IMG_SIZE = 256
+
+    def __init__(self) -> None:
+        self.device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+        old_cwd = Path.cwd()
+        try:
+            os.chdir(WAVEGUARD_CODE)
+            sys.path.insert(0, str(WAVEGUARD_CODE))
+            from config import training_config as cfg
+            from network.encoder import Encoder
+            from network.decoder import Decoder
+            from utils import DTCWT_highpass
+        finally:
+            os.chdir(old_cwd)
+        # Override config device to match adapter device (config yaml hardcodes cuda:0)
+        cfg.device = str(self.device)
+
+        self.cfg = cfg
+        self.DTCWT = DTCWT_highpass
+        self.indices_enc = torch.tensor([0, 2]).to(self.device)
+        self.indices_dec_t = torch.tensor([0, 2, 3, 5]).to(self.device)
+        self.indices_dec_d = torch.tensor([0, 2]).to(self.device)
+
+        enc = Encoder().to(self.device).eval()
+        dec_t = Decoder(type="tracer").to(self.device).eval()
+        dec_d = Decoder(type="detector").to(self.device).eval()
+        state = torch.load(WAVEGUARD_CKPT, map_location=self.device)
+
+        def strip(prefix: str) -> dict:
+            return {k[len(prefix):]: v for k, v in state.items() if k.startswith(prefix)}
+
+        enc.load_state_dict(strip("encoder."), strict=False)
+        dec_t.load_state_dict(strip("decoder_t."), strict=False)
+        dec_d.load_state_dict(strip("decoder_d."), strict=False)
+        self.encoder = enc
+        self.decoder_t = dec_t
+        self.decoder_d = dec_d
+
+    @classmethod
+    def get(cls) -> "WaveGuardAdapter":
+        with _lock:
+            if cls._instance is None:
+                cls._instance = cls()
+            return cls._instance
+
+    @classmethod
+    def available(cls) -> bool:
+        return WAVEGUARD_CKPT.exists()
+
+    def _rgb_to_yuv_tensor(self, rgb: np.ndarray) -> torch.Tensor:
+        yuv = cv2.cvtColor(rgb.astype(np.uint8), cv2.COLOR_RGB2YUV).astype(np.float32)
+        return torch.from_numpy(yuv / 127.5 - 1.0).permute(2, 0, 1).unsqueeze(0).to(self.device)
+
+    def _yuv_tensor_to_rgb(self, tensor: torch.Tensor) -> np.ndarray:
+        yuv = ((tensor.detach().cpu()[0].permute(1, 2, 0).numpy() + 1.0) * 127.5)
+        yuv = np.clip(yuv, 0, 255).astype(np.uint8)
+        return cv2.cvtColor(yuv, cv2.COLOR_YUV2RGB)
+
+    def run(self, image_rgb: np.ndarray, attack: str = "clean") -> dict[str, Any]:
+        img = Image.fromarray(image_rgb).convert("RGB").resize(
+            (self.IMG_SIZE, self.IMG_SIZE), Image.BICUBIC)
+        arr = np.array(img)
+        yuv_t = self._rgb_to_yuv_tensor(arr)
+        msg = _random_message(self.cfg.message_length, self.device, self.cfg.message_range)
+
+        with torch.no_grad():
+            y, u, v = yuv_t[:, [0]], yuv_t[:, [1]], yuv_t[:, [2]]
+            low_pass, high_pass = self.DTCWT.images_U_dtcwt_with_low(u)
+            selected = torch.index_select(high_pass[1], 2, self.indices_enc)
+            selected = selected[:, :, :, :, :, 0].squeeze(1)
+            embedded = self.encoder(selected, msg).unsqueeze(1)
+            high_pass[1][:, :, self.indices_enc, :, :, 0] = embedded
+            u_emb = self.DTCWT.dtcwt_images_U(low_pass, high_pass)
+            watermarked_yuv = torch.cat([y, u_emb, v], dim=1).clamp(-1, 1)
+
+        original_u8 = arr
+        watermarked_u8 = self._yuv_tensor_to_rgb(watermarked_yuv)
+        attacked_arr = _apply_attack_rgb(watermarked_u8.copy(), attack)
+        attacked_yuv = self._rgb_to_yuv_tensor(attacked_arr)
+
+        with torch.no_grad():
+            u_atk = attacked_yuv[:, [1]]
+            lp2, hp2 = self.DTCWT.images_U_dtcwt_with_low(u_atk)
+            sel_t = torch.index_select(hp2[1], 2, self.indices_dec_t)[:, :, :, :, :, 0].squeeze(1)
+            sel_d = torch.index_select(hp2[1], 2, self.indices_dec_d)[:, :, :, :, :, 0].squeeze(1)
+            dec_t_out = self.decoder_t(sel_t)
+            dec_d_out = self.decoder_d(sel_d)
+
+        ber_t = _bit_error(msg, dec_t_out)
+        ber_d = _bit_error(msg, dec_d_out)
+        from skimage.metrics import peak_signal_noise_ratio, structural_similarity
+        psnr = float(peak_signal_noise_ratio(original_u8, watermarked_u8, data_range=255))
+        ssim = float(structural_similarity(original_u8, watermarked_u8, channel_axis=2, data_range=255))
+
+        return {
+            "model": "WaveGuard",
+            "checkpoint": "real",
+            "attack": attack,
+            "ber_tracer": round(ber_t, 4),
+            "bit_accuracy_tracer": round(1 - ber_t, 4),
+            "ber_detector": round(ber_d, 4),
+            "bit_accuracy_detector": round(1 - ber_d, 4),
+            "psnr": round(psnr, 4),
+            "ssim": round(ssim, 4),
+            "success": bool((1 - ber_d) >= 0.9),
+            "images": {
+                "original": original_u8,
+                "watermarked": watermarked_u8,
+                "attacked": attacked_arr,
+                "heatmap": _heatmap(original_u8, watermarked_u8),
+                "diff": _heatmap(watermarked_u8, attacked_arr),
+            },
+        }
+
+
+def get_adapter(model: str) -> SepMarkAdapter | WaveGuardAdapter | None:
+    if model.lower() in ("sepmark", "mea/sepmark"):
+        return SepMarkAdapter.get() if SepMarkAdapter.available() else None
+    if model.lower() == "waveguard":
+        return WaveGuardAdapter.get() if WaveGuardAdapter.available() else None
+    return None
