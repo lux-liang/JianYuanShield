@@ -1,8 +1,9 @@
 # 创新点
 
-1. 从单图检测升级到传播链路主动取证。
-2. 引入 MEA 多重嵌入攻击作为红队安全评测。
-3. 区分 real checkpoint、smoke checkpoint 和 pending，保证指标可信。
-4. 支持取证报告自动导出。
-5. 在同一真实 LFW benchmark 下形成强弱模型对照：HiDDeN 作为真实弱 baseline，SepMark 作为当前鲁棒主 baseline。
-6. 前端直接展示 checkpoint 类型、数据类型、攻击退化曲线和可答辩边界，避免“demo 壳子化”。
+1. 团队原创 LIDMark、MEA、WaveGuard、KAD-Net 形成主动取证算法族，并由鉴源盾统一产品化。
+2. 从单图检测升级到覆盖内容保护、传播攻击、恢复、评测和证据报告的完整链路。
+3. 以 MEA 多重嵌入攻击构建主动取证红队评测，而非仅测试常规图像失真。
+4. 统一 real checkpoint、smoke checkpoint、协议审计和异常指标提示，保证结论可核验。
+5. 在 13,233 张 LFW 上形成 HiDDeN、SepMark、WaveGuard 同域大规模对照。
+6. 取证任务记录输入与输出 SHA-256，为后续数字签名和防篡改报告奠定证据链基础。
+7. 前端同时提供交互式单样本演示和全量 benchmark 证据，避免只展示静态页面。
