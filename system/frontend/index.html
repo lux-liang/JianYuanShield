@@ -33,7 +33,7 @@
           <div>
             <span class="eyebrow">Deepfake Active Forensics</span>
             <h2>全量真实评测工作台</h2>
-            <p>LFW 真实图片 · MEA/HiDDeN/SepMark · LIDMark smoke · WaveGuard baseline</p>
+            <p>LFW 真实图片 · 团队原创 LIDMark / MEA / WaveGuard / KAD-Net · 统一证据审计</p>
           </div>
           <div class="top-actions">
             <span class="api-pill" id="apiEndpoint">API 8026</span>
@@ -49,7 +49,39 @@
           </div>
           <div class="boundary-box">
             <span>边界声明</span>
-            <strong id="boundaryConclusion">LIDMark=smoke，WaveGuard=checkpoint load，未伪造成正式指标</strong>
+            <strong id="boundaryConclusion">LIDMark 当前为 smoke；WaveGuard 已完成 13,233 张全量真实评测</strong>
+          </div>
+        </section>
+
+        <section class="panel demo-console">
+          <div class="panel-head">
+            <div>
+              <h3>交互式取证链演示</h3>
+              <span>样本选择 → 主动保护 → 攻击链 → 恢复指标 → 哈希证据</span>
+            </div>
+            <span class="panel-badge">interactive</span>
+          </div>
+          <form id="demoForm" class="demo-form">
+            <label>样本<select id="demoSample"></select></label>
+            <label>模型<select id="demoProject"><option>LIDMark</option><option>SepMark</option><option>WaveGuard</option></select></label>
+            <label>攻击链<select id="demoAttack"><option value="multi_embedding+jpeg_50+blur">二次嵌入 + JPEG50 + 模糊</option><option value="jpeg_50">JPEG50</option><option value="resize">缩放传播</option><option value="">无攻击</option></select></label>
+            <button id="demoRunButton" class="primary-action" type="submit">运行演示</button>
+          </form>
+          <div id="demoStatus" class="demo-status">等待运行</div>
+          <div id="demoArtifacts" class="demo-artifacts"></div>
+          <pre id="demoEvidence">{}</pre>
+        </section>
+
+        <section class="panel audit-panel">
+          <div class="panel-head">
+            <div><h3>证据与实验协议审计</h3><span>自动识别异常指标、协议差异和证据文件哈希</span></div>
+            <span id="auditStatus" class="panel-badge warning">loading</span>
+          </div>
+          <div id="auditFindings" class="audit-findings"></div>
+          <div class="report-actions">
+            <a href="#" data-signature-file="manifest">下载证据 Manifest</a>
+            <a href="#" data-signature-file="signature">下载 Ed25519 签名</a>
+            <a href="#" data-signature-file="public-key">下载验证公钥</a>
           </div>
         </section>
 
@@ -162,6 +194,11 @@
             </div>
             <img id="degradationCurve" class="benchmark-image chart-image" alt="attack degradation curve" />
             <div class="path-list" id="reportPaths"></div>
+            <div class="report-actions">
+              <a href="#" data-report-format="json">下载 JSON</a>
+              <a href="#" data-report-format="csv">下载 CSV</a>
+              <a href="#" data-report-format="markdown">下载 Markdown</a>
+            </div>
           </article>
         </section>
 

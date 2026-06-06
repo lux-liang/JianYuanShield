@@ -123,6 +123,20 @@ async function getJSON(path) {
   return payload;
 }
 
+async function postJSON(path, body) {
+  const res = await fetch(`${API}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const payload = await res.json();
+  if (!res.ok) {
+    const apiError = payload?.error || {};
+    throw new ApiError({ code: apiError.code, message: apiError.message, path, status: res.status });
+  }
+  return payload;
+}
+
 function formatApiError(error) {
   if (error instanceof ApiError) {
     return `${error.code}: ${error.message} (${error.path})`;
@@ -331,7 +345,8 @@ function renderPayload(payload) {
   const hiddenClean = cleanAttack(hidden);
   text("mainConclusion", `SepMark clean Acc-C ${fmt(sepClean.mean_bit_accuracy)} / Acc-RF ${fmt(sepClean.mean_bit_accuracy_rf)}`);
   text("contrastConclusion", `HiDDeN clean Acc ${fmt(hiddenClean.mean_bit_accuracy)}，作为真实弱对照`);
-  text("boundaryConclusion", "LIDMark=smoke，WaveGuard=checkpoint load，未伪造成正式指标");
+  const waveguardFull = waveguard.full_benchmark?.summary || {};
+  text("boundaryConclusion", `LIDMark=smoke；WaveGuard full=${waveguardFull.status || "pending"}，${waveguardFull.requested_images || 0} 张`);
 
   updateReadiness(payload);
   renderModules(modules);
@@ -391,9 +406,44 @@ function renderPayload(payload) {
   `;
 }
 
+function renderAudit(audit) {
+  text("auditStatus", `${audit.ready_for_demo ? "demo ready" : "demo blocked"} · ${audit.ready_for_claims ? "claims ready" : "claims review"}`);
+  const container = document.getElementById("auditFindings");
+  if (!container) return;
+  const findings = audit.findings || [];
+  const limits = audit.protocol?.known_limitations || [];
+  const signature = audit.signature || {};
+  container.innerHTML = [
+    `<div class="audit-item"><strong>release gate</strong><span>演示状态与研究结论发布状态独立计算；阻断项 ${escapeHTML((audit.blocking_findings || []).length)} 个。</span>${badge(audit.ready_for_claims ? "ready" : "review")}</div>`,
+    `<div class="audit-item"><strong>Ed25519 signature</strong><span>${escapeHTML(signature.status || "not_generated")} · fingerprint ${escapeHTML((signature.public_key_fingerprint_sha256 || "-").slice(0, 16))}</span>${badge(signature.verified ? "ready" : "review")}</div>`,
+    ...findings.map((item) => `<div class="audit-item"><strong>${escapeHTML(item.code)}</strong><span>${escapeHTML(item.message)}</span>${badge(item.severity)}</div>`),
+    ...limits.map((message) => `<div class="audit-item"><strong>protocol</strong><span>${escapeHTML(message)}</span>${badge("review")}</div>`),
+  ].join("") || `<div class="audit-item"><strong>verified</strong><span>未发现自动审计异常</span>${badge("ready")}</div>`;
+}
+
+function renderDemo(result) {
+  text("demoStatus", `${result.task_id} · ${result.security_conclusion}`);
+  const artifacts = document.getElementById("demoArtifacts");
+  artifacts.innerHTML = Object.entries(result.artifacts || {}).map(([name, src]) => `
+    <figure><img src="${API}${escapeHTML(src)}" alt="${escapeHTML(name)}"><figcaption>${escapeHTML(name)}</figcaption></figure>
+  `).join("");
+  document.getElementById("demoEvidence").textContent = JSON.stringify({
+    mode: result.mode,
+    metrics: result.metrics,
+    evidence: result.evidence,
+    notes: result.notes,
+  }, null, 2);
+}
+
+async function initializeDemo() {
+  const samples = await getJSON("/api/samples");
+  const select = document.getElementById("demoSample");
+  select.innerHTML = samples.map((item) => `<option value="${escapeHTML(item.id)}">${escapeHTML(item.name)}</option>`).join("");
+}
+
 async function load() {
   try {
-    const [health, modules, artifacts, hidden, sepmark, lidmark, waveguard, aggregate, report] = await Promise.all([
+    const [health, modules, artifacts, hidden, sepmark, lidmark, waveguard, aggregate, report, audit] = await Promise.all([
       getJSON("/api/health"),
       getJSON("/api/modules"),
       getJSON("/api/artifacts/status"),
@@ -403,9 +453,11 @@ async function load() {
       getJSON("/api/benchmark/waveguard"),
       getJSON("/api/benchmark/aggregate"),
       getJSON("/api/competition-report"),
+      getJSON("/api/evidence/audit"),
     ]);
     lastPayload = { health, modules, artifacts, hidden, sepmark, lidmark, waveguard, aggregate, report };
     renderPayload(lastPayload);
+    renderAudit(audit);
   } catch (error) {
     renderErrorState(error);
   }
@@ -419,5 +471,33 @@ document.querySelectorAll("[data-filter]").forEach((button) => {
   });
 });
 
+document.getElementById("demoForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const button = document.getElementById("demoRunButton");
+  button.disabled = true;
+  text("demoStatus", "运行中...");
+  try {
+    const result = await postJSON("/api/tasks/demo-run", {
+      sample_id: document.getElementById("demoSample").value,
+      project: document.getElementById("demoProject").value,
+      attack: document.getElementById("demoAttack").value,
+    });
+    renderDemo(result);
+  } catch (error) {
+    text("demoStatus", formatApiError(error));
+  } finally {
+    button.disabled = false;
+  }
+});
+
+document.querySelectorAll("[data-report-format]").forEach((link) => {
+  link.href = `${API}/api/competition-report/download/${link.dataset.reportFormat}`;
+});
+
+document.querySelectorAll("[data-signature-file]").forEach((link) => {
+  link.href = `${API}/api/evidence/signature/download/${link.dataset.signatureFile}`;
+});
+
+initializeDemo().catch(renderErrorState);
 load();
 setInterval(load, 30000);

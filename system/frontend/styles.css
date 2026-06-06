@@ -655,6 +655,92 @@ pre {
   background: var(--surface-soft);
 }
 
+.demo-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(160px, 1fr)) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.demo-form label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.demo-form select,
+.primary-action {
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 8px 10px;
+  background: #fff;
+  color: var(--text);
+}
+
+.primary-action {
+  border-color: #0f766e;
+  background: #0f766e;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.primary-action:disabled { opacity: 0.55; cursor: wait; }
+
+.demo-status {
+  margin: 12px 0;
+  padding: 9px 10px;
+  border-left: 3px solid var(--real);
+  background: var(--real-bg);
+  color: var(--real);
+  font-size: 13px;
+}
+
+.demo-artifacts {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(100px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.demo-artifacts figure { margin: 0; }
+.demo-artifacts img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+}
+.demo-artifacts figcaption { margin-top: 5px; color: var(--muted); font-size: 11px; text-align: center; }
+
+.audit-findings { display: grid; gap: 8px; }
+.audit-item {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.35fr) minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px;
+  border: 1px solid var(--line-soft);
+  border-radius: 7px;
+  background: var(--surface-soft);
+}
+.audit-item span { color: var(--muted); font-size: 12px; line-height: 1.5; }
+
+.report-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.report-actions a {
+  padding: 8px 10px;
+  border-radius: 7px;
+  background: #17202a;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 750;
+  text-decoration: none;
+}
+
 .flash {
   animation: flash 520ms ease;
 }
@@ -725,7 +811,9 @@ pre {
   }
   .summary-row,
   .evidence-grid,
-  .module-list {
+  .module-list,
+  .demo-form,
+  .demo-artifacts {
     grid-template-columns: 1fr;
   }
   .segmented {
