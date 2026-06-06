@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from .utils import numeric
+from system.evaluation.protocol import protocol_summary
 
 
 BENCHMARK_SCHEMA_VERSION = "benchmark.v1"
@@ -92,4 +93,6 @@ def normalize_benchmark(
         "num_images": _metric_value(num_images),
         "results_csv_exists": results_csv_exists,
         "attacks": [_normalize_attack_record(attack, values) for attack, values in _attack_items(summary)],
+        "metric_semantics": protocol_summary()["metric_semantics"],
+        "evaluation_protocol": protocol_summary()["schema_version"],
     }

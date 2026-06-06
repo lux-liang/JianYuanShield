@@ -13,25 +13,25 @@ PROJECTS = [
         "id": "LIDMark",
         "role": "mainline",
         "title": "Deepfake detection, tampering localization, and source tracing",
-        "status": "training_pending",
+        "status": "smoke_complete_full_training_pending",
     },
     {
         "id": "MEA",
         "role": "attack_evaluation",
         "title": "Multi-Embedding Attack and AIS mitigation benchmark",
-        "status": "integration_pending",
+        "status": "hidden_sepmark_full_complete",
     },
     {
         "id": "WaveGuard",
         "role": "baseline",
         "title": "Frequency-domain proactive watermark baseline",
-        "status": "checkpoint_pending",
+        "status": "lfw_full_complete",
     },
     {
         "id": "KAD-Net",
         "role": "baseline",
         "title": "Kolmogorov-Arnold proactive forensics baseline",
-        "status": "syntax_smoke_fixed",
+        "status": "integration_pending",
     },
 ]
 
@@ -228,7 +228,7 @@ def modules_payload() -> list[dict[str, Any]]:
         {
             "name": "内容保护",
             "function": "使用主动水印/主动取证模型生成可验证保护信号。",
-            "model_status": "LIDMark smoke checkpoint; HiDDeN official checkpoint available",
+            "model_status": "LIDMark smoke checkpoint; HiDDeN, SepMark, and WaveGuard full LFW evaluations complete",
             "result": "real" if hidden else "pending",
             "sample": asset_if_exists("real_hidden_benchmark/grid.png"),
             "metrics": "BER, bit accuracy, PSNR, SSIM",
@@ -246,7 +246,7 @@ def modules_payload() -> list[dict[str, Any]]:
         {
             "name": "MEA 多重嵌入攻击",
             "function": "评测多种主动水印 baseline 在攻击下的鲁棒性。",
-            "model_status": "HiDDeN and SepMark connected; WaveGuard checkpoint load smoke complete",
+            "model_status": "HiDDeN, SepMark, and WaveGuard real checkpoints connected; full LFW evaluations complete",
             "result": "real" if sepmark or hidden else "pending",
             "sample": asset_if_exists("sepmark_lfw_benchmark/grid.png") or asset_if_exists("aggregate_real_benchmarks/hidden_attack_degradation.png"),
             "metrics": "method comparison by attack type",

@@ -17,6 +17,9 @@ from .benchmarks import (
     waveguard_benchmark_payload,
 )
 from .demo import demo_run_payload, ensure_sample, real_evals_payload, report_payload, samples_payload
+from .evidence import evidence_audit_payload
+from .config import REPORTS
+from .signing import MANIFEST_PATH, PUBLIC_KEY_PATH, SIGNATURE_PATH, verify_evidence_bundle
 from .runtime import runtime_health
 from .schemas import DemoRunRequest
 
@@ -95,6 +98,47 @@ def aggregate_benchmark() -> dict[str, Any]:
 @router.get("/api/competition-report")
 def competition_report() -> dict[str, Any]:
     return competition_report_payload()
+
+
+@router.get("/api/evidence/audit")
+def evidence_audit() -> dict[str, Any]:
+    return evidence_audit_payload()
+
+
+@router.get("/api/evidence/signature")
+def evidence_signature() -> dict[str, Any]:
+    return verify_evidence_bundle()
+
+
+@router.get("/api/evidence/signature/download/{file_name}")
+def evidence_signature_download(file_name: str):
+    files = {
+        "manifest": (MANIFEST_PATH, "manifest.json", "application/json"),
+        "signature": (SIGNATURE_PATH, "manifest.sig", "application/octet-stream"),
+        "public-key": (PUBLIC_KEY_PATH, "public_key.pem", "application/x-pem-file"),
+    }
+    if file_name not in files:
+        raise HTTPException(status_code=404, detail="signature file not found")
+    path, download_name, media_type = files[file_name]
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="signature file not generated")
+    return FileResponse(path, filename=download_name, media_type=media_type)
+
+
+@router.get("/api/competition-report/download/{format_name}")
+def competition_report_download(format_name: str):
+    names = {
+        "json": ("report.json", "application/json"),
+        "csv": ("report.csv", "text/csv"),
+        "markdown": ("report.md", "text/markdown"),
+    }
+    if format_name not in names:
+        raise HTTPException(status_code=404, detail="report format not found")
+    filename, media_type = names[format_name]
+    path = REPORTS / "jianyuanshield_competition_report" / filename
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="report file not found")
+    return FileResponse(path, filename=filename, media_type=media_type)
 
 
 @router.get("/api/modules")

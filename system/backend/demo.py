@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 import uuid
 from pathlib import Path
 from typing import Any
@@ -13,6 +14,7 @@ from skimage.metrics import peak_signal_noise_ratio, structural_similarity
 from .config import ASSETS, DATASETS, REPORTS
 from .schemas import DemoRunRequest
 from .utils import artifact_url
+from .evidence import sha256_file
 
 
 def sample_path(sample_id: str) -> Path:
@@ -127,7 +129,9 @@ def demo_run_payload(request: DemoRunRequest) -> dict[str, Any]:
     }
 
     result = {
+        "schema_version": "forensic-task.v1",
         "task_id": task_id,
+        "created_at": int(time.time()),
         "mode": "demo_simulation",
         "project": request.project,
         "sample_id": request.sample_id,
@@ -135,9 +139,14 @@ def demo_run_payload(request: DemoRunRequest) -> dict[str, Any]:
         "security_conclusion": "attack_degraded_traceability" if request.attack else "protected",
         "metrics": metrics(watermarked, attacked, attack_residual),
         "artifacts": {key: artifact_url(value) for key, value in paths.items()},
+        "evidence": {
+            "input_sha256": sha256_file(original_path),
+            "artifact_sha256": {key: sha256_file(value) for key, value in paths.items()},
+            "engine": "deterministic_competition_demo",
+        },
         "notes": [
-            "This is a competition system scaffold using deterministic simulation.",
-            "Replace this task with real LIDMark/MEA checkpoints as training artifacts become available.",
+            "This interactive task is a deterministic system demonstration, not a formal model benchmark.",
+            "Formal conclusions are sourced from the completed real-checkpoint benchmark reports.",
         ],
     }
     (REPORTS / f"{task_id}.json").write_text(json.dumps(result, indent=2), encoding="utf-8")

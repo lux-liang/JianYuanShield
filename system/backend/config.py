@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from pathlib import Path
+from system.evaluation.runtime import ASSET_ROOT, DATA_ROOT, PROJECT_ROOT, REPORT_ROOT
 
 
-ROOT = Path(__file__).resolve().parents[2]
-DATASETS = ROOT / "datasets" / "samples"
-REPORTS = ROOT / "system" / "reports"
-ASSETS = ROOT / "system" / "assets"
+ROOT = PROJECT_ROOT
+DATASETS = DATA_ROOT / "samples"
+REPORTS = REPORT_ROOT
+ASSETS = ASSET_ROOT
 MANIFEST = ROOT / "weights" / "WEIGHT_MANIFEST.json"
 
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
