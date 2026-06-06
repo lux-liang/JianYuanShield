@@ -1,0 +1,28 @@
+{
+  "schema_version": "lidmark-training.v1",
+  "stage": "distortion_pretrain",
+  "resolution": 128,
+  "seeds": [20260603, 20260604, 20260605],
+  "dataset": {
+    "image_root": "datasets/lidmark_official/image/celeba-hq_128",
+    "watermark_root": "datasets/lidmark_official/watermark_152/celeba-hq/128",
+    "required_splits": ["train", "val", "test"],
+    "expected_total_pairs": 29995
+  },
+  "training": {
+    "epochs": 100,
+    "batch_size": 32,
+    "validation_enabled": true,
+    "checkpoint_every_epochs": 1,
+    "selection_metric": "val_id_ber_then_landmark_aed",
+    "early_stopping_patience": 12
+  },
+  "required_gates": [
+    "all_image_watermark_pairs_present",
+    "dataset_license_recorded",
+    "train_val_test_identity_disjointness_verified",
+    "single_batch_forward_backward_pass",
+    "checkpoint_resume_test"
+  ],
+  "status": "blocked_until_dataset_gate_passes"
+}
