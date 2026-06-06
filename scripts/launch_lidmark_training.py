@@ -56,7 +56,7 @@ def main() -> None:
 
     patch_config(gpu_ids=gpu_ids, seed=seed)
 
-    cmd = [sys.executable, 'main.py', 'train_distortions']
+    cmd = [sys.executable, 'main.py', 'train_distortions', '--res', str(128)]
     print(f'Launching: {" ".join(cmd)}')
     print(f'Log: {log_file}')
 
