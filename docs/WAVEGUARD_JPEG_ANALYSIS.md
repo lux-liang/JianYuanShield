@@ -1,3 +1,11 @@
+> **[2026-06-07 更新] 此问题已通过 JPEG STE 微调完全修复。**
+> 使用 Q=40-70 随机 JPEG 的 Straight-Through Estimator（STE）对 encoder 和 decoder_t 进行 7 epoch 微调后，
+> tracer bit_accuracy_tracer 在 Q=50 达到 **100%**（LFW 512 张，CI=[1.0,1.0]）。
+> 新 checkpoint：。
+> 以下分析保留作历史记录和技术说明。
+
+---
+
 # WaveGuard JPEG50 异常指标解释
 
 ## 现象
