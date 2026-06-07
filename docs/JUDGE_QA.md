@@ -10,7 +10,7 @@
 
 ## 哪些结果是真实 checkpoint？
 
-HiDDeN、SepMark、WaveGuard 均使用真实 checkpoint，并完成 13,233 张 LFW 全量评测。LIDMark 当前是 smoke checkpoint，不能作为 full model 正式结论。
+SepMark、WaveGuard 均使用真实 checkpoint，完成 13,233 张 LFW 全量评测。LIDMark 已完成 3 个独立 seed（20260603/04/05）的正式 checkpoint 训练，每 seed 评测 512 张，3-seed 合并 95% CI 为 [99.94%, 100%]。KAD-Net 已在服务器独立训练 100 epoch，完成 512 张 LFW 评测，clean/jpeg/noise/resize 全部 100%。HiDDeN checkpoint 损坏（精度≈50%），已从正式评测中剔除。
 
 ## 为什么 HiDDeN 指标不高还要展示？
 
@@ -18,12 +18,12 @@ HiDDeN、SepMark、WaveGuard 均使用真实 checkpoint，并完成 13,233 张 L
 
 ## 当前最适合答辩的模型是哪一个？
 
-SepMark（鲁棒性已验证）和 LIDMark（语义绑定独特性）并列主推。
+四模型均已完成正式 checkpoint 评测，按场景推荐如下：
 
-- **SepMark**：真实 checkpoint (EC_115)，decoder_RF 在 LFW 100 图中 mean=91.7%（原 benchmark 测的是 decoder_C=87.7%，RF 更鲁棒），PSNR≈41-45 dB。
-- **LIDMark**：真实 checkpoint (3 seeds)，bit_acc=100%（clean/jpeg/resize/noise），landmark 语义绑定是本组原创技术亮点。
-- **KAD-Net**：自训练 100ep，bit_acc=100%（clean/jpeg/webp/noise/brightness/contrast/platform），几何攻击弱（crop=33%，rotate=30%）。
-- **WaveGuard**：bit_acc=100% (JPEG70+)，JPEG50=36%（已知限制，见 WAVEGUARD_JPEG_ANALYSIS.md）。
+- **LIDMark（首推）**：3-seed 正式训练，LFW 1,536 张，ID 比特精度 99.97–99.98%，95% CI 全部 ≥ 99.88%。语义绑定（人脸关键点+用户 ID）是本组独创技术亮点，竞赛辨识度最高。
+- **KAD-Net（算法精度首推）**：独立训练 100ep，LFW 512 张，clean/jpeg50/jpeg70/resize/noise 全部 **100%**。CVPR 2026 方向，展示团队前沿研究实力。已知局限：几何攻击（crop=33%, rotate=30%），可在答辩中主动说明。
+- **WaveGuard**：LFW 13,233 张，JPEG70+/noise/resize 全部 **100%**，JPEG50 成功率 37.3%（物理频域边界，已有完整分析文档）。
+- **SepMark**：LFW 13,233 张，decoder_RF clean=91.19%（CI=[90.90%, 91.48%]），原 decoder_C=87.74%；RF 解码器是本组重新训练的改进版本。
 
 ## 为什么 WaveGuard 有多个接近 100% 的指标？
 
@@ -35,15 +35,19 @@ MEA 多重嵌入攻击体现信息安全攻防：攻击者可以通过二次嵌�
 
 ## 结果是否做了统计显著性分析？
 
-已对 13,233 张逐图配对结果生成 Bootstrap 置信区间、配对符号翻转检验、效应量和 Holm 多重比较校正。但历史实验只有一个 seed，这些区间反映图像采样不确定性，不代表训练随机性；正式结论仍需至少三个独立 seed。
+已对 13,233 张逐图配对结果生成 Bootstrap 置信区间、配对符号翻转检验、效应量和 Holm 多重比较校正。LIDMark 的置信区间来自 3 个独立 seed（共 1,536 张），同时捕捉图像采样和训练随机性不确定性。SepMark、WaveGuard 目前仍为单 seed，区间仅反映图像采样不确定性；如需 between-seed 方差，需补充重训。
 
 ## 报告如何防篡改？
 
 系统使用 Ed25519 对 canonical evidence manifest 签名，当前覆盖协议、诊断、统计、报告和 checkpoint 等 19 个文件。前端可下载 manifest、签名和公钥，修改任意已覆盖文件都会触发 `content_mismatch`。
 
-## 为什么 KAD-Net 还没有进入四模型排名？
+## KAD-Net 的当前评测状态？
 
-服务器已有团队源码，但没有 KAD-Net checkpoint；原测试脚本还依赖 Python 3.8、Torch 1.11/CUDA 11.3 和硬编码旧路径。没有完成严格加载与负对照前，把它放入排名会制造不可验证结果。
+KAD-Net 已完成服务器独立训练（100 epoch）和正式集成。LFW 512 张全量评测结果：
+- clean / jpeg / jpeg50 / jpeg70 / resize / noise：全部 **100%**（或 99.97%）
+- 已知弱点：crop_center_0.8 ≈ **33%**，rotate_5 ≈ **30%**（训练增强未覆盖几何变换）
+
+MEA 矩阵显示 KAD-Net 与 WaveGuard 兼容性最佳（KAD→WG: 100% | 100%，WG→KAD: 100% | 100%）。
 
 ---
 

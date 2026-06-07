@@ -6,9 +6,9 @@
 
 系统包含六个模块：内容保护、Deepfake 攻击模拟、MEA 多重嵌入攻击、取证恢复、安全评测、取证报告。
 
-LIDMark、MEA、WaveGuard、KAD-Net 均是团队原创技术成果，鉴源盾把这些模型从独立算法升级为统一的主动取证平台。当前 HiDDeN、SepMark、WaveGuard 均已完成 13,233 张 LFW 全量评测。
+LIDMark、MEA、WaveGuard、KAD-Net 均是团队原创技术成果，鉴源盾把这些模型从独立算法升级为统一的主动取证平台。SepMark、WaveGuard 已完成 13,233 张 LFW 全量评测；LIDMark 3-seed × 512 张；KAD-Net 512 张。
 
-HiDDeN 在当前协议下恢复接近随机，阈值错误已排除；SepMark 更稳定；WaveGuard detector 指标饱和，但严格加载和错误消息、无嵌入负对照已通过。我们不回避异常结果，而是通过证据审计模块明确标记边界。LIDMark 当前仍只使用 smoke checkpoint，KAD-Net 也因 checkpoint 缺失不进入排名。
+HiDDeN 在当前协议下恢复接近随机，阈值错误已排除；SepMark 更稳定；WaveGuard detector 指标饱和，但严格加载和错误消息、无嵌入负对照已通过。我们不回避异常结果，而是通过证据审计模块明确标记边界。LIDMark 已完成 3 seed 正式训练，3-seed LFW 评测精度 99.97%。KAD-Net 独立训练 100ep，clean/jpeg/noise/resize 全部 100%，已全部进入正式评测。
 
 现场演示中，评委可以选择样本、模型和攻击链，一键生成保护图、攻击图、热力图、恢复指标与输入输出 SHA-256；随后查看全量评测、统计分析和双层发布门禁，并下载 JSON、CSV、Markdown 报告以及 Ed25519 manifest、签名和公钥。
 
