@@ -68,7 +68,9 @@ class KADNetAdapter(ModelAdapter):
 
         from network.ST_EncoderDecoder import ST_Encoder, ST_Decoder
 
-        self._device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+        import os as _os
+        _dev_str = _os.environ.get("JYS_INFER_DEVICE", "cuda:2")
+        self._device = torch.device(_dev_str if torch.cuda.is_available() else "cpu")
 
         # Parse attention type from run directory name (e.g. _se_se_ → encoder=se, decoder=se)
         parts = run_dir.name.split("_")
@@ -93,9 +95,20 @@ class KADNetAdapter(ModelAdapter):
         self._ckpt_path = str(ckpt_path)
 
     def _preprocess(self, image: np.ndarray) -> "torch.Tensor":
+        """Normalize to [-1,1] matching training Normalize([0.5]*3,[0.5]*3)."""
         import torch
-        arr = np.array(Image.fromarray(image).resize((IMG_SIZE, IMG_SIZE), Image.BICUBIC)).astype(np.float32) / 255.0
-        return torch.from_numpy(arr.transpose(2, 0, 1)).unsqueeze(0).to(self._device)
+        from torchvision import transforms
+        t = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
+        ])
+        img_resized = Image.fromarray(image).resize((IMG_SIZE, IMG_SIZE), Image.BICUBIC)
+        return t(img_resized).unsqueeze(0).to(self._device)
+
+    def _denormalize(self, tensor: "torch.Tensor") -> np.ndarray:
+        """Convert [-1,1] tensor to uint8 [0,255] numpy array."""
+        arr = (tensor.detach().cpu().clamp(-1, 1).permute(1, 2, 0).numpy() + 1.0) * 127.5
+        return np.clip(arr + 0.5, 0, 255).astype(np.uint8)
 
     def encode(self, image: np.ndarray, message: np.ndarray) -> EmbeddingResult:
         import torch
@@ -104,14 +117,14 @@ class KADNetAdapter(ModelAdapter):
         self._load_models()
 
         t = self._preprocess(image)
-        # KAD-Net uses float message in [0,1] range (same convention as SepMark: 0/1 bits)
-        msg_t = torch.from_numpy(bits.astype(np.float32)).unsqueeze(0).to(self._device)
+        # KAD-Net training uses msg_range=0.1: {-0.1, 0.1} not {0, 1}
+        msg_vals = (bits.astype(np.float32) * 0.2 - 0.1)  # {0,1} → {-0.1, 0.1}
+        msg_t = torch.from_numpy(msg_vals).unsqueeze(0).to(self._device)
 
         with torch.no_grad():
-            encoded_t = self._encoder(t, msg_t)
-            encoded_t = encoded_t.clamp(0, 1)
+            encoded_t = self._encoder(t, msg_t).clamp(-1, 1)
 
-        enc_np = (encoded_t[0].cpu().numpy().transpose(1, 2, 0) * 255).clip(0, 255).astype(np.uint8)
+        enc_np = self._denormalize(encoded_t[0])
         if enc_np.shape[:2] != image.shape[:2]:
             enc_np = np.array(Image.fromarray(enc_np).resize((image.shape[1], image.shape[0]), Image.BICUBIC))
 
@@ -130,11 +143,10 @@ class KADNetAdapter(ModelAdapter):
         t = self._preprocess(image)
         with torch.no_grad():
             decoded = self._decoder(t)
-        # ST_Decoder output: logits or probabilities — apply sigmoid to be safe
-        probs = torch.sigmoid(decoded).cpu().numpy()[0] if float(decoded.min()) < 0 else decoded.cpu().numpy()[0]
-        bits = (probs >= 0.5).astype(np.uint8)
+        # Decoder outputs values near {-0.1, 0.1}; use gt(0) to binarize
+        bits = decoded.cpu().gt(0).numpy()[0].astype(np.uint8)
 
         return DecodeResult(
             bits=bits,
-            metadata={"decoder": "ST_Decoder_C", "probs": probs.tolist()},
+            metadata={"decoder": "ST_Decoder_C"},
         )

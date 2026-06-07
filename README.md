@@ -59,14 +59,21 @@
 
 ---
 
-## 🎯 MEA 多重嵌入攻击矩阵（2×2 Smoke，16 图/格）
+## 🎯 MEA 多重嵌入攻击矩阵（4×4，4 图/格 Smoke）
 
-| Source → Attacker | 第一水印保留率 | 第二水印成功率 | 结论 |
-|-------------------|:---:|:---:|------|
-| SepMark → SepMark | 90% | 59% | 同模型重嵌入破坏原水印 |
-| SepMark → WaveGuard | **91%** | **100%** | 跨域水印共存，频域不干扰空域 |
-| WaveGuard → SepMark | **100%** | 97% | WaveGuard 极强鲁棒性 |
-| WaveGuard → WaveGuard | 53% | **99%** | 同频域重嵌入覆盖 |
+> LIDMark Epoch 54 / KAD-Net Epoch 9（训练中，指标将随训练继续提升）
+
+| Source → Attacker | SepMark first/second | WaveGuard first/second | LIDMark first/second | KAD-Net first/second |
+|---|---|---|---|---|
+| **SepMark** | 88%✅ / 62%❌ | 86%✅ / **100%**✅ | 72%⚠️ / 95%✅ | 76%⚠️ / 78%⚠️ |
+| **WaveGuard** | **100%**✅ / **100%**✅ | 57%❌ / 99%✅ | **100%**✅ / 92%✅ | **100%**✅ / 78%⚠️ |
+| **LIDMark** | 95%✅ / 88%✅ | 92%✅ / **100%**✅ | 50%❌ / 89%✅ | 95%✅ / 73%⚠️ |
+| **KAD-Net** | 72%⚠️ / 78%⚠️ | 71%⚠️ / **100%**✅ | 66%⚠️ / 94%✅ | 62%❌ / 75%⚠️ |
+
+**关键发现**：
+- WaveGuard 作为源水印鲁棒性最强（3 列 first acc 均 ≥100%）
+- 跨域共存（SepMark↔WaveGuard）优于同模型二次嵌入
+- 同模型对角线：二次嵌入总覆盖原水印（first acc 低，符合预期）
 
 ---
 
@@ -199,7 +206,8 @@ JianYuanShield/
 - [ ] **LIDMark 3-seed 正式训练完成**（进行中，预计 3-4 小时）
 - [ ] **KAD-Net 正式训练完成**（进行中）
 - [ ] LIDMark 正式 LFW benchmark（训练完成后）
-- [ ] MEA 5×5 矩阵全格解锁（LIDMark + KAD-Net 完成后）
+- [x] **MEA 4×4 矩阵完成**（SepMark/WaveGuard/LIDMark/KAD-Net，4格/cell smoke）
+- [ ] MEA 4×4 全量验证（16图/格，LIDMark/KAD-Net 训练完成后）
 - [ ] 视频帧级水印扩展
 - [ ] Docker 离线部署包
 

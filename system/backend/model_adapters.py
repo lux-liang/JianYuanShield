@@ -81,7 +81,9 @@ class SepMarkAdapter:
     IMG_SIZE = 256
 
     def __init__(self) -> None:
-        self.device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+        import os as _os
+        _device_str = _os.environ.get("JYS_INFER_DEVICE", "cuda:2")
+        self.device = torch.device(_device_str if torch.cuda.is_available() else "cpu")
         import importlib.util as _ilu, types as _types
         # Register SepMark network as sm_network package to isolate from WaveGuard network
         _sm_code = SEPMARK_CODE / "network"
@@ -185,11 +187,16 @@ class WaveGuardAdapter:
     IMG_SIZE = 256
 
     def __init__(self) -> None:
-        self.device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+        _device_str = os.environ.get("JYS_INFER_DEVICE", "cuda:2")
+        self.device = torch.device(_device_str if torch.cuda.is_available() else "cpu")
         old_cwd = Path.cwd()
         try:
             os.chdir(WAVEGUARD_CODE)
             sys.path.insert(0, str(WAVEGUARD_CODE))
+            # Clear stale network/config/utils from KAD-Net before loading WaveGuard modules
+            for _m in list(sys.modules.keys()):
+                if _m in ("network", "config", "utils") or _m.startswith(("network.", "utils.")):
+                    del sys.modules[_m]
             from config import training_config as cfg
             from network.encoder import Encoder
             from network.decoder import Decoder
@@ -297,9 +304,246 @@ class WaveGuardAdapter:
         }
 
 
-def get_adapter(model: str) -> SepMarkAdapter | WaveGuardAdapter | None:
+
+
+# -- LIDMark adapter ----------------------------------------------------------
+
+class LIDMarkAdapter:
+    _instance: "LIDMarkAdapter | None" = None
+    IMG_SIZE = 128
+
+    def __init__(self, ckpt_path: Path) -> None:
+        import os as _os, sys as _sys
+        self._ckpt_path = ckpt_path
+        device_str = _os.environ.get("JYS_INFER_DEVICE", "cuda:2")
+        self.device = torch.device(device_str if torch.cuda.is_available() else "cpu")
+        lidmark_code = MODEL_SOURCE_ROOT / "LIDMark"
+        if str(lidmark_code) not in _sys.path:
+            _sys.path.insert(0, str(lidmark_code))
+        # Clear KAD-Net utils package collision before importing LIDMark utils
+        for _m in list(_sys.modules.keys()):
+            if _m == "utils" or _m.startswith("utils."):
+                del _sys.modules[_m]
+        from model.lidmark import LIDMark
+        from utils import Config, update_config_resolution
+        cfg = Config()
+        cfg.load_config_file(str(lidmark_code / "configurations/train_distortions.yaml"))
+        update_config_resolution(cfg, self.IMG_SIZE)
+        cfg.manipulation_layers = ["Identity()"]
+        self.model = LIDMark(
+            cfg.img_size, cfg.encoder_channels, cfg.encoder_blocks,
+            cfg.decoder_channels, cfg.decoder_blocks, cfg.watermark_length,
+            self.device, ["Identity()"],
+        ).to(self.device)
+        state = torch.load(str(ckpt_path), map_location=self.device, weights_only=False)
+        self.model.load_state_dict(state["model_state_dict"], strict=False)
+        self.model.eval()
+        self.wm_length = cfg.watermark_length  # 152
+
+    @classmethod
+    def _find_ckpt(cls) -> "Path | None":
+        candidates = [
+            MODEL_SOURCE_ROOT / "runs/lidmark/seed_checkpoints/s3/checkpoint_epoch_100.pth",
+            MODEL_SOURCE_ROOT / "runs/lidmark/seed_checkpoints/s1/checkpoint_epoch_100.pth",
+            MODEL_SOURCE_ROOT / "runs/lidmark/seed_checkpoints/s2/checkpoint_epoch_100.pth",
+        ]
+        return next((p for p in candidates if p.exists()), None)
+
+    @classmethod
+    def get(cls) -> "LIDMarkAdapter | None":
+        with _lock:
+            if cls._instance is None:
+                ckpt = cls._find_ckpt()
+                if ckpt:
+                    try:
+                        cls._instance = cls(ckpt)
+                    except Exception as exc:
+                        import logging as _log
+                        _log.getLogger(__name__).warning("LIDMarkAdapter init failed: %s", exc)
+            return cls._instance
+
+    @classmethod
+    def available(cls) -> bool:
+        return cls._find_ckpt() is not None
+
+    def run(self, image_rgb: np.ndarray, attack: str = "clean") -> dict[str, Any]:
+        img = Image.fromarray(image_rgb).convert("RGB").resize(
+            (self.IMG_SIZE, self.IMG_SIZE), Image.BICUBIC)
+        arr = np.array(img)
+        t = (torch.from_numpy(arr.astype(np.float32) / 127.5 - 1.0)
+               .permute(2, 0, 1).unsqueeze(0).to(self.device))
+        # LIDMark: detect real face landmarks (68×2=136 dims), random 16-bit ID
+        wm_np = np.zeros(self.wm_length, dtype=np.float32)
+        try:
+            if not hasattr(self, "_fa"):
+                import face_alignment as _fa
+                self._fa = _fa.FaceAlignment(_fa.LandmarksType.TWO_D, device=str(self.device))
+            lms = self._fa.get_landmarks_from_image(arr)  # list of (68, 2) arrays
+            if lms is not None and len(lms) > 0:
+                # Normalize to [0,1] by dividing by IMG_SIZE (matches training)
+                lm_norm = lms[0].flatten()[:136] / self.IMG_SIZE
+                wm_np[:136] = lm_norm.astype(np.float32)
+        except Exception:
+            pass  # fallback: zeros for landmark dims
+        rng = np.random.default_rng(42)
+        wm_np[136:] = rng.integers(0, 2, self.wm_length - 136).astype(np.float32)
+        wm_t = torch.from_numpy(wm_np).unsqueeze(0).to(self.device)
+        with torch.no_grad():
+            encoded = self.model.encoder(t, wm_t).clamp(-1, 1)
+        original_u8 = arr
+        encoded_u8 = np.clip(
+            (encoded[0].cpu().permute(1, 2, 0).numpy() + 1.0) * 127.5, 0, 255
+        ).astype(np.uint8)
+        attacked_arr = _apply_attack_rgb(encoded_u8.copy(), attack)
+        attacked_t = (torch.from_numpy(attacked_arr.astype(np.float32) / 127.5 - 1.0)
+                       .permute(2, 0, 1).unsqueeze(0).to(self.device))
+        with torch.no_grad():
+            pred_landmark, pred_id_logits = self.model.decoder(attacked_t)
+        id_bits_gt = torch.from_numpy(wm_np[136:]).to(self.device) > 0
+        id_bits_pred = pred_id_logits[0] > 0
+        id_ber = float((id_bits_gt != id_bits_pred).float().mean().item())
+        lm_raw = torch.sqrt(torch.sum(
+            (pred_landmark.view(-1, 68, 2) - wm_t[:, :136].view(-1, 68, 2)) ** 2, dim=2))
+        lm_raw = lm_raw[torch.isfinite(lm_raw)]
+        landmark_aed = float(lm_raw.mean().item()) if lm_raw.numel() > 0 else None
+        from skimage.metrics import peak_signal_noise_ratio, structural_similarity
+        psnr = float(peak_signal_noise_ratio(original_u8, encoded_u8, data_range=255))
+        ssim = float(structural_similarity(original_u8, encoded_u8, channel_axis=2, data_range=255))
+        return {
+            "model": "LIDMark",
+            "checkpoint": "real",
+            "attack": attack,
+            "id_ber": round(id_ber, 4),
+            "bit_accuracy": round(1 - id_ber, 4),
+            "landmark_aed": round(landmark_aed, 4) if landmark_aed is not None else None,
+            "psnr": round(psnr, 4),
+            "ssim": round(ssim, 4),
+            "success": bool((1 - id_ber) >= 0.9),
+            "images": {
+                "original": original_u8,
+                "watermarked": encoded_u8,
+                "attacked": attacked_arr,
+                "heatmap": _heatmap(original_u8, encoded_u8),
+                "diff": _heatmap(encoded_u8, attacked_arr),
+            },
+        }
+
+
+
+# -- KAD-Net adapter ----------------------------------------------------------
+
+class KADNetAdapter:
+    _instance: "KADNetAdapter | None" = None
+    MSG_LEN = 30
+    IMG_SIZE = 128
+    _RUNS = Path("/data1/luxliang/work/vpsg_competition_candidates/runs/kadnet/results/ST/128")
+    _CODE = Path("/data1/luxliang/work/vpsg_competition_candidates/KAD-Net")
+
+    def __init__(self, ckpt_path: Path, attn_enc: "str | None", attn_dec: "str | None") -> None:
+        import os as _os, sys as _sys
+        device_str = _os.environ.get("JYS_INFER_DEVICE", "cuda:2")
+        self.device = torch.device(device_str if torch.cuda.is_available() else "cpu")
+        # Clear stale network modules (KAD-Net conflicts with SepMark/WaveGuard 'network' pkg)
+        for _mod in list(_sys.modules.keys()):
+            if _mod in ("network", "config") or _mod.startswith("network."):
+                del _sys.modules[_mod]
+        kn_str = str(self._CODE)
+        if kn_str not in _sys.path:
+            _sys.path.insert(0, kn_str)
+        from network.ST_EncoderDecoder import ST_Encoder, ST_Decoder
+        encoder = ST_Encoder(self.MSG_LEN, attention=attn_enc).to(self.device)
+        decoder = ST_Decoder(self.MSG_LEN, attention=attn_dec).to(self.device)
+        state = torch.load(str(ckpt_path), map_location=self.device, weights_only=False)
+        enc_s = {k[len("encoder."):]: v for k, v in state.items() if k.startswith("encoder.")}
+        dec_s = {k[len("decoder_C."):]: v for k, v in state.items() if k.startswith("decoder_C.")}
+        encoder.load_state_dict(enc_s, strict=True)
+        decoder.load_state_dict(dec_s, strict=True)
+        encoder.eval(); decoder.eval()
+        self.encoder = encoder
+        self.decoder = decoder
+        self.ckpt_path = ckpt_path
+
+    @classmethod
+    def _find_ckpt(cls) -> "tuple[Path, str | None, str | None] | tuple[None, None, None]":
+        if not cls._RUNS.exists():
+            return None, None, None
+        runs = sorted([d for d in cls._RUNS.iterdir() if d.is_dir()])
+        for run in reversed(runs):
+            ckpts = sorted((run / "models").glob("EC_*.pth"),
+                           key=lambda p: int(p.stem.split("_")[-1]))
+            if ckpts:
+                parts = run.name.split("_")
+                ae = parts[8] if len(parts) > 8 and parts[8] not in ("none", "") else None
+                ad = parts[9] if len(parts) > 9 and parts[9] not in ("none", "") else None
+                return ckpts[-1], ae, ad
+        return None, None, None
+
+    @classmethod
+    def get(cls) -> "KADNetAdapter | None":
+        with _lock:
+            if cls._instance is None:
+                ckpt, ae, ad = cls._find_ckpt()
+                if ckpt:
+                    try:
+                        cls._instance = cls(ckpt, ae, ad)
+                    except Exception as exc:
+                        import logging as _log
+                        _log.getLogger(__name__).warning("KADNetAdapter init failed: %s", exc)
+            return cls._instance
+
+    @classmethod
+    def available(cls) -> bool:
+        ckpt, _, _ = cls._find_ckpt()
+        return ckpt is not None
+
+    def run(self, image_rgb: np.ndarray, attack: str = "clean") -> dict[str, Any]:
+        img = Image.fromarray(image_rgb).convert("RGB").resize(
+            (self.IMG_SIZE, self.IMG_SIZE), Image.BICUBIC)
+        arr = np.array(img)
+        # Input: [-1,1] to match training Normalize([0.5]*3,[0.5]*3); messages: {-0.1,0.1}
+        t = _to_tensor_rgb(arr, self.device)
+        msg_np = np.random.choice([-0.1, 0.1], self.MSG_LEN).astype(np.float32)
+        msg_t = torch.from_numpy(msg_np).unsqueeze(0).to(self.device)
+        with torch.no_grad():
+            encoded_t = self.encoder(t, msg_t).clamp(-1, 1)
+        original_u8 = arr
+        encoded_u8 = _to_uint8_rgb(encoded_t[0])
+        attacked_arr = _apply_attack_rgb(encoded_u8.copy(), attack)
+        attacked_t = _to_tensor_rgb(attacked_arr, self.device)
+        with torch.no_grad():
+            decoded = self.decoder(attacked_t)
+        bits_pred = decoded[0].cpu().gt(0).numpy()
+        bits_gt = msg_np > 0
+        ber = float(np.mean(bits_pred != bits_gt))
+        from skimage.metrics import peak_signal_noise_ratio, structural_similarity
+        psnr = float(peak_signal_noise_ratio(original_u8, encoded_u8, data_range=255))
+        ssim = float(structural_similarity(original_u8, encoded_u8, channel_axis=2, data_range=255))
+        return {
+            "model": "KAD-Net",
+            "checkpoint": "real",
+            "attack": attack,
+            "id_ber": round(ber, 4),
+            "bit_accuracy": round(1 - ber, 4),
+            "landmark_aed": None,
+            "psnr": round(psnr, 4),
+            "ssim": round(ssim, 4),
+            "success": bool((1 - ber) >= 0.9),
+            "images": {
+                "original": original_u8,
+                "watermarked": encoded_u8,
+                "attacked": attacked_arr,
+                "heatmap": _heatmap(original_u8, encoded_u8),
+                "diff": _heatmap(encoded_u8, attacked_arr),
+            },
+        }
+
+def get_adapter(model: str) -> "SepMarkAdapter | WaveGuardAdapter | LIDMarkAdapter | KADNetAdapter | None":
     if model.lower() in ("sepmark", "mea/sepmark"):
         return SepMarkAdapter.get() if SepMarkAdapter.available() else None
     if model.lower() == "waveguard":
         return WaveGuardAdapter.get() if WaveGuardAdapter.available() else None
+    if model.lower() == "lidmark":
+        return LIDMarkAdapter.get() if LIDMarkAdapter.available() else None
+    if model.lower() in ("kad-net", "kadnet", "kad_net"):
+        return KADNetAdapter.get() if KADNetAdapter.available() else None
     return None

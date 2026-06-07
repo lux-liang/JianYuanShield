@@ -15,6 +15,7 @@ from .config import ASSETS, DATASETS, REPORTS
 from .schemas import DemoRunRequest
 from .utils import artifact_url
 from .evidence import sha256_file
+from .model_adapters import LIDMarkAdapter
 
 
 def sample_path(sample_id: str) -> Path:
@@ -55,6 +56,7 @@ def save_rgb(array: np.ndarray, path: Path) -> Path:
 
 
 def simulate_lidmark_embed(image: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Deterministic fallback — only used when LIDMarkAdapter is unavailable."""
     rng = np.random.default_rng(152)
     pattern = rng.integers(-2, 3, size=image.shape, dtype=np.int16)
     grid = np.zeros_like(image, dtype=np.int16)
@@ -63,6 +65,18 @@ def simulate_lidmark_embed(image: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     watermarked = np.clip(image.astype(np.int16) + pattern + grid, 0, 255).astype(np.uint8)
     residual = np.clip(np.abs(watermarked.astype(np.int16) - image.astype(np.int16)) * 32, 0, 255).astype(np.uint8)
     return watermarked, residual
+
+
+def _map_attack_for_lidmark(attack: str) -> str:
+    """Map demo attack string to LIDMarkAdapter attack key."""
+    attack = attack.lower()
+    if 'jpeg' in attack:
+        return 'jpeg'
+    if 'resize' in attack:
+        return 'resize'
+    if 'noise' in attack:
+        return 'noise'
+    return 'clean'
 
 
 def apply_attack(image: np.ndarray, attack: str) -> np.ndarray:
@@ -111,10 +125,39 @@ def metrics(reference: np.ndarray, candidate: np.ndarray, residual: np.ndarray) 
 def demo_run_payload(request: DemoRunRequest) -> dict[str, Any]:
     original_path = ensure_sample(request.sample_id)
     original = load_rgb(original_path)
-    watermarked, residual = simulate_lidmark_embed(original)
-    attacked = apply_attack(watermarked, request.attack)
-    heatmap = make_heatmap(watermarked, attacked)
-    attack_residual = np.clip(np.abs(attacked.astype(np.int16) - watermarked.astype(np.int16)) * 12, 0, 255).astype(np.uint8)
+    # Try real LIDMarkAdapter; fall back to deterministic simulation
+    _adapter = LIDMarkAdapter.get()
+    _lm_attack = _map_attack_for_lidmark(request.attack or '')
+    if _adapter is not None:
+        _out = _adapter.run(original, attack=_lm_attack)
+        _orig_128   = _out['images']['original']  # 128x128 input used by LIDMark
+        watermarked = _out['images']['watermarked']
+        attacked    = _out['images']['attacked']
+        heatmap     = _out['images']['heatmap']
+        residual    = np.clip(
+            np.abs(watermarked.astype(np.int16) - _orig_128.astype(np.int16)) * 32,
+            0, 255).astype(np.uint8)
+        attack_residual = _out['images']['diff']
+        original    = _orig_128  # use 128x128 consistently for artifact saving
+        _real_metrics = {
+            'psnr':         _out['psnr'],
+            'ssim':         _out['ssim'],
+            'ber':          round(_out['id_ber'], 4),
+            'bit_accuracy': _out['bit_accuracy'],
+            'source_id_acc': _out['bit_accuracy'],
+            'landmark_error': round(_out['landmark_aed'], 4) if _out.get('landmark_aed') else None,
+            'attack_success': not _out['success'],
+        }
+        _demo_mode = 'real_lidmark'
+    else:
+        watermarked, residual = simulate_lidmark_embed(original)
+        attacked = apply_attack(watermarked, request.attack or '')
+        heatmap  = make_heatmap(watermarked, attacked)
+        attack_residual = np.clip(
+            np.abs(attacked.astype(np.int16) - watermarked.astype(np.int16)) * 12,
+            0, 255).astype(np.uint8)
+        _real_metrics = None
+        _demo_mode = 'demo_simulation'
 
     task_id = uuid.uuid4().hex[:12]
     out_dir = ASSETS / task_id
@@ -132,12 +175,12 @@ def demo_run_payload(request: DemoRunRequest) -> dict[str, Any]:
         "schema_version": "forensic-task.v1",
         "task_id": task_id,
         "created_at": int(time.time()),
-        "mode": "demo_simulation",
+        "mode": _demo_mode,
         "project": request.project,
         "sample_id": request.sample_id,
         "attack": request.attack,
         "security_conclusion": "attack_degraded_traceability" if request.attack else "protected",
-        "metrics": metrics(watermarked, attacked, attack_residual),
+        "metrics": _real_metrics if _real_metrics is not None else metrics(watermarked, attacked, attack_residual),
         "artifacts": {key: artifact_url(value) for key, value in paths.items()},
         "evidence": {
             "input_sha256": sha256_file(original_path),

@@ -63,7 +63,9 @@ class LIDMarkAdapter(ModelAdapter):
         de_c = int(cfg.get("decoder_channels", 64))
         de_b = int(cfg.get("decoder_blocks", 1))
 
-        self._device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
+        import os as _os
+        _dev_str = _os.environ.get("JYS_INFER_DEVICE", "cuda:2")
+        self._device = torch.device(_dev_str if torch.cuda.is_available() else "cpu")
 
         enc = LIDMarkEncoder(IMG_SIZE, en_c, en_b, WM_LEN).to(self._device)
         dec = FHD(IMG_SIZE, de_c, de_b, WM_LEN).to(self._device)
