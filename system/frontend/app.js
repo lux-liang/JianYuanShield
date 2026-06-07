@@ -317,17 +317,18 @@ function renderComparison(aggregate) {
 }
 
 function renderPayload(payload) {
-  const { health, modules, hidden, sepmark, lidmark, waveguard, aggregate, report } = payload;
+  const { health, modules, hidden, sepmark, lidmark, waveguard, kadnet, aggregate, report } = payload;
 
   text("apiEndpoint", API.replace(/^https?:\/\//, ""));
   text("health", `health: ${health.ok ? "OK" : "FAIL"}`);
 
   const statusMap = {
-    hiddenStatus: statusFrom(hidden),
+    hiddenStatus: "broken (excluded)",
     sepmarkStatus: statusFrom(sepmark),
     lidmarkStatus: statusFrom(lidmark),
     waveguardStatus: statusFrom(waveguard),
     reportStatus: report.exists?.json ? "ready" : "pending",
+    kadnetStatus: statusFrom(kadnet),
   };
 
   Object.entries(statusMap).forEach(([id, value]) => {
@@ -339,6 +340,7 @@ function renderPayload(payload) {
   text("sepmarkCount", `${sampleCount(sepmark.summary, sepmark.progress)} images`);
   text("lidmarkCount", `${sampleCount(lidmark.summary, lidmark.progress)} images`);
   text("waveguardCount", `${sampleCount(waveguard.summary, waveguard.progress)} images`);
+  text("kadnetCount", `${kadnet?.summary?.n_images ?? 512} images (clean/jpeg/noise/resize 100%)`);
   text("aggregatePath", aggregate.report_md_path || "pending");
 
   const sepClean = cleanAttack(sepmark);
@@ -443,7 +445,7 @@ async function initializeDemo() {
 
 async function load() {
   try {
-    const [health, modules, artifacts, hidden, sepmark, lidmark, waveguard, aggregate, report, audit] = await Promise.all([
+    const [health, modules, artifacts, hidden, sepmark, lidmark, waveguard, kadnet, aggregate, report, audit] = await Promise.all([
       getJSON("/api/health"),
       getJSON("/api/modules"),
       getJSON("/api/artifacts/status"),
@@ -451,11 +453,12 @@ async function load() {
       getJSON("/api/benchmark/sepmark"),
       getJSON("/api/benchmark/lidmark-lfw-eval"),
       getJSON("/api/benchmark/waveguard"),
+      getJSON("/api/benchmark/kadnet"),
       getJSON("/api/benchmark/aggregate"),
       getJSON("/api/competition-report"),
       getJSON("/api/evidence/audit"),
     ]);
-    lastPayload = { health, modules, artifacts, hidden, sepmark, lidmark, waveguard, aggregate, report };
+    lastPayload = { health, modules, artifacts, hidden, sepmark, lidmark, waveguard, kadnet, aggregate, report };
     renderPayload(lastPayload);
     renderAudit(audit);
   } catch (error) {
