@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import threading
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -31,10 +34,29 @@ from .routes import (
 )
 
 
+def _warmup_adapters() -> None:
+    """Pre-load all model adapters so first demo request is instant."""
+    try:
+        from .model_adapters import SepMarkAdapter, WaveGuardAdapter, LIDMarkAdapter, KADNetAdapter
+        for cls in (LIDMarkAdapter, KADNetAdapter, WaveGuardAdapter, SepMarkAdapter):
+            if cls.available():
+                cls.get()
+    except Exception as exc:
+        logger.warning("adapter warmup error: %s", exc)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):  # noqa: ARG001
+    thread = threading.Thread(target=_warmup_adapters, daemon=True, name="adapter-warmup")
+    thread.start()
+    logger.info("adapter warmup thread started")
+    yield
+
+
 def create_app() -> FastAPI:
     ensure_runtime_dirs()
     logger.info("starting backend app assets_dir=%s", ASSETS)
-    app = FastAPI(title="VPSG Deepfake Active Forensics Competition System")
+    app = FastAPI(title="VPSG Deepfake Active Forensics Competition System", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
