@@ -75,8 +75,8 @@
 | 编号 | 问题 | 严重程度 | 状态 |
 |------|------|---------|------|
 | ~~**D1**~~ | ~~WaveGuard JPEG Q<60 鲁棒性差（成功率 37.3%）~~ | ~~中~~ | **已修复** — JPEG STE 7ep 微调，Q=50 tracer精度 100%（LFW 512张） |
-| **D2** | KAD-Net 几何攻击弱：crop_center_0.8≈33%，rotate_5≈30% | 中 | 几何增强微调进行中（EP17/50）；EP16中间结果：crop=71.2%，rotate=39.8% |
-| **D3** | HiDDeN checkpoint 损坏（epoch-200.pyt），bit_acc≈50% | 高 | 已剔除出竞赛方案，标记为 broken |
+| **D2** | KAD-Net 几何攻击弱：crop_center_0.8≈33%，rotate_5≈30% | 中 | 几何增强微调进行中（GPU 1，EP32/50，目标 ≥90%） |
+| **D3** | HiDDeN checkpoint 损坏（epoch-200.pyt），bit_acc≈50% | 高 | 正在重训（GPU 4，300ep，CelebA-HQ + JPEG/Dropout/Resize noise）；竞赛声明已剔除旧 checkpoint |
 | **D4** | LIDMark 依赖真实人脸（face_alignment 无法处理合成/噪声图像） | 低 | 设计限制，Demo 需上传真实人脸 |
 | **D5** | MEA 矩阵 n=128/格，统计显著性偏弱 | 低 | 已标注 images_per_cell；竞赛演示够用 |
 | **D6** | SimSwap/FaceSwap 仅含训练增强 stub，无独立推理管线 | 中 | 真实 Deepfake 攻击（E3）受阻，用 deepfake_proxy_v1 代替 |
@@ -174,11 +174,18 @@ curl http://server:8026/api/evidence/signature/download/public-key
 - [x] 4 场景前端 Demo（含 Deepfake 溯源场景）
 - [x] 技术报告 Markdown（`docs/TECHNICAL_REPORT.md`）
 - [x] 评委 QA 文档 + 3 分钟答辩口稿（已更新所有真实数据）
+- [x] 后端启动预热（lifespan hook，4 模型全部 warmup-loaded）
+- [x] `/api/benchmark/kadnet` + `/api/benchmark/mea-matrix` 新接口
+- [x] 前端 MEA 4×4 可视化矩阵面板（grade icon + CSS 变量着色）
+
+### 进行中
+
+- [ ] **KAD-Net 几何微调**（GPU 1，EP32/50）— 修复 crop_center_0.8 / rotate_5 弱点
+- [ ] **HiDDeN 重训**（GPU 4，EP1/300）— CelebA-HQ 128×128 + JPEG/Dropout/Resize noise；预计 12-15 小时
 
 ### 待完成（受阻或人工任务）
 
 - [ ] **E3** 真实 Deepfake 攻击（SimSwap/FaceSwap）— 受阻：需 autodl 训练数据集 + 推理环境
-- [ ] **M1-6** 技术报告 PDF 排版生成 — 人工任务
 - [ ] **M2** PPT / 展板制作 — 人工任务
 - [ ] **M4** 演示视频录制（3 分钟 + 1 分钟后台）— 人工任务
 - [x] WaveGuard JPEG Q<60 微调修复 — JPEG STE 7ep 微调完成，Q=50 tracer精度 100%
@@ -188,7 +195,7 @@ curl http://server:8026/api/evidence/signature/download/public-key
 ## 诚实声明
 
 - **`ready_for_demo: ✅`** — 系统可完整演示，四模型真实推理，15 种攻击，4 场景前端
-- **`ready_for_claims: ⚠️`** — HiDDeN broken 触发门禁（设计意图）；竞赛报告已剔除 HiDDeN
+- **`ready_for_claims: ⚠️`** — HiDDeN broken 触发门禁（设计意图）；竞赛报告已剔除旧 checkpoint；重训进行中
 
 ---
 
