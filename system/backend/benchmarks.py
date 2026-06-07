@@ -187,6 +187,17 @@ def waveguard_benchmark_payload() -> dict[str, Any]:
     return payload
 
 
+
+def kadnet_benchmark_payload() -> dict[str, Any]:
+    report_dir = REPORTS / "kadnet_lfw_benchmark"
+    return {
+        "method": "KAD-Net",
+        "checkpoint_type": "trained_100ep_checkpoint",
+        "summary": load_json(report_dir / "summary.json"),
+        "results_csv_path": str(report_dir / "results.csv"),
+        "status": "complete" if (report_dir / "summary.json").exists() else "pending",
+    }
+
 def aggregate_benchmark_payload() -> dict[str, Any]:
     report_dir = REPORTS / "aggregate_real_benchmarks"
     return {
