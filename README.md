@@ -264,16 +264,14 @@ sequenceDiagram
 > ⚔️ 先用模型 A 嵌入水印，再用模型 B 强行覆盖，测量 A 的水印存活率。  
 > 4×4 矩阵 = **16 种组合**，每格 **128 张** LFW 图像，共 **2,048 次**独立实验。
 
-```
-MEA 4×4 矩阵（Source水印存活率 / Attacker嵌入精度）
-✅ ≥ 90%    ⚠ 70–89%    ❌ < 70%
+**格式：Source 水印存活率 / Attacker 嵌入精度　　✅ ≥ 90%　　⚠️ 70–89%　　❌ < 70%**
 
-                       SepMark      WaveGuard     LIDMark      KAD-Net
-         SepMark  │  91%✅/56%❌  │ 92%✅/100%✅ │ 50%❌/61%❌ │ 90%✅/100%✅ │
-       WaveGuard  │ 100%✅/95%✅  │  52%❌/98%✅ │ 50%❌/61%❌ │100%✅/100%✅ │
-         LIDMark  │  68%⚠ /69%⚠  │ 72%⚠ /100%✅ │ 52%❌/60%❌ │  67%⚠ /93%✅ │
-         KAD-Net  │ 100%✅/84%⚠  │100%✅/100%✅  │ 50%❌/61%❌ │  50%❌/100%✅ │
-```
+| Source ↓ · Attacker → | SepMark | WaveGuard | LIDMark | KAD-Net |
+|:---|:---:|:---:|:---:|:---:|
+| **SepMark** | 91% ✅ · 56% ❌ | 92% ✅ · 100% ✅ | 50% ❌ · 61% ❌ | 90% ✅ · 100% ✅ |
+| **WaveGuard** | 100% ✅ · 95% ✅ | 52% ❌ · 98% ✅ | 50% ❌ · 61% ❌ | 100% ✅ · 100% ✅ |
+| **LIDMark** | 68% ⚠️ · 69% ⚠️ | 72% ⚠️ · 100% ✅ | 52% ❌ · 60% ❌ | 67% ⚠️ · 93% ✅ |
+| **KAD-Net** | 100% ✅ · 84% ⚠️ | 100% ✅ · 100% ✅ | 50% ❌ · 61% ❌ | 50% ❌ · 100% ✅ |
 
 **🔬 原创发现（国内外文献未见报道）：**
 - 🎯 **LIDMark 作为攻击者破坏性最强**——语义绑定机制改变面部几何，先嵌水印降至随机水平
@@ -472,38 +470,27 @@ openssl pkeyutl -verify \
 ## 九、系统架构
 
 ```mermaid
-flowchart LR
-    subgraph CLIENTS["📱 全端客户端"]
-        direction TB
-        W["🌐 Web\n4场景Demo"]
-        AN["📱 Android\nKotlin"]
-        IO["🍎 iOS\nSwiftUI"]
-        WX["💬 微信小程序\nWXML/JS"]
-        HM["🌸 鸿蒙\nArkTS"]
+flowchart TD
+    CLI["🌐 Web · 📱 Android · 🍎 iOS · 💬 小程序 · 🌸 鸿蒙"]
+    CLI -->|"统一 REST API"| API["⚡ JianYuanShield · FastAPI · 15+ 端点"]
+
+    subgraph MDL ["🏗️ 水印模型适配层"]
+        direction LR
+        L["🔵 LIDMark<br/>152bit 溯源"]
+        K["🟢 KAD-Net<br/>30bit 全场景"]
+        WG["🟡 WaveGuard<br/>频域检测"]
+        SM["🟣 SepMark<br/>30bit 分离"]
     end
 
-    subgraph BACKEND["⚡ JianYuanShield 后端 · FastAPI"]
-        direction TB
-        API["🔀 REST API 网关\n15+ 端点"]
-
-        subgraph MODELS["水印模型层"]
-            direction LR
-            L["🔵 LIDMark\n152bit / 溯源"]
-            K["🟢 KAD-Net\n30bit / 全场景"]
-            WG["🟡 WaveGuard\n1bit / 频域"]
-            SM["🟣 SepMark\n30bit / 分离"]
-        end
-
-        ATK["⚔️ 15种攻击仿真\n统一接口"]
-        STAT["📊 Bootstrap CI\nHolm 校正"]
-        EVD["🔐 Ed25519\n证据链"]
+    subgraph OPS ["📊 评测与取证层"]
+        direction LR
+        ATK["⚔️ 15种攻击仿真"]
+        STAT["📊 Bootstrap CI · Holm"]
+        EVD["🔐 Ed25519 证据链"]
     end
 
-    CLIENTS -->|"统一 REST API"| BACKEND
-    API --> MODELS
-    API --> ATK
-    API --> STAT
-    API --> EVD
+    API --> MDL
+    API --> OPS
 ```
 
 ---
