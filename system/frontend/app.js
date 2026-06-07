@@ -316,8 +316,37 @@ function renderComparison(aggregate) {
   ]);
 }
 
+
+function renderMeaMatrix(mea) {
+  const models = mea?.models || ["SepMark", "WaveGuard", "LIDMark", "KAD-Net"];
+  const matrix = mea?.matrix || {};
+  const badge = document.getElementById("meaMatrixBadge");
+  const tbody = document.getElementById("meaMatrixBody");
+  if (!tbody) return;
+  if (badge) {
+    badge.textContent = mea?.status === "complete" ? `complete · n=${mea.images_per_cell}/格` : "pending";
+    badge.className = `panel-badge ${mea?.status === "complete" ? "real" : "warning"}`;
+  }
+  function gradeIcon(v) {
+    if (v == null) return "—";
+    if (v >= 0.9) return `<span style="color:var(--green)">✅${(v*100).toFixed(0)}%</span>`;
+    if (v >= 0.7) return `<span style="color:var(--yellow)">⚠${(v*100).toFixed(0)}%</span>`;
+    return `<span style="color:var(--red)">❌${(v*100).toFixed(0)}%</span>`;
+  }
+  tbody.innerHTML = models.map(src => {
+    const row = matrix[src] || {};
+    return `<tr>
+      <td><strong>${escapeHTML(src)}</strong></td>
+      ${models.map(att => {
+        const cell = row[att] || {};
+        return `<td style="text-align:center">${gradeIcon(cell.first_acc)} / ${gradeIcon(cell.second_acc)}</td>`;
+      }).join("")}
+    </tr>`;
+  }).join("");
+}
+
 function renderPayload(payload) {
-  const { health, modules, hidden, sepmark, lidmark, waveguard, kadnet, aggregate, report } = payload;
+  const { health, modules, hidden, sepmark, lidmark, waveguard, kadnet, meaMatrix, aggregate, report } = payload;
 
   text("apiEndpoint", API.replace(/^https?:\/\//, ""));
   text("health", `health: ${health.ok ? "OK" : "FAIL"}`);
@@ -351,6 +380,7 @@ function renderPayload(payload) {
   text("boundaryConclusion", `LIDMark 3-seed 99.97%；WaveGuard JPEG Q=50 已修复（100%）；KAD-Net 几何微调中`);
 
   updateReadiness(payload);
+  renderMeaMatrix(meaMatrix);
   renderModules(modules);
   renderComparison(aggregate);
 
@@ -445,7 +475,7 @@ async function initializeDemo() {
 
 async function load() {
   try {
-    const [health, modules, artifacts, hidden, sepmark, lidmark, waveguard, kadnet, aggregate, report, audit] = await Promise.all([
+    const [health, modules, artifacts, hidden, sepmark, lidmark, waveguard, kadnet, meaMatrix, aggregate, report, audit] = await Promise.all([
       getJSON("/api/health"),
       getJSON("/api/modules"),
       getJSON("/api/artifacts/status"),
@@ -454,11 +484,12 @@ async function load() {
       getJSON("/api/benchmark/lidmark-lfw-eval"),
       getJSON("/api/benchmark/waveguard"),
       getJSON("/api/benchmark/kadnet"),
+      getJSON("/api/benchmark/mea-matrix"),
       getJSON("/api/benchmark/aggregate"),
       getJSON("/api/competition-report"),
       getJSON("/api/evidence/audit"),
     ]);
-    lastPayload = { health, modules, artifacts, hidden, sepmark, lidmark, waveguard, kadnet, aggregate, report };
+    lastPayload = { health, modules, artifacts, hidden, sepmark, lidmark, waveguard, kadnet, meaMatrix, aggregate, report };
     renderPayload(lastPayload);
     renderAudit(audit);
   } catch (error) {

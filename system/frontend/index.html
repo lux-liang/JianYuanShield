@@ -246,6 +246,32 @@
           </div>
         </section>
 
+
+        <section class="panel" style="margin-bottom:1.5rem">
+          <div class="panel-head">
+            <div>
+              <h3>MEA 多重嵌入攻击矩阵（4×4，n=128/格）</h3>
+              <span>行=先嵌入 Source | 列=后嵌入 Attacker | 格式: Source存活率 / Attacker嵌入精度</span>
+            </div>
+            <span id="meaMatrixBadge" class="panel-badge">loading</span>
+          </div>
+          <div class="table-wrap">
+            <table id="meaMatrixTable">
+              <thead>
+                <tr>
+                  <th>Source ↓ / Attacker →</th>
+                  <th>SepMark</th><th>WaveGuard</th><th>LIDMark</th><th>KAD-Net</th>
+                </tr>
+              </thead>
+              <tbody id="meaMatrixBody"></tbody>
+            </table>
+          </div>
+          <p style="font-size:11px;opacity:.6;margin:.5rem 0 0">
+            ✅≥90% ⚠70-89% ❌&lt;70% · 对角线自攻击必然覆盖（设计预期）·
+            <strong>KAD-Net+WaveGuard兼容性最佳</strong>（相互100%）
+          </p>
+        </section>
+
         <section class="evidence-grid">
           <article class="panel">
             <div class="panel-head">

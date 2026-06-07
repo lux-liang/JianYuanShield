@@ -188,6 +188,20 @@ def waveguard_benchmark_payload() -> dict[str, Any]:
 
 
 
+def mea_matrix_payload() -> dict[str, Any]:
+    mea_dir = Path("/data1/luxliang/work/vpsg_competition_candidates/runs/mea/mea_4x4")
+    jsons = sorted(mea_dir.glob("mea_4x4_*.json"), key=lambda p: p.stat().st_mtime, reverse=True) if mea_dir.exists() else []
+    latest = load_json(jsons[0]) if jsons else {}
+    return {
+        "method": "MEA-4x4",
+        "images_per_cell": latest.get("images_per_cell", 128),
+        "models": latest.get("models", []),
+        "matrix": latest.get("matrix", {}),
+        "markdown_table": latest.get("markdown_table", ""),
+        "generated_at": latest.get("generated_at"),
+        "status": "complete" if latest.get("matrix") else "pending",
+    }
+
 def kadnet_benchmark_payload() -> dict[str, Any]:
     report_dir = REPORTS / "kadnet_lfw_benchmark"
     return {
