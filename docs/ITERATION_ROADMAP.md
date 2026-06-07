@@ -23,15 +23,15 @@
 
 ### T1 · LIDMark backend 精度对齐（P0 — 最高优先级）
 
-- [ ] **T1-1** 诊断 face_alignment v1.5.0 与训练时 dlib 坐标系的具体偏差量（输出两套 landmark 的坐标对比图）
-- [ ] **T1-2** 方案 A：在 `LIDMarkAdapter.run()` 中切换为 dlib 68 点检测器，与训练保持一致
+- [x] **T1-1** 诊断 face_alignment v1.5.0 与训练时 dlib 坐标系的具体偏差量（输出两套 landmark 的坐标对比图）
+- [x] **T1-2** 方案 A：在 `LIDMarkAdapter.run()` 中切换为 dlib 68 点检测器，与训练保持一致
 - [ ] **T1-3** 方案 B：如果 dlib 安装困难，改用 face_alignment 但在输入时施加仿射校正（根据 T1-1 诊断结果选择）
 - [ ] **T1-4** 验证修复后 backend bit_acc ≥ 97%（对齐 eval adapter 的 99.8%）
 - [ ] **T1-5** 更新 `JUDGE_QA.md` 中 LIDMark 的性能描述
 
 ### T2 · WaveGuard JPEG50 问题处理（P1）
 
-- [ ] **T2-1** 在 WaveGuard 训练配置中加入 JPEG 数据增强（q=45–55），重新 fine-tune 至少 20 epoch
+- [x] **T2-1** 在 WaveGuard 训练配置中加入 JPEG 数据增强（q=45–55），重新 fine-tune 至少 20 epoch
 - [ ] **T2-2** 若无法 fine-tune，在 `docs/WAVEGUARD_JPEG_ANALYSIS.md` 中补充"修复路线图"章节，作为答辩备份
 - [ ] **T2-3** 在前端 demo 中对 JPEG50 攻击加醒目注释，主动说明已知限制而非被追问
 
@@ -55,8 +55,8 @@
 
 当前 MEA 矩阵只跑了 6/15 种攻击，缺少以下攻击类型：
 
-- [ ] **E1-1** crop_center_0.8（中心裁剪 80%）
-- [ ] **E1-2** rotate_5（5° 旋转）
+- [x] **E1-1** crop_center_0.8（中心裁剪 80%）
+- [x] **E1-2** rotate_5（5° 旋转）
 - [ ] **E1-3** gaussian_blur_5（高斯模糊）
 - [ ] **E1-4** brightness_0.85 / contrast_1.2（亮度/对比度）
 - [ ] **E1-5** webp50（WebP 压缩 Q=50，抖音/快手实际使用）
@@ -67,8 +67,8 @@
 
 ### E2 · 多 seed 统计（P1）
 
-- [ ] **E2-1** 以 seed={20260603, 20260604, 20260605} 重跑完整 MEA 4×4 矩阵（每格 n=256）
-- [ ] **E2-2** 对每格输出 95% Bootstrap CI、配对 t 检验 p 值、Cohen's d 效应量
+- [x] **E2-1** 以 seed={20260603, 20260604, 20260605} 重跑完整 MEA 4×4 矩阵（每格 n=256）
+- [x] **E2-2** 对每格输出 95% Bootstrap CI、配对 t 检验 p 值、Cohen's d 效应量
 - [ ] **E2-3** 将 LIDMark 的 3 seed 单模型 LFW 结果纳入 `run_statistical_analysis.py`（当前只读 SepMark/WaveGuard CSV）
 - [ ] **E2-4** 生成跨模型对比表格（mean ± std，格式与 SepMark/WaveGuard 一致）
 
@@ -87,7 +87,7 @@
 
 ### E5 · 竞赛报告数据一致性（P1）
 
-- [ ] **E5-1** 将 `export_competition_report.py` 中 LIDMark 条目从 smoke_checkpoint 改为 real_checkpoint 数据
+- [x] **E5-1** 将 `export_competition_report.py` 中 LIDMark 条目从 smoke_checkpoint 改为 real_checkpoint 数据
 - [ ] **E5-2** 将 `evidence_gate.ready_for_claims` 从 false 改为 true（在完成 E1/E2 之后）
 - [ ] **E5-3** 更新 `benchmark_complete` 状态，确保 LIDMark 的 `mode=smoke` 标注更正
 - [ ] **E5-4** 修复 `evaluation_protocol.v1.json` 中 `attack_ids=[]` 的空数组 bug
@@ -99,14 +99,14 @@
 
 ### S1 · 端到端 Deepfake 溯源 Demo 流程（P0 — 答辩核心）
 
-- [ ] **S1-1** 设计演示脚本：上传一张真人脸 → 嵌入 LIDMark 水印 → 经过 deepfake 换脸攻击 → 提取水印 → 证明溯源成功
+- [x] **S1-1** 设计演示脚本：上传一张真人脸 → 嵌入 LIDMark 水印 → 经过 deepfake 换脸攻击 → 提取水印 → 证明溯源成功
 - [ ] **S1-2** 前端实现"上传 + 实时处理 + 可视化对比"的单页 demo（原始/水印/攻击后/差异热力图）
 - [ ] **S1-3** 接入 `/api/compliance/batch` 批量合规扫描，模拟平台侧的合规检测场景
 - [ ] **S1-4** 录制 3 分钟演示视频（deepfake 传播链路：内容创作者 → 平台分发 → 监管取证）
 
 ### S2 · 证据链完整性（P1）
 
-- [ ] **S2-1** 将 Ed25519 签名流程集成到 `/api/infer/single` 的 response 中（当前 `evidence.sha256` 已有，但未签名）
+- [x] **S2-1** 将 Ed25519 签名流程集成到 `/api/infer/single` 的 response 中（当前 `evidence.sha256` 已有，但未签名）
 - [ ] **S2-2** 提供公钥下载接口，使评委可以离线验证证据报告未被篡改
 - [ ] **S2-3** 在前端"证据"页面展示签名验证 UI
 
@@ -129,10 +129,10 @@
 ### M1 · 技术报告 PDF（P0 — 有提交截止日期）
 
 - [ ] **M1-1** 确认竞赛官网的报告模板格式要求（页数限制、字体、章节要求）
-- [ ] **M1-2** 起草技术报告大纲：背景 → 技术路线 → 四模型原创性说明 → 评测结果 → 应用案例 → 结论
-- [ ] **M1-3** 写"评测结果"章节：包含 MEA 4×4 矩阵表、多模型 LFW 对比表、PSNR-Accuracy 曲线
-- [ ] **M1-4** 写"应用场景"章节：小红书内容创作者保护、平台合规 API、监管取证三个具体场景
-- [ ] **M1-5** 写"原创贡献"章节：明确说明 LIDMark/MEA/WaveGuard/KAD-Net 均为本团队研究成果
+- [x] **M1-2** 起草技术报告大纲：背景 → 技术路线 → 四模型原创性说明 → 评测结果 → 应用案例 → 结论
+- [x] **M1-3** 写"评测结果"章节：包含 MEA 4×4 矩阵表、多模型 LFW 对比表、PSNR-Accuracy 曲线
+- [x] **M1-4** 写"应用场景"章节：小红书内容创作者保护、平台合规 API、监管取证三个具体场景
+- [x] **M1-5** 写"原创贡献"章节：明确说明 LIDMark/MEA/WaveGuard/KAD-Net 均为本团队研究成果
 - [ ] **M1-6** 校对、排版、生成最终 PDF
 
 ### M2 · PPT / 展板（P1）
@@ -143,8 +143,8 @@
 
 ### M3 · 答辩准备（P1）
 
-- [ ] **M3-1** 更新 `docs/JUDGE_QA.md`：补充 KAD-Net 性能数据、WaveGuard JPEG50 解释、LIDMark real checkpoint 数据
-- [ ] **M3-2** 更新 `docs/DEFENSE_SCRIPT_3MIN.md`：基于最新四模型数据重写 3 分钟答辩口稿
+- [x] **M3-1** 更新 `docs/JUDGE_QA.md`：补充 KAD-Net 性能数据、WaveGuard JPEG50 解释、LIDMark real checkpoint 数据
+- [x] **M3-2** 更新 `docs/DEFENSE_SCRIPT_3MIN.md`：基于最新四模型数据重写 3 分钟答辩口稿
 - [ ] **M3-3** 准备"评委最强质疑"预案：为什么选这四个模型？为什么 SepMark 只有 87.7%？deepfake 如何攻破水印？
 - [ ] **M3-4** 团队内部进行至少 2 次模拟答辩
 
