@@ -109,12 +109,15 @@ def main() -> None:
     waveguard = load_json(ROOT / "system/reports/waveguard_lfw_benchmark/summary.json")
     waveguard_full = load_json(ROOT / "system/reports/waveguard_lfw_full_benchmark/summary.json")
     waveguard_small = load_json(ROOT / "system/reports/waveguard_lfw_small_benchmark/summary.json")
+    waveguard_jpeg_ste = load_json(ROOT / "system/reports/kadnet_lfw_benchmark/../waveguard_lfw_benchmark/summary.json")
+    kadnet = load_json(ROOT / "system/reports/kadnet_lfw_benchmark/summary.json")
     rows = []
     rows += flatten_method(hidden, "MEA/HiDDeN", "real_checkpoint", "lfw_full")
     rows += flatten_method(sepmark, "SepMark", "real_checkpoint", "lfw_full")
     rows += flatten_method(waveguard_full, "WaveGuard-full", "real_checkpoint_full_benchmark", "lfw_full")
     rows += flatten_method(waveguard_small, "WaveGuard-small", "real_checkpoint_small_benchmark", "lfw_small")
-    rows += flatten_method(lidmark, "LIDMark", "smoke_checkpoint", "lidmark_lfw_eval")
+    rows += flatten_method(lidmark, "LIDMark", "real_checkpoint_3seed", "lfw_512")
+    rows += flatten_method(kadnet, "KAD-Net", "real_checkpoint_100ep", "lfw_512")
     if waveguard:
         rows.append({"method": "WaveGuard", "mode": waveguard.get("mode", "real_checkpoint_smoke"), "data_type": "lfw_full", "attack": "checkpoint_load", "status": waveguard.get("status"), "can_defense": "smoke"})
     else:
@@ -127,10 +130,12 @@ def main() -> None:
     (OUT / "summary.json").write_text(json.dumps({"rows": rows}, indent=2, ensure_ascii=False), encoding="utf-8")
     # degradation curves for real-checkpoint baselines when available
     curves = []
-    if hidden and hidden.get("attacks"):
-        curves.append(("HiDDeN", hidden["attacks"]))
     if sepmark and sepmark.get("attacks"):
         curves.append(("SepMark", sepmark["attacks"]))
+    if lidmark and lidmark.get("attacks"):
+        curves.append(("LIDMark", lidmark["attacks"]))
+    if kadnet and kadnet.get("attacks"):
+        curves.append(("KAD-Net", kadnet["attacks"]))
     if curves:
         plt.figure(figsize=(8, 4))
         for label, attack_map in curves:
@@ -139,7 +144,7 @@ def main() -> None:
             plt.plot(attacks, vals, marker="o", label=label)
         plt.ylim(0, 1)
         plt.ylabel("Mean bit accuracy")
-        plt.title("LFW attack degradation")
+        plt.title("LFW attack robustness — SepMark / LIDMark / KAD-Net")
         plt.legend()
         plt.grid(True, alpha=0.3)
         plt.tight_layout()
