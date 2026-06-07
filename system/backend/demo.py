@@ -68,15 +68,21 @@ def simulate_lidmark_embed(image: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
 
 
 def _map_attack_for_lidmark(attack: str) -> str:
-    """Map demo attack string to LIDMarkAdapter attack key."""
-    attack = attack.lower()
+    """Pass attack string to LIDMarkAdapter; _apply_attack_rgb handles the full suite."""
+    attack = (attack or '').lower()
+    if not attack:
+        return 'clean'
+    # Map compound demo keys to canonical _apply_attack_rgb identifiers
+    if 'deepfake' in attack:
+        return 'deepfake_proxy_v1'
     if 'jpeg' in attack:
         return 'jpeg'
     if 'resize' in attack:
         return 'resize'
     if 'noise' in attack:
         return 'noise'
-    return 'clean'
+    # Pass any other valid attack key (clean, blur, brightness, etc.) directly
+    return attack
 
 
 def apply_attack(image: np.ndarray, attack: str) -> np.ndarray:
