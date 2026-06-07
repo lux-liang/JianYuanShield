@@ -385,8 +385,9 @@ class LIDMarkAdapter:
                 wm_np[:136] = lm_norm.astype(np.float32)
         except Exception:
             pass  # fallback: zeros for landmark dims
+        # ID bits must be {-1.0, 1.0} — training .npy stores {-1,1}, not {0,1}
         rng = np.random.default_rng(42)
-        wm_np[136:] = rng.integers(0, 2, self.wm_length - 136).astype(np.float32)
+        wm_np[136:] = rng.choice(np.array([-1.0, 1.0], dtype=np.float32), size=self.wm_length - 136)
         wm_t = torch.from_numpy(wm_np).unsqueeze(0).to(self.device)
         with torch.no_grad():
             encoded = self.model.encoder(t, wm_t).clamp(-1, 1)
