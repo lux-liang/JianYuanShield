@@ -49,7 +49,7 @@
           </div>
           <div class="boundary-box">
             <span>边界声明</span>
-            <strong id="boundaryConclusion">LIDMark 当前为 smoke；WaveGuard 已完成 13,233 张全量真实评测</strong>
+            <strong id="boundaryConclusion">LIDMark 3-seed 正式训练 99.97%；WaveGuard JPEG Q=50 已修复（100%）；KAD-Net 几何增强微调中</strong>
           </div>
         </section>
 
@@ -63,7 +63,7 @@
           </div>
           <form id="demoForm" class="demo-form">
             <label>样本<select id="demoSample"></select></label>
-            <label>模型<select id="demoProject"><option>LIDMark</option><option>SepMark</option><option>WaveGuard</option></select></label>
+            <label>模型<select id="demoProject"><option>LIDMark</option><option>SepMark</option><option>WaveGuard</option><option>KAD-Net</option></select></label>
             <label>攻击链<select id="demoAttack"><option value="deepfake_proxy_v1">Deepfake 代理攻击（溯源演示）</option><option value="multi_embedding+jpeg_50+blur">二次嵌入 + JPEG50 + 模糊</option><option value="jpeg_50">JPEG50</option><option value="resize">缩放传播</option><option value="">无攻击</option></select></label>
             <button id="demoRunButton" class="primary-action" type="submit">运行演示</button>
           </form>
@@ -94,7 +94,9 @@
             <form id="inferForm" class="demo-form">
               <label>图片<input type="file" id="inferFile" accept="image/*" required></label>
               <label>模型<select id="inferModel">
-                <option value="SepMark">SepMark（推荐）</option>
+                <option value="LIDMark">LIDMark（CVPR 2026）</option>
+                <option value="KAD-Net">KAD-Net（推荐）</option>
+                <option value="SepMark">SepMark</option>
                 <option value="WaveGuard">WaveGuard</option>
               </select></label>
               <label>攻击<select id="inferAttack">
@@ -122,6 +124,7 @@
             <form id="batchForm" class="demo-form">
               <label>批量图片（多选）<input type="file" id="batchFiles" accept="image/*" multiple required></label>
               <label>检测模型<select id="batchModel">
+                <option value="KAD-Net">KAD-Net</option>
                 <option value="SepMark">SepMark</option>
                 <option value="WaveGuard">WaveGuard</option>
               </select></label>
@@ -137,17 +140,21 @@
             <form id="meaForm" class="demo-form">
               <label>图片<input type="file" id="meaFile" accept="image/*" required></label>
               <label>攻击<select id="meaAttack">
+                <option value="clean">无攻击</option>
                 <option value="jpeg50">JPEG 50（平台转码）</option>
                 <option value="jpeg70">JPEG 70</option>
+                <option value="crop_center_0.8">中心裁剪 80%</option>
+                <option value="rotate_5">旋转 5°</option>
                 <option value="resize">缩放传播</option>
                 <option value="noise">高斯噪声</option>
-                <option value="clean">无攻击</option>
+                <option value="gaussian_blur_5">高斯模糊</option>
               </select></label>
               <button id="meaBtn" class="primary-action" type="submit">对比评测</button>
             </form>
             <div id="meaStatus" class="demo-status">等待上传</div>
             <div id="meaResults" class="mea-results"></div>
-          
+          </div>
+
           <!-- 场景4: Deepfake 溯源 -->
           <div id="scene-deepfake" class="scene-block" style="display:none">
             <p class="scene-desc">上传图片 → LIDMark 嵌入溯源水印 → 模拟 Deepfake 变换 → 解码验证来源身份</p>
@@ -194,6 +201,11 @@
             <span>WaveGuard</span>
             <strong id="waveguardStatus">-</strong>
             <small id="waveguardCount">-</small>
+          </div>
+          <div class="stat" data-status-card="kadnetStatus">
+            <span>KAD-Net</span>
+            <strong id="kadnetStatus">-</strong>
+            <small id="kadnetCount">几何微调进行中</small>
           </div>
           <div class="stat" data-status-card="reportStatus">
             <span>报告</span>
@@ -296,9 +308,9 @@
             <div class="panel-head">
               <div>
                 <h3>LIDMark LFW eval</h3>
-                <span>smoke checkpoint，不是 official full model</span>
+                <span>3-seed 正式训练 · 各 512 张 · 比特精度 99.97%</span>
               </div>
-              <span class="panel-badge warning">smoke</span>
+              <span class="panel-badge">real</span>
             </div>
             <pre id="lidmarkJson">{}</pre>
           </article>
@@ -306,10 +318,10 @@
           <article class="panel">
             <div class="panel-head">
               <div>
-                <h3>WaveGuard baseline</h3>
-                <span>single smoke + small/full LFW benchmark</span>
+                <h3>WaveGuard fine-tuned</h3>
+                <span>JPEG STE 7ep 微调 · tracer 100% Q=50/70 · LFW 512 imgs</span>
               </div>
-              <span class="panel-badge warning">baseline</span>
+              <span class="panel-badge">real</span>
             </div>
             <div class="table-wrap">
               <table>

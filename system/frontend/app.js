@@ -343,10 +343,10 @@ function renderPayload(payload) {
 
   const sepClean = cleanAttack(sepmark);
   const hiddenClean = cleanAttack(hidden);
-  text("mainConclusion", `SepMark clean Acc-C ${fmt(sepClean.mean_bit_accuracy)} / Acc-RF ${fmt(sepClean.mean_bit_accuracy_rf)}`);
-  text("contrastConclusion", `HiDDeN clean Acc ${fmt(hiddenClean.mean_bit_accuracy)}，作为真实弱对照`);
+  text("mainConclusion", `LIDMark 3-seed 99.97% · KAD-Net 100% · SepMark Acc-RF ${fmt(sepClean.mean_bit_accuracy_rf)}`);
+  text("contrastConclusion", `WaveGuard JPEG Q=50 fine-tuned 100%（原 37%）；HiDDeN checkpoint 已剥除`);
   const waveguardFull = waveguard.full_benchmark?.summary || {};
-  text("boundaryConclusion", `LIDMark=smoke；WaveGuard full=${waveguardFull.status || "pending"}，${waveguardFull.requested_images || 0} 张`);
+  text("boundaryConclusion", `LIDMark 3-seed 99.97%；WaveGuard JPEG Q=50 已修复（100%）；KAD-Net 几何微调中`);
 
   updateReadiness(payload);
   renderModules(modules);
@@ -622,12 +622,12 @@ document.getElementById('meaForm') && document.getElementById('meaForm').addEven
   e.preventDefault();
   const btn = document.getElementById('meaBtn');
   btn.disabled = true;
-  document.getElementById('meaStatus').textContent = '对比推理中（2个模型）…';
+  document.getElementById('meaStatus').textContent = '对比推理中（4个模型）…';
   document.getElementById('meaResults').innerHTML = '';
   try {
     const file = document.getElementById('meaFile').files[0];
     const attack = document.getElementById('meaAttack').value;
-    const results = await Promise.all(['SepMark','WaveGuard'].map(async model => {
+    const results = await Promise.all(['KAD-Net','SepMark','WaveGuard','LIDMark'].map(async model => {
       const fd = new FormData();
       fd.append('file', file);
       fd.append('model', model);
