@@ -329,9 +329,9 @@ function renderMeaMatrix(mea) {
   }
   function gradeIcon(v) {
     if (v == null) return "—";
-    if (v >= 0.9) return `<span style="color:var(--green)">✅${(v*100).toFixed(0)}%</span>`;
-    if (v >= 0.7) return `<span style="color:var(--yellow)">⚠${(v*100).toFixed(0)}%</span>`;
-    return `<span style="color:var(--red)">❌${(v*100).toFixed(0)}%</span>`;
+    if (v >= 0.9) return `<span style="color:var(--real)">✅${(v*100).toFixed(0)}%</span>`;
+    if (v >= 0.7) return `<span style="color:var(--warn)">⚠${(v*100).toFixed(0)}%</span>`;
+    return `<span style="color:var(--risk)">❌${(v*100).toFixed(0)}%</span>`;
   }
   tbody.innerHTML = models.map(src => {
     const row = matrix[src] || {};
