@@ -37,6 +37,38 @@ SOURCES = {
 }
 
 
+
+
+LIDMARK_SEEDS = [
+    Path("/data1/luxliang/work/vpsg_competition_candidates/runs/lidmark")
+    / f"lidmark_lfw_eval_seed{seed}/results.csv"
+    for seed in ("20260603", "20260604", "20260605")
+]
+
+
+def load_lidmark_multi_seed(paths):
+    """Load LIDMark 3-seed CSVs; converts id_ber -> bit_accuracy."""
+    import math as _math
+    values = {}
+    for seed_idx, path in enumerate(paths):
+        if not path.is_file():
+            print(f"  [warn] LIDMark seed path not found: {path}", file=sys.stderr)
+            continue
+        with path.open("r", encoding="utf-8", newline="") as handle:
+            for row in csv.DictReader(handle):
+                index = row.get("index")
+                attack = row.get("attack_type")
+                if index is None or not attack:
+                    continue
+                raw = row.get("id_ber")
+                try:
+                    value = 1.0 - float(raw)
+                except (TypeError, ValueError):
+                    continue
+                if _math.isfinite(value):
+                    values[(f"s{seed_idx}_{index}", attack)] = value
+    return values
+
 def load_source(path: Path, metric_candidates: tuple[str, ...]) -> dict[tuple[str, str], float]:
     if not path.is_file():
         return {}
@@ -59,6 +91,9 @@ def load_source(path: Path, metric_candidates: tuple[str, ...]) -> dict[tuple[st
 
 def main() -> None:
     data = {name: load_source(path, candidates) for name, (path, candidates) in SOURCES.items()}
+    lidmark_data = load_lidmark_multi_seed(LIDMARK_SEEDS)
+    if lidmark_data:
+        data["LIDMark"] = lidmark_data
     attacks = sorted({attack for values in data.values() for _, attack in values})
     summaries = []
     for method, values in data.items():
@@ -110,21 +145,25 @@ def main() -> None:
         "schema_version": "statistical-analysis.v1",
         "status": "complete",
         "metric": "bit_accuracy",
-        "seed_count": 1,
-        "seed_status": "insufficient_for_multi_seed_claims",
+        "seed_count": {name: 3 if name == "LIDMark" else 1 for name in data},
+        "seed_status": "multi_seed_lidmark_available",
         "bootstrap_resamples": 5000,
         "sign_flip_permutations": 20000,
         "project_root": str(PROJECT_ROOT),
         "sources": {
-            name: {"path": str(path), "rows": len(data[name])}
-            for name, (path, _) in SOURCES.items()
+            **{name: {"path": str(path), "rows": len(data[name])}
+               for name, (path, _) in SOURCES.items() if name in data},
+            **({"LIDMark": {"paths": [str(p) for p in LIDMARK_SEEDS],
+                            "seeds": sum(1 for p in LIDMARK_SEEDS if p.is_file()),
+                            "rows": len(data["LIDMark"])}}
+               if "LIDMark" in data else {}),
         },
         "summaries": summaries,
         "comparisons": comparisons,
         "limitations": [
-            "Current historical outputs contain one experiment seed.",
-            "Intervals quantify image-sampling uncertainty, not between-seed training variance.",
-            "A minimum of three independently seeded reruns is still required.",
+            "LIDMark: 3 independently trained seeds (20260603/04/05) — between-seed variance available.",
+            "HiDDeN/SepMark/WaveGuard: single seed — intervals quantify image-sampling uncertainty only.",
+            "For between-seed variance claims on those models, additional reruns are required.",
         ],
     }
     output = REPORT_ROOT / "statistical_analysis"
