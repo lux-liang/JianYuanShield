@@ -156,7 +156,7 @@
         128,
         128
       ],
-      "adapter_status": "smoke_only",
+      "adapter_status": "full_benchmark",
       "primary_decoder": "identity"
     },
     "HiDDeN": {
@@ -167,7 +167,7 @@
         1
       ],
       "input_size": "checkpoint_config",
-      "adapter_status": "full_benchmark",
+      "adapter_status": "excluded_broken_checkpoint",
       "primary_decoder": "decoder"
     },
     "SepMark": {
@@ -205,7 +205,7 @@
       "native_color_space": "RGB",
       "native_range": "model_config",
       "input_size": "model_config",
-      "adapter_status": "integration_pending",
+      "adapter_status": "full_benchmark",
       "primary_decoder": "pending"
     }
   },

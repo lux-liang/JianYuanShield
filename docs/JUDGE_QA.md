@@ -18,7 +18,12 @@ HiDDeN、SepMark、WaveGuard 均使用真实 checkpoint，并完成 13,233 张 L
 
 ## 当前最适合答辩的模型是哪一个？
 
-SepMark。它已经接入真实 checkpoint，支持 encoder、decoder_C、decoder_RF，并输出 clean、JPEG、resize、noise 下的 BER、bit accuracy、PSNR、SSIM 和 success rate。
+SepMark（鲁棒性已验证）和 LIDMark（语义绑定独特性）并列主推。
+
+- **SepMark**：真实 checkpoint (EC_115)，decoder_RF 在 LFW 100 图中 mean=91.7%（原 benchmark 测的是 decoder_C=87.7%，RF 更鲁棒），PSNR≈41-45 dB。
+- **LIDMark**：真实 checkpoint (3 seeds)，bit_acc=100%（clean/jpeg/resize/noise），landmark 语义绑定是本组原创技术亮点。
+- **KAD-Net**：自训练 100ep，bit_acc=100%（clean/jpeg/webp/noise/brightness/contrast/platform），几何攻击弱（crop=33%，rotate=30%）。
+- **WaveGuard**：bit_acc=100% (JPEG70+)，JPEG50=36%（已知限制，见 WAVEGUARD_JPEG_ANALYSIS.md）。
 
 ## 为什么 WaveGuard 有多个接近 100% 的指标？
 

@@ -72,7 +72,7 @@ def main() -> None:
         "forensic_conclusion": {
             "mainline": "SepMark is the current strongest real-checkpoint proactive watermark baseline on LFW.",
             "contrast": "HiDDeN is retained as a real-checkpoint negative/weak baseline on the same LFW benchmark.",
-            "boundary": "LIDMark currently uses a smoke checkpoint; WaveGuard has completed the full 13,233-image LFW benchmark.",
+            "boundary": "LIDMark: 3-seed real checkpoint, LFW 512 imgs 99.8-100%. WaveGuard: full 13,233-image LFW benchmark. KAD-Net: self-trained 100ep, LFW 512 imgs 100%.",
             "defense_ready": bool(sepmark_clean) and sepmark_clean.get("mean_bit_accuracy", 0) > hidden_clean.get("mean_bit_accuracy", 0),
         },
         "review_items": [
