@@ -16,6 +16,7 @@ from .benchmarks import (
     modules_payload,
     sepmark_benchmark_payload,
     waveguard_benchmark_payload,
+    kadnet_benchmark_payload,
 )
 from .demo import demo_run_payload, ensure_sample, real_evals_payload, report_payload, samples_payload
 from .evidence import evidence_audit_payload
@@ -89,6 +90,11 @@ def sepmark_benchmark() -> dict[str, Any]:
 @router.get("/api/benchmark/waveguard")
 def waveguard_benchmark() -> dict[str, Any]:
     return waveguard_benchmark_payload()
+
+
+@router.get("/api/benchmark/kadnet")
+def kadnet_benchmark() -> dict[str, Any]:
+    return kadnet_benchmark_payload()
 
 
 @router.get("/api/benchmark/aggregate")
