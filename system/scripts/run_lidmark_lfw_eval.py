@@ -1,5 +1,5 @@
-import os
 from __future__ import annotations
+import os
 
 import argparse
 import csv
@@ -88,15 +88,18 @@ def summarize(csv_path: Path, attacks: list[str], total: int) -> dict:
     if csv_path.exists():
         with csv_path.open(newline="", encoding="utf-8") as f:
             rows = [r for r in csv.DictReader(f) if not r.get("error")]
+    _ckpt_str = str(CHECKPOINT)
+    _mode = "smoke_checkpoint" if "smoke" in _ckpt_str.lower() else "trained_checkpoint"
     out = {
         "method": "LIDMark",
-        "mode": "smoke_checkpoint",
-        "checkpoint": str(CHECKPOINT),
+        "mode": _mode,
+        "checkpoint": _ckpt_str,
         "data_type": "lfw_eval_split",
         "requested_images": total,
-        "warning": "Smoke checkpoint trained on synthetic smoke data, not official full LIDMark model.",
         "attacks": {},
     }
+    if _mode == "smoke_checkpoint":
+        out["warning"] = "Smoke checkpoint - not official full LIDMark model."
     for attack in attacks:
         subset = [r for r in rows if r["attack_type"] == attack]
         if not subset:
@@ -105,7 +108,8 @@ def summarize(csv_path: Path, attacks: list[str], total: int) -> dict:
         out["attacks"][attack] = {
             "status": "complete",
             "count": len(subset),
-            "mean_landmark_aed": round(float(np.mean([float(r["landmark_aed"]) for r in subset])), 6),
+            "mean_landmark_aed": round(float(np.nanmean([float(r["landmark_aed"]) if r["landmark_aed"] and r["landmark_aed"].lower() not in ("inf","-inf","nan") else float("nan") for r in subset])), 6),
+            "inf_landmark_count": sum(1 for r in subset if r.get("landmark_aed","").lower() in ("inf","-inf")),
             "mean_id_ber": round(float(np.mean([float(r["id_ber"]) for r in subset])), 6),
             "mean_psnr": round(float(np.mean([float(r["psnr"]) for r in subset])), 6),
             "mean_ssim": round(float(np.mean([float(r["ssim"]) for r in subset])), 6),
@@ -158,7 +162,9 @@ def main() -> None:
                 try:
                     attacked = apply_attack(encoded, attack, device)
                     pred_landmark, pred_id_logits = model.decoder(attacked)
-                    landmark_aed = float(torch.mean(torch.sqrt(torch.sum((pred_landmark.view(-1, 68, 2) - gt_landmark.view(-1, 68, 2)) ** 2, dim=2))).item())
+                    _lm_raw = torch.sqrt(torch.sum((pred_landmark.view(-1, 68, 2) - gt_landmark.view(-1, 68, 2)) ** 2, dim=2))
+                    _lm_raw = _lm_raw[torch.isfinite(_lm_raw)]
+                    landmark_aed = float(_lm_raw.mean().item()) if _lm_raw.numel() > 0 else float("inf")
                     pred_id = pred_id_logits > 0
                     id_ber = float(torch.mean((pred_id != gt_id).float()).item())
                     ref = tensor_to_uint8(img)

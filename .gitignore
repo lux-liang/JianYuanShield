@@ -34,3 +34,28 @@ tmux.log
 .idea/
 .vscode/
 
+
+# Secrets and runtime state
+.env
+.deployed_commit
+
+# Third-party model repos (large, not tracked)
+KAD-Net/
+LIDMark/
+MEA/
+WaveGuard/
+
+# Backup snapshots
+.code_backup_*/
+.runtime_backup_*/
+
+# Symlinks to /data1 (gitignore trailing-slash patterns don't match symlinks)
+KAD-Net
+LIDMark
+MEA
+WaveGuard
+datasets
+runs
+weights
+system/assets
+system/reports

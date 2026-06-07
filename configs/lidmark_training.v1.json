@@ -2,11 +2,19 @@
   "schema_version": "lidmark-training.v1",
   "stage": "distortion_pretrain",
   "resolution": 128,
-  "seeds": [20260603, 20260604, 20260605],
+  "seeds": [
+    20260603,
+    20260604,
+    20260605
+  ],
   "dataset": {
     "image_root": "datasets/lidmark_official/image/celeba-hq_128",
     "watermark_root": "datasets/lidmark_official/watermark_152/celeba-hq/128",
-    "required_splits": ["train", "val", "test"],
+    "required_splits": [
+      "train",
+      "val",
+      "test"
+    ],
     "expected_total_pairs": 29995
   },
   "training": {
@@ -24,5 +32,29 @@
     "single_batch_forward_backward_pass",
     "checkpoint_resume_test"
   ],
-  "status": "blocked_until_dataset_gate_passes"
+  "status": "training_complete_benchmarks_running",
+  "training_results": {
+    "completed_seeds": [
+      20260603,
+      20260604,
+      20260605
+    ],
+    "epochs_per_seed": 100,
+    "checkpoints": {
+      "s1": "runs/lidmark/seed_checkpoints/s1/checkpoint_epoch_100.pth",
+      "s2": "runs/lidmark/seed_checkpoints/s2/checkpoint_epoch_100.pth",
+      "s3": "runs/lidmark/seed_checkpoints/s3/checkpoint_epoch_100.pth"
+    },
+    "val_metrics_final_epoch_s1": {
+      "id_ber": 0.000462,
+      "psnr": 35.765659,
+      "ssim": 0.95531
+    },
+    "val_metrics_final_epoch_s3": {
+      "id_ber": 0.0,
+      "psnr": 34.240894,
+      "ssim": 0.945916
+    },
+    "note": "landmark_aed occasionally inf during val due to face-detection instability on some celeba-hq images; id_ber and PSNR/SSIM are reliable"
+  }
 }

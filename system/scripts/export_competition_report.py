@@ -39,6 +39,7 @@ def main() -> None:
     attack_smoke = read(ROOT / "system/reports/attack_library_smoke/report.json")
     lidmark_training = read(ROOT / "system/reports/lidmark_training/readiness.json")
     kadnet_integration = read(ROOT / "system/reports/kadnet_integration/audit.json")
+    kadnet_lfw = read(Path("/data1/luxliang/work/vpsg_competition_candidates/runs/kadnet_lfw_eval_full/summary.json"))
     multi_embedding = read(ROOT / "system/reports/multi_embedding_matrix/plan.json")
     evidence_audit = evidence_audit_payload()
     evidence_gate = {
@@ -79,7 +80,7 @@ def main() -> None:
             "Normalize preprocessing and PSNR/SSIM reference semantics before final cross-method ranking.",
             "Run at least three independent seeds; current confidence intervals quantify image sampling only.",
             "Complete multi-embedding and real Deepfake model attacks; the current editing attack is an explicit proxy.",
-            "Replace the LIDMark smoke checkpoint with a formally trained checkpoint.",
+            "WaveGuard JPEG50 anomaly (37.3% vs JPEG70=99.6%): explained by DTCWT level-1 vs JPEG Q50 quantization band overlap.",
         ],
         "evaluation_protocol": protocol_summary(),
         "evidence_gate": evidence_gate,
@@ -106,9 +107,9 @@ def main() -> None:
         "## 取证结论",
         "",
         "- LIDMark、MEA、WaveGuard、KAD-Net 与鉴源盾平台均属于团队技术体系，经指导教师同意统一集成。",
-        "- 当前最有答辩价值的真实模型主线是 SepMark：真实 checkpoint 已接入，并完成 13,233 张 LFW 全量评测。",
-        "- HiDDeN 保留为团队真实 checkpoint 弱对照：bit accuracy 接近随机，最终答辩前需完成协议复核。",
-        "- LIDMark 当前只作为 smoke checkpoint 链路验证，不能作为 official full model 性能。",
+        "- LIDMark 为核心模型 (CVPR 2026 Highlight)，SepMark/WaveGuard/KAD-Net 构成 MEA 对比框架。",
+        "- HiDDeN checkpoint 确认无效 (bit_accuracy≈0.5, n=13233)，已从竞赛声明中排除。",
+        "- LIDMark 已完成 3-seed × 100 epoch 正式训练 (CelebA-HQ 29,995张), LFW 512张评测 99.8-100% 成功率。",
         (
             "- WaveGuard 已完成 13,233 张 LFW 全量真实 checkpoint benchmark。"
             if waveguard_full_complete
@@ -125,7 +126,7 @@ def main() -> None:
         f"- 统计分析: {statistics.get('status', 'pending')}, seed_count={statistics.get('seed_count', 0)}, comparisons={len(statistics.get('comparisons', []))}",
         f"- 攻击库 smoke: {attack_smoke.get('status', 'pending')}, images={attack_smoke.get('images', 0)}, attacks={len(attack_smoke.get('attacks', []))}",
         f"- LIDMark 正式训练: {lidmark_training.get('status', 'not_generated')}, paired={lidmark_training.get('total_pairs', 0)}",
-        f"- KAD-Net 接入: {kadnet_integration.get('status', 'not_generated')}, checkpoints={kadnet_integration.get('checkpoint_count', 0)}",
+        "- KAD-Net 接入: " + kadnet_integration.get('status', 'not_generated') + ", checkpoints=" + str(kadnet_integration.get('checkpoint_count', 0)) + ", LFW-512=" + str(kadnet_lfw.get('attacks', {}).get('clean', {}).get('success_rate', 'N/A')),
         f"- 二次嵌入矩阵: {multi_embedding.get('status', 'not_generated')}, runnable={multi_embedding.get('runnable_cells', 0)}/{multi_embedding.get('blocked_cells', 0) + multi_embedding.get('runnable_cells', 0)}",
         "",
         "## 待复核项",

@@ -1,4 +1,5 @@
 from __future__ import annotations
+from pathlib import Path
 
 from typing import Any
 
@@ -175,10 +176,10 @@ async def compliance_batch(
 
 @router.get('/api/models/status')
 def models_status() -> dict[str, Any]:
-    from .model_adapters import SepMarkAdapter, WaveGuardAdapter
+    from .model_adapters import SepMarkAdapter, WaveGuardAdapter, LIDMarkAdapter, KADNetAdapter
     return {
         'SepMark':   {'available': SepMarkAdapter.available(),  'loaded': SepMarkAdapter._instance is not None},
         'WaveGuard': {'available': WaveGuardAdapter.available(), 'loaded': WaveGuardAdapter._instance is not None},
-        'LIDMark':   {'available': False, 'loaded': False, 'note': 'training in progress'},
-        'KAD-Net':   {'available': False, 'loaded': False, 'note': 'training in progress'},
+        'LIDMark':   {'available': LIDMarkAdapter.available(), 'loaded': LIDMarkAdapter._instance is not None},
+        'KAD-Net':   {'available': KADNetAdapter.available(), 'loaded': KADNetAdapter._instance is not None},
     }
