@@ -75,7 +75,7 @@
 | 编号 | 问题 | 严重程度 | 状态 |
 |------|------|---------|------|
 | ~~**D1**~~ | ~~WaveGuard JPEG Q<60 鲁棒性差（成功率 37.3%）~~ | ~~中~~ | **已修复** — JPEG STE 7ep 微调，Q=50 tracer精度 100%（LFW 512张） |
-| **D2** | KAD-Net 几何攻击弱：crop_center_0.8≈33%，rotate_5≈30% | 中 | 训练数据缺少几何增强，待补充 |
+| **D2** | KAD-Net 几何攻击弱：crop_center_0.8≈33%，rotate_5≈30% | 中 | 几何增强微调进行中（EP17/50）；EP16中间结果：crop=71.2%，rotate=39.8% |
 | **D3** | HiDDeN checkpoint 损坏（epoch-200.pyt），bit_acc≈50% | 高 | 已剔除出竞赛方案，标记为 broken |
 | **D4** | LIDMark 依赖真实人脸（face_alignment 无法处理合成/噪声图像） | 低 | 设计限制，Demo 需上传真实人脸 |
 | **D5** | MEA 矩阵 n=128/格，统计显著性偏弱 | 低 | 已标注 images_per_cell；竞赛演示够用 |
