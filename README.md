@@ -8,8 +8,6 @@
 
 ---
 
-[![LIDMark](https://img.shields.io/badge/LIDMark-CVPR%202026%20Highlight-red?logo=googlescholar)](https://arxiv.org/abs/2602.23523)
-[![KAD-Net](https://img.shields.io/badge/KAD--Net-KBS%202025-blue)](https://github.com/vpsg-research/KAD-Net)
 [![LFW Benchmark](https://img.shields.io/badge/LFW%20全量基准-13%2C233%20imgs-brightgreen)](https://github.com/lux-liang/JianYuanShield)
 [![Ed25519](https://img.shields.io/badge/证据链-Ed25519%20Verified-success)](https://github.com/lux-liang/JianYuanShield)
 [![Bootstrap CI](https://img.shields.io/badge/统计-Bootstrap%2095%%20CI-orange)](https://github.com/lux-liang/JianYuanShield)
@@ -66,22 +64,13 @@ Deepfake 技术迭代加速——2024 年 FaceSwap、SimSwap 已可在普通显�
 
 ## 二、核心优势与创新点
 
-### 优势一：依托新疆大学 VPSG 实验室顶会成果，技术底座坚实
-
-鉴源盾集成了新疆大学 VPSG（视觉处理与安全）实验室的四项原创研究成果：
-
-| 模型 | 核心贡献 |
-|------|---------|
-| **LIDMark** | 人脸关键点-身份联合水印，Deepfake 后仍可溯源 |
-| **KAD-Net** | Kolmogorov-Arnold 网络水印，LFW 全场景 100% 精度 |
-| **WaveGuard** | DTCWT 频域水印，平台级压缩完全免疫 |
-| **SepMark** | 频域分离水印，RF 解码器改进版（+3.5pp） |
+> 本项目依赖于新疆大学 VPSG 实验室平台。
 
 ---
 
-### 优势二：LIDMark——全球首个 Deepfake 穿透溯源方案
+### 优势一：LIDMark——全球首个 Deepfake 穿透溯源方案
 
-LIDMark（CVPR 2026 Highlight，XJU VPSG 实验室原创）的核心突破：
+LIDMark（XJU VPSG 实验室原创）的核心突破：
 
 **水印向量 = 人脸 152 维关键点坐标（结构感知）+ 用户 ID 比特（精确身份编码）**
 
@@ -103,7 +92,7 @@ LIDMark（CVPR 2026 Highlight，XJU VPSG 实验室原创）的核心突破：
 
 ---
 
-### 优势三：MEA——VPSG 实验室原创跨模型攻击评测协议
+### 优势三：MEA——跨模型攻击评测协议
 
 现有水印论文只评估"单模型能否被攻击"——鉴源盾提出 **Multi-Embedding Attack（MEA）** 协议，填补了**多水印并存场景**的评测空白：
 
@@ -260,7 +249,6 @@ curl http://server:8026/api/evidence/signature/download/public-key
 | 15 种攻击统一评测 | ✅ | 通常 2–4 种 | — | — |
 | Bootstrap CI 置信区间 | ✅ | 罕见 | — | — |
 | MEA 跨模型攻击矩阵 | ✅ VPSG 原创 | ❌ | — | — |
-| 顶会论文技术背书 | ✅ CVPR 2026 + KBS 2025 | 少见 | 部分 | — |
 | 实时推理 API | ✅ < 2s / 张 | 视方案 | ✅ | ❌ |
 | 开源可复现 | ✅ | 部分 | 部分 | 部分 |
 
@@ -289,12 +277,12 @@ curl http://server:8026/api/evidence/signature/download/public-key
   前端界面（4 场景交互 Demo）
 ```
 
-| 模型 | 论文来源 | 嵌入域 | 水印长度 | 核心优势 |
-|------|---------|--------|---------|---------|
-| **LIDMark** | CVPR 2026 Highlight | 空间域（关键点） | 152 bit | 语义绑定，Deepfake 后溯源 |
-| **KAD-Net** | KBS 2025 | 空间域（KAN+SE） | 30 bit | KAN 非线性提取，全场景 100% |
-| **WaveGuard** | VPSG 实验室 | 频域（DTCWT） | 1 bit（检测） | 频域不变性，抗平台压缩 |
-| **SepMark** | VPSG 实验室 | 频域（分离子带） | 30 bit | 高低频分离，RF 解码器增强 |
+| 模型 | 嵌入域 | 水印长度 | 核心优势 |
+|------|--------|---------|---------|
+| **LIDMark** | 空间域（关键点） | 152 bit | 语义绑定，Deepfake 后溯源 |
+| **KAD-Net** | 空间域（KAN+SE） | 30 bit | KAN 非线性提取，全场景 100% |
+| **WaveGuard** | 频域（DTCWT） | 1 bit（检测） | 频域不变性，抗平台压缩 |
+| **SepMark** | 频域（分离子带） | 30 bit | 高低频分离，RF 解码器增强 |
 
 ---
 
@@ -346,27 +334,10 @@ curl http://server:8026/api/evidence/audit
 
 ---
 
-## 引用
-
-```bibtex
-@inproceedings{wu2026lidmark,
-  title     = {All in One: Unifying Deepfake Detection, Tampering Localization,
-               and Source Tracing with a Robust Landmark-Identity Watermark},
-  author    = {Junjiang Wu and Liejun Wang and Zhiqing Guo},
-  booktitle = {CVPR},
-  year      = {2026},
-  note      = {Highlight}
-}
-```
-
----
-
 <div align="center">
 
 **鉴源盾** · 让每一张图片都有可验证的来源
 
-*新疆大学 VPSG 实验室 · CVPR 2026 LIDMark · KBS 2025 KAD-Net*
-
-*《人工智能生成合成内容标识办法》技术落地 · 全国大学生信息安全竞赛作品赛*
+*新疆大学 VPSG 实验室 · 《人工智能生成合成内容标识办法》技术落地 · 全国大学生信息安全竞赛作品赛*
 
 </div>
