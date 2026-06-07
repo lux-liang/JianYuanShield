@@ -549,6 +549,8 @@ class KADNetAdapter:
                            key=lambda p: int(p.stem.split("_")[-1]))
             if ckpts:
                 parts = run.name.split("_")
+                if "GEOM" in parts:
+                    return ckpts[-1], "se", "se"
                 ae = parts[8] if len(parts) > 8 and parts[8] not in ("none", "") else None
                 ad = parts[9] if len(parts) > 9 and parts[9] not in ("none", "") else None
                 return ckpts[-1], ae, ad
