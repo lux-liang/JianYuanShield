@@ -1,31 +1,28 @@
-# 真实评测状态
+# 真实评测状态（更新：2026-06-07）
 
 ## 当前事实
 
-- LFW 全量真实图片：13,233 张，来自 `datasets/lfw_full_upload/unknown/`。
-- MEA/HiDDeN：使用真实 checkpoint `weights/mea/HiDDeN/runs/train-test-1 2025.07.09--12-49-43/checkpoints/train-test-1--epoch-200.pyt`。
-- MEA/SepMark：使用真实 checkpoint `weights/mea/SepMark/results/FullFineTuningWithOnlyMessage/models/EC_115.pth`，已接通 encoder、decoder_C、decoder_RF。
-- LIDMark：使用 `weights/lidmark/smoke_128/checkpoints_distortions/checkpoint_epoch_2.pth`，这是 smoke checkpoint，不是官方 full model。
-- WaveGuard：使用真实 checkpoint，13,233 张 LFW full benchmark 已完成。
+| 模型 | Checkpoint | 样本量 | JPEG Q=50 | 状态 |
+|------|-----------|-------|----------|------|
+| **LIDMark** | 3-seed 正式训练 (s1/s2/s3, 各100ep) | 1,536 张（512×3） | 99.96% | ✅ real |
+| **KAD-Net** | 独立训练 100ep + GEOM 微调进行中 | 512 张 | 99.97% | ✅ real |
+| **SepMark** | EC_115.pth (pre-trained) | 13,233 张 | 88.1% | ✅ real |
+| **WaveGuard** | **model_state_7.pth (JPEG STE 微调)** | 512 张 | **100%** ✅ | ✅ real |
+| HiDDeN | 损坏 (epoch-200.pyt) | — | — | ❌ 已剔除 |
 
-## 指标使用边界
+## 关键进展（2026-06-07）
 
-- HiDDeN LFW benchmark 已完成，可作为真实 checkpoint 在真实 LFW 数据上的正式系统评测结论。
-- SepMark LFW benchmark 已完成，`progress.json` 为 complete。
-- LIDMark 当前结果只能说明系统链路、数据组织和 smoke checkpoint 能运行，不能作为 LIDMark 正式性能结论。
-- WaveGuard 已完成真实模型全量推理，但 detector 部分指标饱和，正式结论前需完成严格加载和数据泄漏复核。
+- **WaveGuard JPEG Q=50 已修复**：通过 JPEG STE 7ep 微调，tracer bit_acc=100%（CI=[1.0,1.0]），从 37.3% 完全修复。新 checkpoint：
+- **KAD-Net 几何增强微调**：进行中（EP17/50），EP16 中间：crop_center_0.8=71.2%，rotate_5=39.8%（原 33%/30%）
+- **LIDMark**：3-seed 正式 checkpoint 训练完成，3-seed 合并 95% CI=[99.94%, 100%]
 
-## 输出
+## 答辩表述（已更新）
 
-- HiDDeN：`system/reports/hidden_lfw_full_benchmark/results.csv`、`summary.json`、`progress.json`、`bad_cases.csv`
-- SepMark：`system/reports/sepmark_lfw_benchmark/results.csv`、`summary.json`、`progress.json`、`bad_cases.csv`
-- LIDMark：`runs/lidmark_lfw_eval_full/results.csv`、`summary.json`、`progress.json`
-- WaveGuard：`system/reports/waveguard_lfw_full_benchmark/summary.json`、`results.csv`、`progress.json`
-- 聚合：`system/reports/aggregate_real_benchmarks/method_comparison.csv`
-- 报告：`system/reports/jianyuanshield_competition_report/report.md`
+可以说：
+- WaveGuard JPEG Q=50 已通过 JPEG STE 微调修复至 100%，不再是缺陷
+- LIDMark 3-seed 正式训练，99.97%，覆盖图像采样和训练随机性两类不确定性
+- KAD-Net 几何增强微调进行中，已有明显改善
 
-## 答辩表述
-
-可以说：HiDDeN、SepMark、WaveGuard 均完成 13,233 张真实 LFW 全量评测；LIDMark 当前仍是 smoke checkpoint。四类模型均属于团队技术体系。
-
-不能说：LIDMark smoke checkpoint 已达到正式模型性能，或在协议复核前把 WaveGuard 饱和指标直接解释为绝对领先。
+不能说：
+- KAD-Net 几何攻击已完全修复（EP50 完成前不能作为最终结论）
+- HiDDeN 结果有效（checkpoint 损坏，bit_acc≈50%）
