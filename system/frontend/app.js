@@ -540,7 +540,7 @@ function renderInferResult(r) {
     </figure>`).join('');
 
   const m = r.metrics || {};
-  const acc = m.bit_accuracy_c != null ? m.bit_accuracy_c
+  const acc = m.bit_accuracy_tracer != null ? m.bit_accuracy_tracer : m.bit_accuracy_c != null ? m.bit_accuracy_c
               : m.bit_accuracy_detector != null ? m.bit_accuracy_detector
               : m.bit_accuracy;
   const psnr = m.psnr;
@@ -643,7 +643,7 @@ document.getElementById('meaForm') && document.getElementById('meaForm').addEven
     document.getElementById('meaResults').innerHTML = `<div style="display:flex;gap:16px;flex-wrap:wrap">` +
       results.map(r => {
         const m = r.metrics || {};
-        const acc = m.bit_accuracy_c != null ? m.bit_accuracy_c
+        const acc = m.bit_accuracy_tracer != null ? m.bit_accuracy_tracer : m.bit_accuracy_c != null ? m.bit_accuracy_c
                     : m.bit_accuracy_detector != null ? m.bit_accuracy_detector : m.bit_accuracy;
         const imgs = r.artifacts_b64 || {};
         return `<div style="flex:1;min-width:240px;border:1px solid var(--border);border-radius:6px;padding:12px">
