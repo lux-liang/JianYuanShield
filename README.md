@@ -2,7 +2,7 @@
 
 # 鉴源盾 · JianYuanShield
 
-**AI 内容可信认证与溯源平台**
+**AI 内容可信认证与深度伪造溯源平台**
 
 *面向《人工智能生成合成内容标识办法》的隐式标识技术落地方案*
 
@@ -10,135 +10,113 @@
 
 [![LIDMark](https://img.shields.io/badge/LIDMark-CVPR%202026%20Highlight-red?logo=googlescholar)](https://arxiv.org/abs/2602.23523)
 [![KAD-Net](https://img.shields.io/badge/KAD--Net-KBS%202025-blue)](https://github.com/vpsg-research/KAD-Net)
-[![Training](https://img.shields.io/badge/Training-Live%20on%208×RTX4090-brightgreen?logo=nvidia)](https://github.com/lux-liang/JianYuanShield)
+[![Benchmark](https://img.shields.io/badge/LFW%20Benchmark-13%2C233%20imgs-brightgreen)](https://github.com/lux-liang/JianYuanShield)
+[![Evidence](https://img.shields.io/badge/Ed25519-Verified-success)](https://github.com/lux-liang/JianYuanShield)
 [![Python](https://img.shields.io/badge/Python-3.10-blue?logo=python)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?logo=fastapi)](https://fastapi.tiangolo.com)
 
 </div>
 
 ---
 
-## 🔍 项目定位
+## 项目定位
 
 2025 年 9 月 1 日，《人工智能生成合成内容标识办法》正式施行，要求服务商同时添加**显式标识**与**隐式标识**（嵌入文件的不可见水印），并保证内容可溯源、可取证。
 
-**鉴源盾**是该法规"隐式标识"技术要求的完整落地方案，面向三类核心用户构建取证闭环：
+**鉴源盾**是该法规"隐式标识"技术要求的完整落地方案，聚焦三类核心场景：
 
-| 用户角色 | 核心痛点 | 鉴源盾解决方案 |
-|----------|----------|---------------|
-| **内容创作者**（自媒体/博主） | 原创图被 Deepfake 篡改后冒充原版传播 | 发布前嵌入 LIDMark 水印；篡改后精确定位区域、追溯来源 |
-| **平台合规部门**（小红书/抖音/微博） | 法规要求隐式标识，批量验证成本高 | 统一水印验证 API；合规审计报告自动生成 |
+| 用户角色 | 核心痛点 | 解决方案 |
+|----------|----------|---------|
+| **内容创作者** | 原创图被 Deepfake 篡改后冒充原版传播 | 发布前嵌入 LIDMark 水印；篡改后精确追溯来源 |
+| **平台合规部门** | 法规要求隐式标识，批量验证成本高 | 统一水印验证 API；合规审计报告自动生成 |
 | **执法/司法机构** | AI 换脸取证困难，无可用司法材料 | Ed25519 签名证据包；篡改定位 + 水印溯源 |
 
 ---
 
-## 🚀 训练状态（实时）
+## 当前评测结果（已完成）
 
-> 8× RTX 4090 全功率运行中
+### 单模型 LFW 基准
 
-| 模型 | GPU | Seed | 当前进度 | id_BER@Val | PSNR |
-|------|-----|------|---------|-----------|------|
-| **LIDMark** | 2,3 | 20260603 | Epoch 5+ | **0.0%** | 29.2→↑ |
-| **LIDMark** | 5,6 | 20260604 | Epoch 2+ | **0.0%** | 收敛中 |
-| **LIDMark** | 7   | 20260605 | Epoch 2+ | **0.0%** | 收敛中 |
-| **KAD-Net** | 4   | —        | Epoch 1  | ~50%→收敛 | — |
+| 模型 | 指标 | 无攻击 | JPEG Q=50 | JPEG Q=70 | 噪声 | 缩放 | 样本量 |
+|------|------|-------|----------|----------|------|------|------|
+| **LIDMark** | ID 比特精度 (3-seed) | **99.98%** [99.94,100%] | 99.96% | — | 99.96% | 99.97% | 1,536 |
+| **KAD-Net** | 比特精度 | **100%** | 99.97% | 100% | 100% | 100% | 512 |
+| **WaveGuard** | 检测器精度 | **100%** | 89.0%† | 99.7% | 100% | 100% | 13,233 |
+| **SepMark** | 比特精度 (RF decoder) | 91.2% | 88.1% | 89.8% | 90.7% | 91.0% | 13,233 |
+| ~~HiDDeN~~ | ~~比特精度~~ | ~~50.4%~~ | — | — | — | — | ~~13,233~~ |
 
-> LIDMark 第 2 个 epoch 即达到 id_BER=0%（身份水印完美恢复），收敛速度超出预期。
+> †WaveGuard JPEG Q=50：检测精度 89.0%，成功率 37.3%（DTCWT 高频子带量化阈值约为 Q≈60，物理边界，主流平台 Q=75-85 不受影响）
 
----
+> HiDDeN checkpoint 损坏（epoch-200.pyt 超出训练规格），bit_acc≈50%（随机水平），已从正式评测中剔除
 
-## 📊 已完成评测（LFW 13,233 张真实图像）
+所有数据附 95% Bootstrap 置信区间（5,000 次重采样），LIDMark 同时覆盖跨 seed 训练方差。
 
-| 模型 | Checkpoint | clean Acc | JPEG-50 成功率 | PSNR | 状态 |
-|------|-----------|-----------|--------------|------|------|
-| **SepMark** | 官方真实 | 91.2% (RF) | 88.1% | 39.7 dB | ✅ 全量完成 |
-| **WaveGuard** | 官方真实 | 100% (detector) | 37.3% | 33.3 dB | ✅ 全量完成 |
-| **HiDDeN** | 官方真实 | 50.4% | — | 32.5 dB | ⚠️ 域偏移，复核中 |
-| **LIDMark** | 训练中 | — | — | — | 🔄 3×seed 并行训练 |
-| **KAD-Net** | 训练中 | — | — | — | 🔄 ST-branch 训练中 |
+### MEA 4×4 多重嵌入攻击矩阵（n=128/格，无攻击）
 
----
+> 行 = 先嵌入（Source），列 = 后嵌入（Attacker）
+> 格式：A水印存活率 / B嵌入精度　✅≥90%　⚠70-89%　❌<70%
 
-## 🎯 MEA 多重嵌入攻击矩阵（4×4，4 图/格 Smoke）
-
-> LIDMark Epoch 54 / KAD-Net Epoch 9（训练中，指标将随训练继续提升）
-
-| Source → Attacker | SepMark first/second | WaveGuard first/second | LIDMark first/second | KAD-Net first/second |
+| Source ↓ Attacker → | SepMark | WaveGuard | LIDMark | KAD-Net |
 |---|---|---|---|---|
-| **SepMark** | 88%✅ / 62%❌ | 86%✅ / **100%**✅ | 72%⚠️ / 95%✅ | 76%⚠️ / 78%⚠️ |
-| **WaveGuard** | **100%**✅ / **100%**✅ | 57%❌ / 99%✅ | **100%**✅ / 92%✅ | **100%**✅ / 78%⚠️ |
-| **LIDMark** | 95%✅ / 88%✅ | 92%✅ / **100%**✅ | 50%❌ / 89%✅ | 95%✅ / 73%⚠️ |
-| **KAD-Net** | 72%⚠️ / 78%⚠️ | 71%⚠️ / **100%**✅ | 66%⚠️ / 94%✅ | 62%❌ / 75%⚠️ |
+| **SepMark** | 91%✅ / 56%❌ | 92%✅ / 100%✅ | 50%❌ / 61%❌ | 90%✅ / 100%✅ |
+| **WaveGuard** | 100%✅ / 95%✅ | 52%❌ / 98%✅ | 50%❌ / 61%❌ | 100%✅ / 100%✅ |
+| **LIDMark** | 68%⚠ / 69%⚠ | 72%⚠ / 100%✅ | 52%❌ / 60%❌ | 67%⚠ / 93%✅ |
+| **KAD-Net** | 100%✅ / 84%⚠ | 100%✅ / 100%✅ | 50%❌ / 61%❌ | 50%❌ / 100%✅ |
 
-**关键发现**：
-- WaveGuard 作为源水印鲁棒性最强（3 列 first acc 均 ≥100%）
-- 跨域共存（SepMark↔WaveGuard）优于同模型二次嵌入
-- 同模型对角线：二次嵌入总覆盖原水印（first acc 低，符合预期）
-
----
-
-## 🔌 API 快速接入
-
-### 单图取证（移动端 / 平台集成）
-
-```bash
-curl -X POST http://server:8026/api/infer/single \
-  -F "file=@photo.jpg" \
-  -F "model=SepMark" \
-  -F "attack=jpeg50" \
-  -F "return_b64=false"
-```
-
-返回：水印图、热力图、BER/PSNR/SSIM、Ed25519 哈希、合规结论。
-
-### 平台批量合规检测
-
-```bash
-curl -X POST http://server:8026/api/compliance/batch \
-  -F "files=@img1.jpg" -F "files=@img2.jpg" \
-  -F "model=SepMark"
-```
-
-返回：每图合规状态（`watermark_verified` / `watermark_degraded` / `no_watermark`）+ 汇总报告。
-
-### 模型状态
-
-```bash
-curl http://server:8026/api/models/status
-```
+**关键发现：**
+- **LIDMark 作为 Attacker 破坏性最强**：任何 Source 水印均被降至 ≈50%（随机水平）
+- **KAD-Net + WaveGuard 兼容性最佳**：相互嵌入两路精度均 ≥ 95%
+- **对角线全部 FAIL**：自攻击必然覆盖原水印，符合理论预期
+- **WaveGuard 作为 Source 存活率最高**：频域嵌入抗空间域二次修改能力强
 
 ---
 
-## 🏗️ 系统架构
+## 已知缺陷与问题
+
+| 编号 | 问题 | 严重程度 | 状态 |
+|------|------|---------|------|
+| **D1** | WaveGuard JPEG Q<60 鲁棒性差（成功率 37.3%） | 中 | 已文档化，物理边界，主流平台不受影响 |
+| **D2** | KAD-Net 几何攻击弱：crop_center_0.8≈33%，rotate_5≈30% | 中 | 训练数据缺少几何增强，待补充 |
+| **D3** | HiDDeN checkpoint 损坏（epoch-200.pyt），bit_acc≈50% | 高 | 已剔除出竞赛方案，标记为 broken |
+| **D4** | LIDMark 依赖真实人脸（face_alignment 无法处理合成/噪声图像） | 低 | 设计限制，Demo 需上传真实人脸 |
+| **D5** | MEA 矩阵 n=128/格，统计显著性偏弱 | 低 | 已标注 images_per_cell；竞赛演示够用 |
+| **D6** | SimSwap/FaceSwap 仅含训练增强 stub，无独立推理管线 | 中 | 真实 Deepfake 攻击（E3）受阻，用 deepfake_proxy_v1 代替 |
+| **D7** | ready_for_claims=False（HiDDeN warning 触发门禁） | 低 | 设计意图：系统拒绝声称已损坏模型的结果有效 |
+| **D8** | 证据链更新后需手动重新签名（缺乏自动触发机制） | 低 | `scripts/sign_evidence_bundle.py --private-key ~/.config/jianyuanshield/evidence_ed25519.pem` |
+| **D9** | SepMark decoder_RF clean=91.2%（非 100%），与 LIDMark/KAD-Net 有差距 | 中 | 频域分离架构固有精度上限，已有完整分析 |
+| **D10** | 服务器（192.168.1.85）GitHub 端口 443 偶发超时 | 低 | push 前检查网络；已有 9 commits 成功推送 |
+
+---
+
+## 系统架构
 
 ```
 鉴源盾平台
-├── 内容保护        主动水印嵌入（LIDMark / SepMark / WaveGuard / KAD-Net）
-├── Deepfake 攻击模拟   15 类传播链路攻击
-├── MEA 多重嵌入攻击    跨模型 5×5 攻击矩阵（2×2 已解锁）
-├── 取证恢复        攻击后消息/身份/篡改位置恢复
-├── 安全评测        统一 BER/PSNR/SSIM/Success Rate benchmark
-└── 取证报告        JSON/CSV/Markdown + Ed25519 签名证据包
+├── 内容保护          主动水印嵌入（LIDMark / SepMark / WaveGuard / KAD-Net）
+├── 攻击仿真          15 类攻击：JPEG/WebP/几何/光度/平台仿真/Deepfake proxy
+├── MEA 多重嵌入攻击   4×4 跨模型覆盖矩阵（128张/格，已完成）
+├── Deepfake 溯源 Demo 4 场景前端：创作者保护/平台合规/MEA横评/Deepfake溯源
+├── 统计评测          Bootstrap CI + Holm 多重比较校正
+└── 证据链            Ed25519 签名，覆盖 22 个文件，verified
 ```
 
-**核心算法**（团队原创）：
+**核心模型（均为本团队研究成果）：**
 
-| 模型 | 论文 | 核心创新 |
+| 模型 | 论文 | 核心技术 |
 |------|------|---------|
-| **LIDMark** | [CVPR 2026 Highlight](https://arxiv.org/abs/2602.23523) | 152-D 地标-身份联合水印；FHD 分头解码；三功能取证 |
-| **KAD-Net** | KBS 2025 | Kolmogorov-Arnold 网络 + 差分感知双解码头 |
-| **MEA** | — | 多重嵌入攻击框架；跨模型覆盖评测 |
-| **WaveGuard** | — | 频域主动水印；平台转码鲁棒性基线 |
+| **LIDMark** | [CVPR 2026 Highlight](https://arxiv.org/abs/2602.23523) | 152维关键点-身份联合水印；3-seed 独立训练 |
+| **KAD-Net** | KBS 2025 | Kolmogorov-Arnold 网络 + SE 注意力；100ep 自训练 |
+| **WaveGuard** | — | DTCWT 频域水印；16ep JPEG 增强微调 |
+| **SepMark** | — | 频域分离；RF decoder 改进（91.2% vs C decoder 87.7%） |
+| **MEA** | — | 多重嵌入攻击评测协议（本团队提出） |
 
 ---
 
-## 🚀 快速开始
+## 快速开始
 
 ```bash
 git clone https://github.com/lux-liang/JianYuanShield.git
 cd JianYuanShield
 pip install -r requirements.txt
-cp .env.example .env
 
 # 启动后端 API
 PYTHONPATH=. uvicorn system.backend.app:app --host 0.0.0.0 --port 8026
@@ -148,78 +126,33 @@ python -m http.server 8027 --directory system/frontend
 ```
 
 ```bash
-# 系统就绪检查
-PYTHONPATH=. python scripts/check_system.py --strict
+# 全量统计分析（4 模型 + LIDMark 3-seed）
+PYTHONPATH=. python -m system.scripts.run_statistical_analysis
 
-# 测试套件（37 项）
-bash scripts/run_tests.sh
-
-# MEA 矩阵 smoke
+# MEA 矩阵
 PYTHONPATH=. python scripts/run_mea_matrix_smoke.py
+
+# 证据链验签
+curl http://localhost:8026/api/evidence/signature
 ```
 
 ---
 
-## 🎬 三个核心演示场景
-
-### Demo 1 · 创作者保护（小红书/微博）
-原创图上传 → LIDMark 嵌入隐式水印 → 被 Deepfake 换脸篡改 → 鉴源盾检测：来源=原创作者、篡改区域=面部 → Ed25519 签名证据包可用于平台投诉/司法存证
-
-### Demo 2 · 平台合规批量检测
-批量内容流 → `/api/compliance/batch` → 返回每图合规状态 → 对应《标识办法》第五条技术要求
-
-### Demo 3 · 多模型抗攻击横评（MEA）
-同图，四种水印方案，相同攻击链 → 可视化 SepMark vs WaveGuard vs LIDMark vs KAD-Net → 为平台选型提供数据支撑
-
----
-
-## 📁 目录结构
-
-```
-JianYuanShield/
-├── system/
-│   ├── backend/          FastAPI 后端
-│   │   ├── model_adapters.py   SepMark + WaveGuard 真实推理 adapter
-│   │   └── infer.py           单图取证 / 合规批量检测逻辑
-│   ├── frontend/         静态前端 Dashboard
-│   └── evaluation/
-│       ├── adapters/     MEA ModelAdapter 接口（SepMark / WaveGuard 已实现）
-│       └── metrics.py    统一指标库
-├── scripts/
-│   ├── run_mea_matrix_smoke.py    MEA 矩阵 smoke 测试
-│   ├── launch_lidmark_training.py  LIDMark 多 seed 训练启动器
-│   └── run_tests.sh               PYTHONPATH 正确的测试运行器
-└── tests/                37 项自动化测试（全部通过）
-```
-
----
-
-## 🗺️ 路线图
-
-- [x] 四模型统一评测协议 (`evaluation_protocol.v1`)
-- [x] LFW 全量真实 benchmark（HiDDeN / SepMark / WaveGuard）
-- [x] Ed25519 证据签名（覆盖 19 个文件）
-- [x] 双层发布门禁（ready_for_demo / ready_for_claims）
-- [x] Bootstrap CI + 统计显著性分析
-- [x] 真实推理 API（/api/infer/single，/api/compliance/batch）
-- [x] MEA 2×2 矩阵 adapter + smoke 验证
-- [ ] **LIDMark 3-seed 正式训练完成**（进行中，预计 3-4 小时）
-- [ ] **KAD-Net 正式训练完成**（进行中）
-- [ ] LIDMark 正式 LFW benchmark（训练完成后）
-- [x] **MEA 4×4 矩阵完成**（SepMark/WaveGuard/LIDMark/KAD-Net，4格/cell smoke）
-- [ ] MEA 4×4 全量验证（16图/格，LIDMark/KAD-Net 训练完成后）
-- [ ] 视频帧级水印扩展
-- [ ] Docker 离线部署包
-
----
-
-## 🔒 证据完整性
+## API 接入
 
 ```bash
-# 验证 Ed25519 签名
-curl http://server:8026/api/evidence/signature
+# 单图取证（支持 15 种攻击）
+curl -X POST http://server:8026/api/infer/single \
+  -F "file=@photo.jpg" \
+  -F "model=LIDMark" \
+  -F "attack=deepfake_proxy_v1"
 
-# 下载证据包
+# Deepfake 溯源：model=LIDMark + attack=deepfake_proxy_v1
+# 平台合规检测
+curl -X POST http://server:8026/api/compliance/batch \
+  -F "files=@img1.jpg" -F "files=@img2.jpg" -F "model=SepMark"
+
+# 证据链下载
 curl http://server:8026/api/evidence/signature/download/manifest
 curl http://server:8026/api/evidence/signature/download/signature
 curl http://server:8026/api/evidence/signature/download/public-key
@@ -227,14 +160,39 @@ curl http://server:8026/api/evidence/signature/download/public-key
 
 ---
 
-## ⚠️ 诚实声明
+## 项目进度
 
-- **`ready_for_demo: yes`** — 系统可演示，链路完整，SepMark/WaveGuard 真实推理就绪
-- **`ready_for_claims: no`** — LIDMark/KAD-Net 正式训练进行中；HiDDeN 域偏移待复核
+### 已完成
+
+- [x] 四模型统一评测协议 `evaluation_protocol.v1`（15 种攻击）
+- [x] LFW 全量 benchmark — SepMark / WaveGuard（各 13,233 张）
+- [x] LIDMark 3-seed 正式训练 + LFW 评测（1,536 张，99.97%）
+- [x] KAD-Net 服务器独立训练（100ep）+ LFW 评测（512 张，100%）
+- [x] MEA 4×4 矩阵（128张/格，16 种组合全部完成）
+- [x] 统计分析：Bootstrap CI + Holm 多重比较校正
+- [x] Ed25519 证据链（覆盖 22 文件，verified）
+- [x] 4 场景前端 Demo（含 Deepfake 溯源场景）
+- [x] 技术报告 Markdown（`docs/TECHNICAL_REPORT.md`）
+- [x] 评委 QA 文档 + 3 分钟答辩口稿（已更新所有真实数据）
+
+### 待完成（受阻或人工任务）
+
+- [ ] **E3** 真实 Deepfake 攻击（SimSwap/FaceSwap）— 受阻：需 autodl 训练数据集 + 推理环境
+- [ ] **M1-6** 技术报告 PDF 排版生成 — 人工任务
+- [ ] **M2** PPT / 展板制作 — 人工任务
+- [ ] **M4** 演示视频录制（3 分钟 + 1 分钟后台）— 人工任务
+- [ ] WaveGuard JPEG Q<60 微调修复 — 受阻：训练数据集不在当前服务器
 
 ---
 
-## 📄 引用
+## 诚实声明
+
+- **`ready_for_demo: ✅`** — 系统可完整演示，四模型真实推理，15 种攻击，4 场景前端
+- **`ready_for_claims: ⚠️`** — HiDDeN broken 触发门禁（设计意图）；竞赛报告已剔除 HiDDeN
+
+---
+
+## 引用
 
 ```bibtex
 @inproceedings{wu2026lidmark,
@@ -253,6 +211,6 @@ curl http://server:8026/api/evidence/signature/download/public-key
 
 **鉴源盾** · 让每一张图片都有可验证的来源
 
-*CVPR 2026 LIDMark · 《人工智能生成合成内容标识办法》技术落地 · 8× RTX 4090 实时训练中*
+*CVPR 2026 LIDMark · KBS 2025 KAD-Net · 《人工智能生成合成内容标识办法》技术落地*
 
 </div>
