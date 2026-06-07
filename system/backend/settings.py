@@ -14,7 +14,7 @@ def _bool_env(name: str, default: bool) -> bool:
 @dataclass(frozen=True)
 class Settings:
     version: str = os.getenv("JYS_VERSION", "0.1.0")
-    mode: str = os.getenv("JYS_MODE", "demo_simulation")
+    mode: str = os.getenv("JYS_MODE", "real_inference")
     log_level: str = os.getenv("JYS_LOG_LEVEL", "INFO")
     enable_demo: bool = _bool_env("JYS_ENABLE_DEMO", True)
 
