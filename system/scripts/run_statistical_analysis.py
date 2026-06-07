@@ -28,7 +28,7 @@ SOURCES = {
     ),
     "SepMark": (
         REPORT_ROOT / "sepmark_lfw_benchmark" / "results.csv",
-        ("bit_accuracy_c", "bit_accuracy"),
+        ("bit_accuracy_rf", "bit_accuracy_c"),  # RF decoder is primary metric
     ),
     "WaveGuard": (
         REPORT_ROOT / "waveguard_lfw_full_benchmark" / "results.csv",
@@ -89,11 +89,42 @@ def load_source(path: Path, metric_candidates: tuple[str, ...]) -> dict[tuple[st
     return values
 
 
+
+KADNET_PATH = (
+    Path("/data1/luxliang/work/vpsg_competition_candidates")
+    / "runs/kadnet_lfw_eval_full/results.csv"
+)
+
+
+def load_kadnet_source(path: Path) -> dict:
+    """Load KAD-Net CSV (columns: img, attack, bit_accuracy)."""
+    import math as _math
+    values = {}
+    if not path.is_file():
+        return values
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        for row in csv.DictReader(handle):
+            image_id = row.get("img")
+            attack = row.get("attack")
+            if not image_id or not attack:
+                continue
+            raw = row.get("bit_accuracy")
+            try:
+                value = float(raw)
+            except (TypeError, ValueError):
+                continue
+            if _math.isfinite(value):
+                values[(image_id, attack)] = value
+    return values
+
 def main() -> None:
     data = {name: load_source(path, candidates) for name, (path, candidates) in SOURCES.items()}
     lidmark_data = load_lidmark_multi_seed(LIDMARK_SEEDS)
     if lidmark_data:
         data["LIDMark"] = lidmark_data
+    kadnet_data = load_kadnet_source(KADNET_PATH)
+    if kadnet_data:
+        data["KAD-Net"] = kadnet_data
     attacks = sorted({attack for values in data.values() for _, attack in values})
     summaries = []
     for method, values in data.items():
@@ -145,7 +176,7 @@ def main() -> None:
         "schema_version": "statistical-analysis.v1",
         "status": "complete",
         "metric": "bit_accuracy",
-        "seed_count": {name: 3 if name == "LIDMark" else 1 for name in data},
+        "seed_count": {name: 3 if name == "LIDMark" else 1 for name in data},  # KAD-Net: 1 seed (100ep checkpoint)
         "seed_status": "multi_seed_lidmark_available",
         "bootstrap_resamples": 5000,
         "sign_flip_permutations": 20000,
@@ -157,6 +188,8 @@ def main() -> None:
                             "seeds": sum(1 for p in LIDMARK_SEEDS if p.is_file()),
                             "rows": len(data["LIDMark"])}}
                if "LIDMark" in data else {}),
+            **({"KAD-Net": {"path": str(KADNET_PATH), "rows": len(data["KAD-Net"])}}
+               if "KAD-Net" in data else {}),
         },
         "summaries": summaries,
         "comparisons": comparisons,
