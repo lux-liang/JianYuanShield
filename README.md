@@ -8,12 +8,12 @@
 
 <br>
 
-[![LFW](https://img.shields.io/badge/LFW_全量基准-13%2C233_imgs-1d3557?style=for-the-badge)](https://github.com/lux-liang/JianYuanShield)
-[![Accuracy](https://img.shields.io/badge/最高精度-99.98%25-1d3557?style=for-the-badge)](https://github.com/lux-liang/JianYuanShield)
-[![Evidence](https://img.shields.io/badge/证据链-Ed25519_已验签-1d3557?style=for-the-badge&logo=gnuprivacyguard&logoColor=white)](https://github.com/lux-liang/JianYuanShield)
+[![LFW](https://img.shields.io/badge/LFW_全量基准-13%2C233_imgs-023e8a?style=for-the-badge)](https://github.com/lux-liang/JianYuanShield)
+[![Accuracy](https://img.shields.io/badge/最高精度-99.98%25-0077b6?style=for-the-badge)](https://github.com/lux-liang/JianYuanShield)
+[![Evidence](https://img.shields.io/badge/证据链-Ed25519_已验签-265073?style=for-the-badge&logo=gnuprivacyguard&logoColor=white)](https://github.com/lux-liang/JianYuanShield)
 
 [![Regulation](https://img.shields.io/badge/完整符合-AI内容标识办法-9b2226?style=for-the-badge)](https://github.com/lux-liang/JianYuanShield)
-[![Competition](https://img.shields.io/badge/🏆_全国大学生信息安全竞赛-作品赛-2b2d42?style=for-the-badge)](https://github.com/lux-liang/JianYuanShield)
+[![Competition](https://img.shields.io/badge/🏆_全国大学生信息安全竞赛-作品赛-4a3728?style=for-the-badge)](https://github.com/lux-liang/JianYuanShield)
 
 <br>
 
@@ -32,16 +32,16 @@
 
 <table>
 <tr>
-<td align="center" width="25%">🎯<br><b>99.98%</b><br><sub>LIDMark 最高精度</sub></td>
-<td align="center" width="25%">🖼️<br><b>13,233 张</b><br><sub>LFW 全量评测</sub></td>
-<td align="center" width="25%">⚔️<br><b>15 种攻击</b><br><sub>统一评测框架</sub></td>
-<td align="center" width="25%">🔐<br><b>22 文件</b><br><sub>Ed25519 签名覆盖</sub></td>
+<td align="center" width="25%">🎯 <kbd>99.98%</kbd><br><sub>LIDMark 最高精度</sub></td>
+<td align="center" width="25%">🖼️ <kbd>13,233 张</kbd><br><sub>LFW 全量评测</sub></td>
+<td align="center" width="25%">⚔️ <kbd>15 种攻击</kbd><br><sub>统一评测框架</sub></td>
+<td align="center" width="25%">🔐 <kbd>22 文件</kbd><br><sub>Ed25519 签名覆盖</sub></td>
 </tr>
 <tr>
-<td align="center" width="25%">🏗️<br><b>4 种模型</b><br><sub>协同水印平台</sub></td>
-<td align="center" width="25%">📱<br><b>5 端全覆盖</b><br><sub>Web · Android · iOS · 小程序 · 鸿蒙</sub></td>
-<td align="center" width="25%">🧪<br><b>37 测试</b><br><sub>单元测试全通过</sub></td>
-<td align="center" width="25%">⚡<br><b>&lt;2s / 张</b><br><sub>RTX 4090 实测</sub></td>
+<td align="center" width="25%">🏗️ <kbd>4 种模型</kbd><br><sub>协同水印平台</sub></td>
+<td align="center" width="25%">📱 <kbd>5 端全覆盖</kbd><br><sub>Web · Android · iOS · 小程序 · 鸿蒙</sub></td>
+<td align="center" width="25%">🧪 <kbd>37 测试</kbd><br><sub>单元测试全通过</sub></td>
+<td align="center" width="25%">⚡ <kbd>&lt;2s / 张</kbd><br><sub>RTX 4090 实测</sub></td>
 </tr>
 </table>
 
