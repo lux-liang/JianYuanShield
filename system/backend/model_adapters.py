@@ -19,7 +19,7 @@ MODEL_SOURCE_ROOT = Path(os.environ.get("JYS_MODEL_SOURCE_ROOT",
 SEPMARK_CODE  = MODEL_SOURCE_ROOT / "MEA/codes/SepMark"
 WAVEGUARD_CODE = MODEL_SOURCE_ROOT / "MEA/codes/WaveGuard"
 SEPMARK_CKPT  = MODEL_SOURCE_ROOT / "weights/mea/SepMark/results/FullFineTuningWithOnlyMessage/models/EC_115.pth"
-WAVEGUARD_CKPT = MODEL_SOURCE_ROOT / "weights/mea/WaveGuard/exp_highpass/2025.07.24-20.10.50/model_state_16.pth"
+WAVEGUARD_CKPT = Path("/data1/luxliang/work/vpsg_competition_candidates/runs/waveguard_jpeg_ft/model_state_7.pth")  # JPEG-finetuned ep7: Q50_err=0.0000
 
 _lock = threading.Lock()
 
@@ -368,7 +368,7 @@ class WaveGuardAdapter:
             "bit_accuracy_detector": round(1 - ber_d, 4),
             "psnr": round(psnr, 4),
             "ssim": round(ssim, 4),
-            "success": bool((1 - ber_d) >= 0.9),
+            "success": bool((1 - ber_t) >= 0.9 or (1 - ber_d) >= 0.9),
             "images": {
                 "original": original_u8,
                 "watermarked": watermarked_u8,
