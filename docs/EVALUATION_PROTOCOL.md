@@ -18,11 +18,11 @@
 
 | 模型 | 原生颜色空间 | 输入尺寸 | 当前状态 |
 |---|---|---:|---|
-| LIDMark | RGB | 128×128 | smoke |
-| HiDDeN | RGB | checkpoint config | full benchmark |
+| LIDMark | RGB | 128×128 | real checkpoint (3-seed) |
+| HiDDeN | RGB | checkpoint config | BROKEN (excluded) |
 | SepMark | RGB | 256×256 | full benchmark |
 | WaveGuard | YUV | 256×256 | full benchmark |
-| KAD-Net | RGB | model config | integration pending |
+| KAD-Net | RGB | 128×128 | real checkpoint (100ep) |
 
 ## 攻击 ID
 
