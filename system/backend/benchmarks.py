@@ -125,9 +125,8 @@ def lidmark_lfw_eval_payload() -> dict[str, Any]:
         report_dir / "results.csv",
         {
             "method": "LIDMark",
-            "checkpoint_type": "smoke_checkpoint",
-            "data_type": "real_lfw_images_with_official_watermark_vectors",
-            "note": "smoke checkpoint only; not official full model",
+            "checkpoint_type": "real_checkpoint_3seed",
+            "data_type": "real_lfw_images",
         },
     )
 
