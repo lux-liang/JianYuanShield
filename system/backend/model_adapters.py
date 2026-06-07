@@ -40,21 +40,96 @@ def _to_uint8_rgb(tensor: torch.Tensor) -> np.ndarray:
 
 
 def _apply_attack_rgb(arr: np.ndarray, attack: str) -> np.ndarray:
+    """Apply a named attack to an RGB uint8 image. Returns RGB uint8."""
+    h, w = arr.shape[:2]
+
+    # ── JPEG compression ──────────────────────────────────────────────────────
     if "jpeg" in attack:
-        quality = 50 if "50" in attack else (70 if "70" in attack else 90)
+        quality = 50 if "50" in attack else (70 if "70" in attack else (90 if "90" in attack else 75))
         ok, buf = cv2.imencode(".jpg", cv2.cvtColor(arr, cv2.COLOR_RGB2BGR),
                                [int(cv2.IMWRITE_JPEG_QUALITY), quality])
         if ok:
             arr = cv2.cvtColor(cv2.imdecode(buf, cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
-    if "resize" in attack:
-        h, w = arr.shape[:2]
+
+    # ── WebP compression ──────────────────────────────────────────────────────
+    elif "webp" in attack:
+        quality = 50 if "50" in attack else (70 if "70" in attack else 75)
+        ok, buf = cv2.imencode(".webp", cv2.cvtColor(arr, cv2.COLOR_RGB2BGR),
+                               [int(cv2.IMWRITE_WEBP_QUALITY), quality])
+        if ok:
+            arr = cv2.cvtColor(cv2.imdecode(buf, cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
+
+    # ── Platform simulations ───────────────────────────────────────────────────
+    elif attack == "platform_wechat_v1":
+        # WeChat Moments: cap to 1080p long-edge, then JPEG Q=75
+        long = max(h, w)
+        if long > 1080:
+            scale = 1080.0 / long
+            arr = cv2.resize(arr, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+        ok, buf = cv2.imencode(".jpg", cv2.cvtColor(arr, cv2.COLOR_RGB2BGR),
+                               [int(cv2.IMWRITE_JPEG_QUALITY), 75])
+        if ok:
+            arr = cv2.cvtColor(cv2.imdecode(buf, cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
+        arr = cv2.resize(arr, (w, h), interpolation=cv2.INTER_LINEAR)
+
+    elif attack == "platform_douyin_v1":
+        # Douyin cover: cap to 720p long-edge, then WebP Q=70
+        long = max(h, w)
+        if long > 720:
+            scale = 720.0 / long
+            arr = cv2.resize(arr, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
+        ok, buf = cv2.imencode(".webp", cv2.cvtColor(arr, cv2.COLOR_RGB2BGR),
+                               [int(cv2.IMWRITE_WEBP_QUALITY), 70])
+        if ok:
+            arr = cv2.cvtColor(cv2.imdecode(buf, cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
+        arr = cv2.resize(arr, (w, h), interpolation=cv2.INTER_LINEAR)
+
+    # ── Geometric attacks ─────────────────────────────────────────────────────
+    if "resize" in attack and "platform" not in attack:
         small = cv2.resize(arr, (w // 2, h // 2), interpolation=cv2.INTER_AREA)
         arr = cv2.resize(small, (w, h), interpolation=cv2.INTER_LINEAR)
+
+    if "crop" in attack:
+        # Center crop 80%, then resize back
+        cx, cy = w // 2, h // 2
+        cw, ch = int(w * 0.8), int(h * 0.8)
+        x1, y1 = cx - cw // 2, cy - ch // 2
+        cropped = arr[y1:y1 + ch, x1:x1 + cw]
+        arr = cv2.resize(cropped, (w, h), interpolation=cv2.INTER_LINEAR)
+
+    if "rotate" in attack:
+        angle = float(attack.replace("rotate_", "").replace("rotate", "5"))
+        M = cv2.getRotationMatrix2D((w / 2, h / 2), angle, 1.0)
+        arr = cv2.warpAffine(arr, M, (w, h), flags=cv2.INTER_LINEAR,
+                             borderMode=cv2.BORDER_REFLECT_101)
+
+    # ── Photometric attacks ───────────────────────────────────────────────────
     if "blur" in attack:
         arr = cv2.GaussianBlur(arr, (5, 5), 0)
+
     if "noise" in attack:
         rng = np.random.default_rng(42)
         arr = np.clip(arr.astype(np.float32) + rng.normal(0, 3, arr.shape), 0, 255).astype(np.uint8)
+
+    if "brightness" in attack:
+        factor = float(attack.split("_")[-1]) if "_" in attack else 0.85
+        arr = np.clip(arr.astype(np.float32) * factor, 0, 255).astype(np.uint8)
+
+    if "contrast" in attack:
+        factor = float(attack.split("_")[-1]) if "_" in attack else 1.2
+        mean = arr.mean(axis=(0, 1), keepdims=True)
+        arr = np.clip((arr.astype(np.float32) - mean) * factor + mean, 0, 255).astype(np.uint8)
+
+    # ── Deepfake proxy (combined distortions mimicking face-swap artifacts) ───
+    if attack == "deepfake_proxy_v1":
+        # Simulate face-swap pipeline artifacts: resize round-trip + slight blur + color shift
+        small = cv2.resize(arr, (w // 2, h // 2), interpolation=cv2.INTER_AREA)
+        arr = cv2.resize(small, (w, h), interpolation=cv2.INTER_LINEAR)
+        arr = cv2.GaussianBlur(arr, (3, 3), 0)
+        rng = np.random.default_rng(0)
+        shift = rng.integers(-5, 6, (1, 1, 3), dtype=np.int16)
+        arr = np.clip(arr.astype(np.int16) + shift, 0, 255).astype(np.uint8)
+
     return arr
 
 
@@ -385,8 +460,9 @@ class LIDMarkAdapter:
                 wm_np[:136] = lm_norm.astype(np.float32)
         except Exception:
             pass  # fallback: zeros for landmark dims
+        # ID bits must be {-1.0, 1.0} — training .npy stores {-1,1}, not {0,1}
         rng = np.random.default_rng(42)
-        wm_np[136:] = rng.integers(0, 2, self.wm_length - 136).astype(np.float32)
+        wm_np[136:] = rng.choice(np.array([-1.0, 1.0], dtype=np.float32), size=self.wm_length - 136)
         wm_t = torch.from_numpy(wm_np).unsqueeze(0).to(self.device)
         with torch.no_grad():
             encoded = self.model.encoder(t, wm_t).clamp(-1, 1)

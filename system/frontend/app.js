@@ -665,3 +665,44 @@ document.getElementById('meaForm') && document.getElementById('meaForm').addEven
     btn.disabled = false;
   }
 });
+
+
+// ── Deepfake 溯源场景 ─────────────────────────────────────────────────────────
+document.getElementById("deepfakeForm")?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const file = document.getElementById("deepfakeFile").files[0];
+  if (!file) return;
+  const statusEl = document.getElementById("deepfakeStatus");
+  const flowEl = document.getElementById("deepfakeFlow");
+  statusEl.textContent = "运行中... 嵌入水印 → Deepfake 攻击 → 解码溯源";
+  flowEl.innerHTML = "";
+  try {
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("model", "LIDMark");
+    fd.append("attack", "deepfake_proxy_v1");
+    const r = await postForm("/api/infer/single", fd);
+    const ba = r.metrics?.bit_accuracy ?? r.bit_accuracy ?? 0;
+    const psnr = r.metrics?.psnr ?? r.psnr ?? 0;
+    const verdict = ba >= 0.9 ? "✅ 来源已追溯" : "⚠️ 追溯置信度偏低";
+    const imgs = r.artifacts || r.images || {};
+    flowEl.innerHTML = `
+      <div class="trace-verdict ${ba >= 0.9 ? 'success' : 'warn'}">
+        <strong>${verdict}</strong>
+        — 身份比特精度 ${(ba * 100).toFixed(1)}%，水印 PSNR ${Number(psnr).toFixed(1)} dB
+      </div>
+      <div class="demo-artifacts">
+        ${['watermarked', 'attacked', 'heatmap'].filter(k => imgs[k]).map(k =>
+          `<figure><img src="${imgs[k]}" loading="lazy" alt="${k}"><figcaption>${
+            {watermarked:'嵌入水印', attacked:'Deepfake 仿真', heatmap:'差异热力图'}[k] || k
+          }</figcaption></figure>`
+        ).join('')}
+      </div>
+      <p class="trace-explain">LIDMark 通过人脸关键点（152维水印向量）编码创作者 ID，Deepfake 面部替换后仍可从残存结构中恢复身份信息。</p>
+    `;
+    statusEl.textContent = "溯源完成";
+  } catch (err) {
+    statusEl.textContent = "错误: " + (err.message || err);
+    flowEl.innerHTML = "";
+  }
+});

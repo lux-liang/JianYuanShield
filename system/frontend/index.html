@@ -64,7 +64,7 @@
           <form id="demoForm" class="demo-form">
             <label>样本<select id="demoSample"></select></label>
             <label>模型<select id="demoProject"><option>LIDMark</option><option>SepMark</option><option>WaveGuard</option></select></label>
-            <label>攻击链<select id="demoAttack"><option value="multi_embedding+jpeg_50+blur">二次嵌入 + JPEG50 + 模糊</option><option value="jpeg_50">JPEG50</option><option value="resize">缩放传播</option><option value="">无攻击</option></select></label>
+            <label>攻击链<select id="demoAttack"><option value="deepfake_proxy_v1">Deepfake 代理攻击（溯源演示）</option><option value="multi_embedding+jpeg_50+blur">二次嵌入 + JPEG50 + 模糊</option><option value="jpeg_50">JPEG50</option><option value="resize">缩放传播</option><option value="">无攻击</option></select></label>
             <button id="demoRunButton" class="primary-action" type="submit">运行演示</button>
           </form>
           <div id="demoStatus" class="demo-status">等待运行</div>
@@ -84,6 +84,7 @@
               <button class="active" data-scenario="creator" type="button">创作者保护</button>
               <button data-scenario="compliance" type="button">平台合规检测</button>
               <button data-scenario="mea" type="button">MEA 横评</button>
+              <button data-scenario="deepfake" type="button">Deepfake 溯源</button>
             </div>
           </div>
 
@@ -103,6 +104,9 @@
                 <option value="resize">缩放传播</option>
                 <option value="noise">高斯噪声</option>
                 <option value="blur">模糊</option>
+                <option value="deepfake_proxy_v1">Deepfake 代理攻击</option>
+                <option value="platform_wechat_v1">平台仿真（微信）</option>
+                <option value="platform_douyin_v1">平台仿真（抖音）</option>
               </select></label>
               <button id="inferBtn" class="primary-action" type="submit">取证</button>
             </form>
@@ -143,7 +147,18 @@
             </form>
             <div id="meaStatus" class="demo-status">等待上传</div>
             <div id="meaResults" class="mea-results"></div>
+          
+          <!-- 场景4: Deepfake 溯源 -->
+          <div id="scene-deepfake" class="scene-block" style="display:none">
+            <p class="scene-desc">上传图片 → LIDMark 嵌入溯源水印 → 模拟 Deepfake 变换 → 解码验证来源身份</p>
+            <form id="deepfakeForm" class="demo-form">
+              <label>图片<input type="file" id="deepfakeFile" accept="image/*" required></label>
+              <button id="deepfakeBtn" class="primary-action" type="submit">溯源演示</button>
+            </form>
+            <div id="deepfakeStatus" class="demo-status">等待上传</div>
+            <div id="deepfakeFlow" class="deepfake-flow"></div>
           </div>
+</div>
         </section>
 
         <section class="panel audit-panel">
