@@ -42,6 +42,15 @@ function fmt(value) {
   return Number.isFinite(n) ? n.toFixed(4) : String(value);
 }
 
+/* 准确率/成功率按阈值着色：≥0.95 取证绿 / ≥0.8 琥珀 / 其余风险红 */
+function fmtScore(value) {
+  if (value == null || value === "") return "-";
+  const n = Number(value);
+  if (!Number.isFinite(n)) return escapeHTML(String(value));
+  const cls = n >= 0.95 ? "num-ok" : n >= 0.8 ? "num-warn" : "num-risk";
+  return `<span class="${cls}">${n.toFixed(4)}</span>`;
+}
+
 function statusKey(value) {
   const raw = String(value || "").toLowerCase();
   if (["yes", "true", "ready", "real", "complete", "real_lfw_benchmark"].some((key) => raw.includes(key))) return "real";
@@ -63,6 +72,7 @@ function setCardStatus(id, value) {
   card.classList.add(`status-${key === "neutral" ? "pending" : key}`);
 }
 
+/* cells 数组项：函数（普通列）或 { fn, cls }（如数值右对齐列） */
 function rows(containerId, records, cells) {
   const body = document.getElementById(containerId);
   if (!body) return;
@@ -76,10 +86,15 @@ function rows(containerId, records, cells) {
   records.forEach((record, index) => {
     const tr = document.createElement("tr");
     tr.style.animationDelay = `${Math.min(index * 22, 220)}ms`;
-    tr.innerHTML = cells.map((cell) => `<td>${cell(record)}</td>`).join("");
+    tr.innerHTML = cells.map((cell) => {
+      if (typeof cell === "function") return `<td>${cell(record)}</td>`;
+      return `<td class="${cell.cls || ""}">${cell.fn(record)}</td>`;
+    }).join("");
     body.appendChild(tr);
   });
 }
+
+const num = (fn) => ({ fn, cls: "num" });
 
 async function getJSON(path) {
   let res;
@@ -214,14 +229,14 @@ function filterRows(records) {
 function setImage(id, src) {
   const image = document.getElementById(id);
   if (!image || !src) return;
-  const next = `${API}${src}?t=${Date.now()}`;
-  if (image.src !== next) {
-    image.style.opacity = "0.45";
-    image.onload = () => {
-      image.style.opacity = "1";
-    };
-    image.src = next;
-  }
+  // 内容路径没变就不动 src，避免每轮轮询都重新下载大图并闪烁
+  if (image.dataset.path === src) return;
+  image.dataset.path = src;
+  image.style.opacity = "0.45";
+  image.onload = () => {
+    image.style.opacity = "1";
+  };
+  image.src = `${API}${src}?t=${Date.now()}`;
 }
 
 function updateReadiness(payload) {
@@ -294,7 +309,7 @@ function renderModules(modules) {
     node.className = "module-item";
     node.style.animationDelay = `${index * 45}ms`;
     node.innerHTML = `
-      <div><strong>${escapeHTML(item.name)}</strong>${badge(item.result)}</div>
+      <div class="badge-slot"><strong>${escapeHTML(item.name)}</strong>${badge(item.result)}</div>
       <p>${escapeHTML(item.function)}</p>
       <small>${escapeHTML(item.model_status)}</small>
     `;
@@ -308,56 +323,26 @@ function renderComparison(aggregate) {
     (r) => escapeHTML(r.method || "-"),
     (r) => badge(r.checkpointLabel),
     (r) => escapeHTML(r.dataLabel),
-    (r) => escapeHTML(r.countLabel),
-    (r) => fmt(r.clean_bit_error || r.mean_bit_error),
-    (r) => fmt(r.clean_bit_accuracy || r.mean_bit_accuracy),
+    num((r) => escapeHTML(r.countLabel)),
+    num((r) => fmt(r.clean_bit_error || r.mean_bit_error)),
+    num((r) => fmtScore(r.clean_bit_accuracy || r.mean_bit_accuracy)),
     (r) => badge(r.defenseLabel),
     (r) => badge(r.statusLabel),
   ]);
 }
 
-
-function renderMeaMatrix(mea) {
-  const models = mea?.models || ["SepMark", "WaveGuard", "LIDMark", "KAD-Net"];
-  const matrix = mea?.matrix || {};
-  const badge = document.getElementById("meaMatrixBadge");
-  const tbody = document.getElementById("meaMatrixBody");
-  if (!tbody) return;
-  if (badge) {
-    badge.textContent = mea?.status === "complete" ? `complete · n=${mea.images_per_cell}/格` : "pending";
-    badge.className = `panel-badge ${mea?.status === "complete" ? "real" : "warning"}`;
-  }
-  function gradeIcon(v) {
-    if (v == null) return "—";
-    if (v >= 0.9) return `<span style="color:var(--real)">✅${(v*100).toFixed(0)}%</span>`;
-    if (v >= 0.7) return `<span style="color:var(--warn)">⚠${(v*100).toFixed(0)}%</span>`;
-    return `<span style="color:var(--risk)">❌${(v*100).toFixed(0)}%</span>`;
-  }
-  tbody.innerHTML = models.map(src => {
-    const row = matrix[src] || {};
-    return `<tr>
-      <td><strong>${escapeHTML(src)}</strong></td>
-      ${models.map(att => {
-        const cell = row[att] || {};
-        return `<td style="text-align:center">${gradeIcon(cell.first_acc)} / ${gradeIcon(cell.second_acc)}</td>`;
-      }).join("")}
-    </tr>`;
-  }).join("");
-}
-
 function renderPayload(payload) {
-  const { health, modules, hidden, sepmark, lidmark, waveguard, kadnet, meaMatrix, aggregate, report } = payload;
+  const { health, modules, hidden, sepmark, lidmark, waveguard, aggregate, report } = payload;
 
-  text("apiEndpoint", API.replace(/^https?:\/\//, ""));
+  text("apiEndpoint", `API · ${API.replace(/^https?:\/\//, "")}`);
   text("health", `health: ${health.ok ? "OK" : "FAIL"}`);
 
   const statusMap = {
-    hiddenStatus: "broken (excluded)",
+    hiddenStatus: statusFrom(hidden),
     sepmarkStatus: statusFrom(sepmark),
     lidmarkStatus: statusFrom(lidmark),
     waveguardStatus: statusFrom(waveguard),
     reportStatus: report.exists?.json ? "ready" : "pending",
-    kadnetStatus: statusFrom(kadnet),
   };
 
   Object.entries(statusMap).forEach(([id, value]) => {
@@ -369,46 +354,44 @@ function renderPayload(payload) {
   text("sepmarkCount", `${sampleCount(sepmark.summary, sepmark.progress)} images`);
   text("lidmarkCount", `${sampleCount(lidmark.summary, lidmark.progress)} images`);
   text("waveguardCount", `${sampleCount(waveguard.summary, waveguard.progress)} images`);
-  text("kadnetCount", `${kadnet?.summary?.n_images ?? 512} images (clean/jpeg/noise/resize 100%)`);
   text("aggregatePath", aggregate.report_md_path || "pending");
 
   const sepClean = cleanAttack(sepmark);
   const hiddenClean = cleanAttack(hidden);
-  text("mainConclusion", `LIDMark 3-seed 99.97% · KAD-Net 100% · SepMark Acc-RF ${fmt(sepClean.mean_bit_accuracy_rf)}`);
-  text("contrastConclusion", `WaveGuard JPEG Q=50 fine-tuned 100%（原 37%）；HiDDeN checkpoint 已剥除`);
+  text("mainConclusion", `SepMark clean Acc-C ${fmt(sepClean.mean_bit_accuracy)} / Acc-RF ${fmt(sepClean.mean_bit_accuracy_rf)}`);
+  text("contrastConclusion", `HiDDeN clean Acc ${fmt(hiddenClean.mean_bit_accuracy)}，作为真实弱对照`);
   const waveguardFull = waveguard.full_benchmark?.summary || {};
-  text("boundaryConclusion", `LIDMark 3-seed 99.97%；WaveGuard JPEG Q=50 已修复（100%）；KAD-Net 几何微调中`);
+  text("boundaryConclusion", `LIDMark=smoke；WaveGuard full=${waveguardFull.status || "pending"}，${waveguardFull.requested_images || 0} 张`);
 
   updateReadiness(payload);
-  renderMeaMatrix(meaMatrix);
   renderModules(modules);
   renderComparison(aggregate);
 
   rows("hiddenRows", attackSummaries(hidden.summary), [
     (r) => badge(r.attack_type || r.attack || "-"),
-    (r) => fmt(r.mean_bit_error),
-    (r) => fmt(r.mean_bit_accuracy),
-    (r) => fmt(r.mean_psnr),
-    (r) => fmt(r.mean_ssim),
-    (r) => fmt(r.success_rate),
+    num((r) => fmt(r.mean_bit_error)),
+    num((r) => fmtScore(r.mean_bit_accuracy)),
+    num((r) => fmt(r.mean_psnr)),
+    num((r) => fmt(r.mean_ssim)),
+    num((r) => fmtScore(r.success_rate)),
   ]);
 
   rows("sepmarkRows", attackSummaries(sepmark.summary), [
     (r) => badge(r.attack_type || r.attack || "-"),
-    (r) => fmt(r.mean_bit_error),
-    (r) => fmt(r.mean_bit_accuracy),
-    (r) => fmt(r.mean_bit_error_rf),
-    (r) => fmt(r.mean_bit_accuracy_rf),
-    (r) => fmt(r.success_rate),
+    num((r) => fmt(r.mean_bit_error)),
+    num((r) => fmtScore(r.mean_bit_accuracy)),
+    num((r) => fmt(r.mean_bit_error_rf)),
+    num((r) => fmtScore(r.mean_bit_accuracy_rf)),
+    num((r) => fmtScore(r.success_rate)),
   ]);
 
   rows("waveguardRows", attackSummaries(waveguard.full_benchmark?.summary || waveguard.small_benchmark?.summary), [
     (r) => badge(r.attack_type || r.attack || "-"),
-    (r) => fmt(r.mean_bit_error_detector || r.mean_bit_error),
-    (r) => fmt(r.mean_bit_accuracy_detector || r.mean_bit_accuracy),
-    (r) => fmt(r.mean_bit_error_tracer),
-    (r) => fmt(r.mean_bit_accuracy_tracer),
-    (r) => fmt(r.success_rate),
+    num((r) => fmt(r.mean_bit_error_detector || r.mean_bit_error)),
+    num((r) => fmtScore(r.mean_bit_accuracy_detector || r.mean_bit_accuracy)),
+    num((r) => fmt(r.mean_bit_error_tracer)),
+    num((r) => fmtScore(r.mean_bit_accuracy_tracer)),
+    num((r) => fmtScore(r.success_rate)),
   ]);
 
   setImage("hiddenGrid", hidden.grid_image);
@@ -473,29 +456,111 @@ async function initializeDemo() {
   select.innerHTML = samples.map((item) => `<option value="${escapeHTML(item.id)}">${escapeHTML(item.name)}</option>`).join("");
 }
 
+const ENDPOINTS = [
+  ["health", "/api/health"],
+  ["modules", "/api/modules"],
+  ["artifacts", "/api/artifacts/status"],
+  ["hidden", "/api/benchmark/hidden-lfw-full"],
+  ["sepmark", "/api/benchmark/sepmark"],
+  ["lidmark", "/api/benchmark/lidmark-lfw-eval"],
+  ["waveguard", "/api/benchmark/waveguard"],
+  ["aggregate", "/api/benchmark/aggregate"],
+  ["report", "/api/competition-report"],
+  ["audit", "/api/evidence/audit"],
+];
+
 async function load() {
   try {
-    const [health, modules, artifacts, hidden, sepmark, lidmark, waveguard, kadnet, meaMatrix, aggregate, report, audit] = await Promise.all([
-      getJSON("/api/health"),
-      getJSON("/api/modules"),
-      getJSON("/api/artifacts/status"),
-      getJSON("/api/benchmark/hidden-lfw-full"),
-      getJSON("/api/benchmark/sepmark"),
-      getJSON("/api/benchmark/lidmark-lfw-eval"),
-      getJSON("/api/benchmark/waveguard"),
-      getJSON("/api/benchmark/kadnet"),
-      getJSON("/api/benchmark/mea-matrix"),
-      getJSON("/api/benchmark/aggregate"),
-      getJSON("/api/competition-report"),
-      getJSON("/api/evidence/audit"),
-    ]);
-    lastPayload = { health, modules, artifacts, hidden, sepmark, lidmark, waveguard, kadnet, meaMatrix, aggregate, report };
+    // allSettled：单个接口失败只降级对应面板，不拖垮整页
+    const results = await Promise.allSettled(ENDPOINTS.map(([, path]) => getJSON(path)));
+    const data = {};
+    const failed = [];
+    results.forEach((res, index) => {
+      const [key, path] = ENDPOINTS[index];
+      if (res.status === "fulfilled") {
+        data[key] = res.value;
+      } else {
+        data[key] = null;
+        failed.push({ key, path, error: res.reason });
+      }
+    });
+
+    // 后端整体不可用才进入整页错误态
+    if (failed.length === ENDPOINTS.length) {
+      renderErrorState(failed[0].error);
+      return;
+    }
+
+    lastPayload = {
+      health: data.health || { ok: false },
+      modules: Array.isArray(data.modules) ? data.modules : [],
+      artifacts: data.artifacts || null,
+      hidden: data.hidden || {},
+      sepmark: data.sepmark || {},
+      lidmark: data.lidmark || {},
+      waveguard: data.waveguard || {},
+      aggregate: data.aggregate || {},
+      report: data.report || { exists: {} },
+    };
     renderPayload(lastPayload);
-    renderAudit(audit);
+
+    if (data.audit) {
+      renderAudit(data.audit);
+    } else {
+      text("auditStatus", "audit 接口不可用");
+    }
+
+    if (failed.length) {
+      text("health", `health: ${lastPayload.health.ok ? "OK" : "FAIL"} · ${failed.length} 接口降级`);
+      console.warn("[JYS] degraded endpoints:", failed.map((f) => `${f.path} (${formatApiError(f.error)})`));
+    }
   } catch (error) {
     renderErrorState(error);
   }
 }
+
+/* ═══ 视图路由（hash）═══ */
+
+const VIEW_META = {
+  overview: { title: "概览", sub: "防御结论 · 模块状态 · 证据就绪度" },
+  forensics: { title: "互动取证", sub: "真实 checkpoint 推理 · 上传取证 · 合规检测" },
+  benchmark: { title: "Benchmark", sub: "LFW 13,233 全量评测 · 方法对比 · 退化曲线" },
+  audit: { title: "证据审计", sub: "协议审计 · Ed25519 签名 · 原始证据 JSON" },
+};
+
+function applyRoute() {
+  const requested = window.location.hash.replace(/^#\/?/, "");
+  const view = VIEW_META[requested] ? requested : "overview";
+  document.querySelectorAll(".view").forEach((el) => {
+    el.hidden = el.id !== `view-${view}`;
+  });
+  document.querySelectorAll("#viewNav a").forEach((a) => {
+    a.classList.toggle("active", a.dataset.view === view);
+  });
+  const meta = VIEW_META[view];
+  const title = document.getElementById("viewTitle");
+  const subtitle = document.getElementById("viewSubtitle");
+  if (title) title.textContent = meta.title;
+  if (subtitle) subtitle.textContent = meta.sub;
+}
+
+window.addEventListener("hashchange", applyRoute);
+applyRoute();
+
+/* ═══ 取证时钟 ═══ */
+
+function tickClock() {
+  const el = document.getElementById("clock");
+  if (!el) return;
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  el.textContent = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+}
+
+tickClock();
+setInterval(tickClock, 1000);
+
+/* ═══ 事件绑定 ═══ */
 
 document.querySelectorAll("[data-filter]").forEach((button) => {
   button.addEventListener("click", () => {
@@ -536,207 +601,165 @@ initializeDemo().catch(renderErrorState);
 load();
 setInterval(load, 30000);
 
-// ═══════════════════════════════════════════════════
-// 三场景真实推理
-// ═══════════════════════════════════════════════════
+/* ═══ 互动取证场景切换 ═══ */
 
-// Scenario tab switching
-document.querySelectorAll('[data-scenario]').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('[data-scenario]').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    ['creator','compliance','mea'].forEach(s => {
-      const el = document.getElementById(`scene-${s}`);
-      if (el) el.style.display = (s === btn.dataset.scenario) ? '' : 'none';
+const SCENES = ["demo", "creator", "compliance", "mea"];
+
+document.querySelectorAll("[data-scenario]").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll("[data-scenario]").forEach((b) => b.classList.toggle("active", b === btn));
+    SCENES.forEach((scene) => {
+      const el = document.getElementById(`scene-${scene}`);
+      if (el) el.hidden = scene !== btn.dataset.scenario;
     });
   });
 });
 
-function verdictBadge(v) {
+function verdictBadge(verdict) {
   const map = {
-    compliant: '<span style="color:#22c55e">✅ 合规水印已验证</span>',
-    degraded:  '<span style="color:#f59e0b">⚠️ 水印降级</span>',
-    no_watermark: '<span style="color:#ef4444">❌ 无合规水印</span>',
+    compliant: '<span class="verdict-ok">✔ 合规水印已验证</span>',
+    degraded: '<span class="verdict-warn">⚠ 水印降级</span>',
+    no_watermark: '<span class="verdict-risk">✘ 无合规水印</span>',
   };
-  return map[v] || (v || '—');
+  return map[verdict] || escapeHTML(verdict || "—");
 }
 
-function renderInferResult(r) {
-  const imgs = r.artifacts_b64 || {};
-  document.getElementById('inferImages').innerHTML = Object.entries(imgs)
-    .filter(([k]) => ['original','watermarked','attacked','heatmap'].includes(k))
-    .map(([k, b64]) => `<figure>
-      <img src="data:image/png;base64,${b64}" alt="${escapeHTML(k)}" style="max-width:180px">
-      <figcaption>${escapeHTML(k)}</figcaption>
-    </figure>`).join('');
+function renderInferResult(result) {
+  const imgs = result.artifacts_b64 || {};
+  document.getElementById("inferImages").innerHTML = Object.entries(imgs)
+    .filter(([key]) => ["original", "watermarked", "attacked", "heatmap"].includes(key))
+    .map(([key, b64]) => `<figure>
+      <img src="data:image/png;base64,${b64}" alt="${escapeHTML(key)}">
+      <figcaption>${escapeHTML(key)}</figcaption>
+    </figure>`).join("");
 
-  const m = r.metrics || {};
-  const acc = m.bit_accuracy_tracer != null ? m.bit_accuracy_tracer : m.bit_accuracy_c != null ? m.bit_accuracy_c
-              : m.bit_accuracy_detector != null ? m.bit_accuracy_detector
-              : m.bit_accuracy;
-  const psnr = m.psnr;
-  const comp = r.compliance || {};
-  document.getElementById('inferMetrics').innerHTML = `
+  const m = result.metrics || {};
+  const acc = m.bit_accuracy_c != null ? m.bit_accuracy_c
+    : m.bit_accuracy_detector != null ? m.bit_accuracy_detector
+    : m.bit_accuracy;
+  const comp = result.compliance || {};
+  document.getElementById("inferMetrics").innerHTML = `
     <div class="infer-metric-row">
-      <span>Bit Accuracy</span><strong>${acc != null ? (acc*100).toFixed(1)+'%' : '—'}</strong>
-      <span>PSNR</span><strong>${psnr != null ? psnr.toFixed(1)+' dB' : '—'}</strong>
+      <span>Bit Accuracy</span><strong>${acc != null ? (acc * 100).toFixed(1) + "%" : "—"}</strong>
+      <span>PSNR</span><strong>${m.psnr != null ? m.psnr.toFixed(1) + " dB" : "—"}</strong>
       <span>合规结论</span><strong>${verdictBadge(comp.verdict)}</strong>
-      <span>推理模式</span><strong>${r.mode === 'real_checkpoint' ? '✅ 真实模型' : '⚠️ 模拟'}</strong>
+      <span>推理模式</span><strong>${result.mode === "real_checkpoint" ? '<span class="verdict-ok">✔ 真实模型</span>' : '<span class="verdict-warn">⚠ 模拟</span>'}</strong>
     </div>`;
-  document.getElementById('inferEvidence').textContent = JSON.stringify({
-    task_id: r.task_id, model: r.model, attack: r.attack,
-    metrics: r.metrics, compliance: r.compliance, evidence: r.evidence,
+  document.getElementById("inferEvidence").textContent = JSON.stringify({
+    task_id: result.task_id, model: result.model, attack: result.attack,
+    metrics: result.metrics, compliance: result.compliance, evidence: result.evidence,
   }, null, 2);
-  document.getElementById('inferStatus').textContent = `完成 · task_id: ${r.task_id}`;
+  document.getElementById("inferStatus").textContent = `完成 · task_id: ${result.task_id}`;
 }
 
-document.getElementById('inferForm') && document.getElementById('inferForm').addEventListener('submit', async e => {
-  e.preventDefault();
-  const btn = document.getElementById('inferBtn');
+document.getElementById("inferForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const btn = document.getElementById("inferBtn");
   btn.disabled = true;
-  document.getElementById('inferStatus').textContent = '推理中…';
-  document.getElementById('inferImages').innerHTML = '';
-  document.getElementById('inferMetrics').innerHTML = '';
+  document.getElementById("inferStatus").textContent = "推理中…";
+  document.getElementById("inferImages").innerHTML = "";
+  document.getElementById("inferMetrics").innerHTML = "";
   try {
     const fd = new FormData();
-    fd.append('file', document.getElementById('inferFile').files[0]);
-    fd.append('model', document.getElementById('inferModel').value);
-    fd.append('attack', document.getElementById('inferAttack').value);
-    fd.append('return_b64', 'true');
-    const res = await fetch(`${API}/api/infer/single`, { method: 'POST', body: fd });
-    const r = await res.json();
-    if (!res.ok) throw new Error((r.error && r.error.message) || res.statusText);
-    renderInferResult(r);
+    fd.append("file", document.getElementById("inferFile").files[0]);
+    fd.append("model", document.getElementById("inferModel").value);
+    fd.append("attack", document.getElementById("inferAttack").value);
+    fd.append("return_b64", "true");
+    const res = await fetch(`${API}/api/infer/single`, { method: "POST", body: fd });
+    const result = await res.json();
+    if (!res.ok) throw new Error((result.error && result.error.message) || res.statusText);
+    renderInferResult(result);
   } catch (err) {
-    document.getElementById('inferStatus').textContent = '错误: ' + err.message;
+    document.getElementById("inferStatus").textContent = "错误: " + err.message;
   } finally {
     btn.disabled = false;
   }
 });
 
-document.getElementById('batchForm') && document.getElementById('batchForm').addEventListener('submit', async e => {
-  e.preventDefault();
-  const btn = document.getElementById('batchBtn');
+document.getElementById("batchForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const btn = document.getElementById("batchBtn");
   btn.disabled = true;
-  document.getElementById('batchStatus').textContent = '检测中…';
-  document.getElementById('batchResults').innerHTML = '';
+  document.getElementById("batchStatus").textContent = "检测中…";
+  document.getElementById("batchResults").innerHTML = "";
   try {
     const fd = new FormData();
-    const files = document.getElementById('batchFiles').files;
-    for (const f of files) fd.append('files', f);
-    fd.append('model', document.getElementById('batchModel').value);
-    const res = await fetch(`${API}/api/compliance/batch`, { method: 'POST', body: fd });
-    const r = await res.json();
-    if (!res.ok) throw new Error((r.error && r.error.message) || res.statusText);
-    const rate = ((r.compliance_rate || 0) * 100).toFixed(0);
-    document.getElementById('batchStatus').textContent =
-      `检测完成 · ${r.total} 张 · 合规率 ${rate}% · 模式: ${r.mode}`;
-    document.getElementById('batchResults').innerHTML = `
-      <div class="batch-summary" style="display:flex;gap:16px;margin:8px 0">
-        <span>✅ 合规 <strong>${r.compliant}</strong></span>
-        <span>⚠️ 降级 <strong>${r.degraded}</strong></span>
-        <span>❌ 无标识 <strong>${r.no_watermark}</strong></span>
+    const files = document.getElementById("batchFiles").files;
+    for (const file of files) fd.append("files", file);
+    fd.append("model", document.getElementById("batchModel").value);
+    const res = await fetch(`${API}/api/compliance/batch`, { method: "POST", body: fd });
+    const result = await res.json();
+    if (!res.ok) throw new Error((result.error && result.error.message) || res.statusText);
+    const rate = ((result.compliance_rate || 0) * 100).toFixed(0);
+    document.getElementById("batchStatus").textContent =
+      `检测完成 · ${result.total} 张 · 合规率 ${rate}% · 模式: ${result.mode}`;
+    document.getElementById("batchResults").innerHTML = `
+      <div class="batch-summary">
+        <span class="verdict-ok">✔ 合规 <strong>${escapeHTML(result.compliant)}</strong></span>
+        <span class="verdict-warn">⚠ 降级 <strong>${escapeHTML(result.degraded)}</strong></span>
+        <span class="verdict-risk">✘ 无标识 <strong>${escapeHTML(result.no_watermark)}</strong></span>
       </div>
-      <table style="width:100%;font-size:12px;border-collapse:collapse">
-        <thead><tr><th style="text-align:left">文件</th><th>状态</th><th>Bit Acc</th></tr></thead>
-        <tbody>${(r.results || []).map(row => `<tr>
-          <td>${escapeHTML(row.filename)}</td>
-          <td>${row.label}</td>
-          <td>${row.bit_accuracy != null ? (row.bit_accuracy*100).toFixed(1)+'%' : '—'}</td>
-        </tr>`).join('')}</tbody>
-      </table>`;
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>文件</th><th>状态</th><th class="num-col">Bit Acc</th></tr></thead>
+          <tbody>${(result.results || []).map((row) => `<tr>
+            <td>${escapeHTML(row.filename)}</td>
+            <td>${escapeHTML(row.label)}</td>
+            <td class="num">${row.bit_accuracy != null ? fmtScore(row.bit_accuracy) : "—"}</td>
+          </tr>`).join("")}</tbody>
+        </table>
+      </div>`;
   } catch (err) {
-    document.getElementById('batchStatus').textContent = '错误: ' + err.message;
+    document.getElementById("batchStatus").textContent = "错误: " + err.message;
   } finally {
     btn.disabled = false;
   }
 });
 
-document.getElementById('meaForm') && document.getElementById('meaForm').addEventListener('submit', async e => {
-  e.preventDefault();
-  const btn = document.getElementById('meaBtn');
+document.getElementById("meaForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const btn = document.getElementById("meaBtn");
   btn.disabled = true;
-  document.getElementById('meaStatus').textContent = '对比推理中（4个模型）…';
-  document.getElementById('meaResults').innerHTML = '';
+  document.getElementById("meaStatus").textContent = "对比推理中（2个模型）…";
+  document.getElementById("meaResults").innerHTML = "";
   try {
-    const file = document.getElementById('meaFile').files[0];
-    const attack = document.getElementById('meaAttack').value;
-    const results = await Promise.all(['KAD-Net','SepMark','WaveGuard','LIDMark'].map(async model => {
+    const file = document.getElementById("meaFile").files[0];
+    const attack = document.getElementById("meaAttack").value;
+    const results = await Promise.all(["SepMark", "WaveGuard"].map(async (model) => {
       const fd = new FormData();
-      fd.append('file', file);
-      fd.append('model', model);
-      fd.append('attack', attack);
-      fd.append('return_b64', 'true');
-      const res = await fetch(`${API}/api/infer/single`, { method: 'POST', body: fd });
+      fd.append("file", file);
+      fd.append("model", model);
+      fd.append("attack", attack);
+      fd.append("return_b64", "true");
+      const res = await fetch(`${API}/api/infer/single`, { method: "POST", body: fd });
       return res.json();
     }));
-    document.getElementById('meaStatus').textContent = '对比完成';
-    document.getElementById('meaResults').innerHTML = `<div style="display:flex;gap:16px;flex-wrap:wrap">` +
-      results.map(r => {
-        const m = r.metrics || {};
-        const acc = m.bit_accuracy_tracer != null ? m.bit_accuracy_tracer : m.bit_accuracy_c != null ? m.bit_accuracy_c
-                    : m.bit_accuracy_detector != null ? m.bit_accuracy_detector : m.bit_accuracy;
-        const imgs = r.artifacts_b64 || {};
-        return `<div style="flex:1;min-width:240px;border:1px solid var(--border);border-radius:6px;padding:12px">
-          <h4 style="margin:0 0 8px">${escapeHTML(r.model)} <small style="opacity:.6">${escapeHTML(r.mode)}</small></h4>
-          <div style="display:flex;gap:4px;margin-bottom:8px">
-            ${['watermarked','attacked','heatmap'].filter(k => imgs[k]).map(k =>
-              `<figure style="margin:0;text-align:center">
-                <img src="data:image/png;base64,${imgs[k]}" alt="${k}" style="max-width:90px;border-radius:4px">
-                <figcaption style="font-size:10px;opacity:.7">${k}</figcaption>
-              </figure>`).join('')}
+    document.getElementById("meaStatus").textContent = "对比完成";
+    document.getElementById("meaResults").innerHTML = `<div class="mea-grid">` +
+      results.map((result) => {
+        const m = result.metrics || {};
+        const acc = m.bit_accuracy_c != null ? m.bit_accuracy_c
+          : m.bit_accuracy_detector != null ? m.bit_accuracy_detector : m.bit_accuracy;
+        const imgs = result.artifacts_b64 || {};
+        return `<div class="mea-card">
+          <h4>${escapeHTML(result.model)} <small>${escapeHTML(result.mode)}</small></h4>
+          <div class="mea-figs">
+            ${["watermarked", "attacked", "heatmap"].filter((key) => imgs[key]).map((key) =>
+              `<figure>
+                <img src="data:image/png;base64,${imgs[key]}" alt="${escapeHTML(key)}">
+                <figcaption>${escapeHTML(key)}</figcaption>
+              </figure>`).join("")}
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:12px">
-            <span>Bit Accuracy</span><strong>${acc != null ? (acc*100).toFixed(1)+'%' : '—'}</strong>
-            <span>PSNR</span><strong>${m.psnr != null ? m.psnr.toFixed(1)+' dB' : '—'}</strong>
-            <span>合规</span><strong>${(r.compliance || {}).verdict === 'compliant' ? '✅' : '❌'}</strong>
+          <div class="mea-metrics">
+            <span>Bit Accuracy</span><strong>${acc != null ? (acc * 100).toFixed(1) + "%" : "—"}</strong>
+            <span>PSNR</span><strong>${m.psnr != null ? m.psnr.toFixed(1) + " dB" : "—"}</strong>
+            <span>合规</span><strong>${(result.compliance || {}).verdict === "compliant" ? '<span class="verdict-ok">✔</span>' : '<span class="verdict-risk">✘</span>'}</strong>
           </div>
         </div>`;
-      }).join('') + `</div>`;
+      }).join("") + `</div>`;
   } catch (err) {
-    document.getElementById('meaStatus').textContent = '错误: ' + err.message;
+    document.getElementById("meaStatus").textContent = "错误: " + err.message;
   } finally {
     btn.disabled = false;
-  }
-});
-
-
-// ── Deepfake 溯源场景 ─────────────────────────────────────────────────────────
-document.getElementById("deepfakeForm")?.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const file = document.getElementById("deepfakeFile").files[0];
-  if (!file) return;
-  const statusEl = document.getElementById("deepfakeStatus");
-  const flowEl = document.getElementById("deepfakeFlow");
-  statusEl.textContent = "运行中... 嵌入水印 → Deepfake 攻击 → 解码溯源";
-  flowEl.innerHTML = "";
-  try {
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("model", "LIDMark");
-    fd.append("attack", "deepfake_proxy_v1");
-    const r = await postForm("/api/infer/single", fd);
-    const ba = r.metrics?.bit_accuracy ?? r.bit_accuracy ?? 0;
-    const psnr = r.metrics?.psnr ?? r.psnr ?? 0;
-    const verdict = ba >= 0.9 ? "✅ 来源已追溯" : "⚠️ 追溯置信度偏低";
-    const imgs = r.artifacts || r.images || {};
-    flowEl.innerHTML = `
-      <div class="trace-verdict ${ba >= 0.9 ? 'success' : 'warn'}">
-        <strong>${verdict}</strong>
-        — 身份比特精度 ${(ba * 100).toFixed(1)}%，水印 PSNR ${Number(psnr).toFixed(1)} dB
-      </div>
-      <div class="demo-artifacts">
-        ${['watermarked', 'attacked', 'heatmap'].filter(k => imgs[k]).map(k =>
-          `<figure><img src="${imgs[k]}" loading="lazy" alt="${k}"><figcaption>${
-            {watermarked:'嵌入水印', attacked:'Deepfake 仿真', heatmap:'差异热力图'}[k] || k
-          }</figcaption></figure>`
-        ).join('')}
-      </div>
-      <p class="trace-explain">LIDMark 通过人脸关键点（152维水印向量）编码创作者 ID，Deepfake 面部替换后仍可从残存结构中恢复身份信息。</p>
-    `;
-    statusEl.textContent = "溯源完成";
-  } catch (err) {
-    statusEl.textContent = "错误: " + (err.message || err);
-    flowEl.innerHTML = "";
   }
 });

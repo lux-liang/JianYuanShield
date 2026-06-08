@@ -1,0 +1,25 @@
+{
+  "name": "鉴源盾 · 取证证据工作台",
+  "short_name": "鉴源盾",
+  "description": "主动取证与抗攻击溯源平台 · Deepfake Active Forensics",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0f14",
+  "theme_color": "#0a0f14",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
