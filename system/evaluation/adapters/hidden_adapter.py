@@ -49,11 +49,37 @@ class HiDDeNAdapter(ModelAdapter):
         if self._net is not None:
             return
         import torch
-        if str(_HIDDEN_CODE) not in sys.path:
-            sys.path.insert(0, str(_HIDDEN_CODE))
-        import utils  # type: ignore
-        from model.hidden import Hidden  # type: ignore
-        from noise_layers.noiser import Noiser  # type: ignore
+
+        # LIDMark (and possibly other adapters) install their own 'utils' into
+        # sys.modules before this code runs.  Since HiDDeN's utils.py, model/hidden.py,
+        # and noise_layers/noiser.py all use `import utils` at module level, we must
+        # ensure HiDDeN's path is first in sys.path AND that the 'utils' cache is
+        # cleared so Python re-searches for the correct file.
+        hidden_code_str = str(_HIDDEN_CODE)
+        if hidden_code_str in sys.path:
+            sys.path.remove(hidden_code_str)
+        sys.path.insert(0, hidden_code_str)
+
+        # Evict any stale entries for names that HiDDeN owns.
+        _stale_keys = [k for k in sys.modules if k in ("utils", "options",
+                                                         "model", "model.hidden",
+                                                         "noise_layers",
+                                                         "noise_layers.noiser")]
+        _saved = {k: sys.modules.pop(k) for k in _stale_keys}
+        try:
+            import utils  # type: ignore  -- now resolved to HiDDeN/utils.py
+            from model.hidden import Hidden  # type: ignore
+            from noise_layers.noiser import Noiser  # type: ignore
+        finally:
+            # Restore evicted modules so other adapters keep working.
+            # Rename the HiDDeN ones under private keys before restoring,
+            # so Hidden/Noiser still find them if they need them at runtime.
+            for private in ("utils", "options", "model", "model.hidden",
+                            "noise_layers", "noise_layers.noiser"):
+                hidden_mod = sys.modules.pop(private, None)
+                if hidden_mod is not None:
+                    sys.modules[f"_hidden_mea_{private.replace('.', '_')}"] = hidden_mod
+            sys.modules.update(_saved)
 
         device = torch.device(device_str if torch.cuda.is_available() else "cpu")
         train_options, hidden_config, noise_config = utils.load_options(str(_ACTIVE_OPTIONS))
