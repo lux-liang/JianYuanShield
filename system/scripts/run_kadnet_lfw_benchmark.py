@@ -30,7 +30,7 @@ IMG_SIZE = 128
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser()
     p.add_argument("--num-images", type=int, default=13233)
-    p.add_argument("--attacks", nargs="+", default=["clean", "jpeg50", "jpeg70", "jpeg90", "resize", "noise"])
+    p.add_argument("--attacks", nargs="+", default=["clean", "jpeg50", "jpeg70", "jpeg90", "resize", "noise", "crop_center_0.8", "rotate_5"])
     p.add_argument("--image-root", type=Path, default=DEFAULT_IMAGE_ROOT)
     p.add_argument("--device", default="cuda:0")
     p.add_argument("--seed", type=int, default=20260609)
@@ -58,6 +58,18 @@ def apply_attack(arr: np.ndarray, attack: str, rng: np.random.Generator) -> np.n
         return cv2.resize(small, (w, h), interpolation=cv2.INTER_LINEAR)
     if attack == "noise":
         return np.clip(arr.astype(np.float32) + rng.normal(0, 3.0, arr.shape), 0, 255).astype(np.uint8)
+    if attack.startswith("crop_center_"):
+        scale = float(attack[len("crop_center_"):])
+        h, w = arr.shape[:2]
+        ch, cw = int(h * scale), int(w * scale)
+        y0, x0 = (h - ch) // 2, (w - cw) // 2
+        cropped = arr[y0:y0+ch, x0:x0+cw]
+        return cv2.resize(cropped, (w, h), interpolation=cv2.INTER_LINEAR)
+    if attack.startswith("rotate_"):
+        angle = float(attack[len("rotate_"):])
+        h, w = arr.shape[:2]
+        M = cv2.getRotationMatrix2D((w / 2, h / 2), angle, 1.0)
+        return cv2.warpAffine(arr, M, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
     raise ValueError(f"unknown attack: {attack}")
 
 

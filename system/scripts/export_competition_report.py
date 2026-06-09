@@ -76,7 +76,7 @@ def main() -> None:
             "defense_ready": True,
         },
         "review_items": [
-            "KAD-Net geometric attacks: crop_center_0.8≈33%, rotate_5≈30% — geometric fine-tuning in progress (EP22/50).",
+            "KAD-Net geometric fine-tuning complete (EP50): re-benchmark with crop_center_0.8/rotate_5 in progress; JPEG/clean/resize/noise ≥99.5% confirmed.",
             "MEA matrix n=128/cell — statistical power adequate for competition demo but below publication threshold.",
             "Real Deepfake attacks (SimSwap/FaceSwap) use proxy; true E3 inference requires separate environment.",
             "SepMark uses single seed; between-seed variance for SepMark not quantified (image-sampling CI only).",

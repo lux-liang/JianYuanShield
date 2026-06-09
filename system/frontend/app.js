@@ -333,7 +333,7 @@ function renderComparison(aggregate) {
 
 
 function renderMeaMatrix(mea) {
-  const models = mea?.models || ["SepMark", "WaveGuard", "LIDMark", "KAD-Net"];
+  const models = mea?.models || ["SepMark", "WaveGuard", "LIDMark", "KAD-Net", "HiDDeN"];
   const matrix = mea?.matrix || {};
   const badge = document.getElementById("meaMatrixBadge");
   const tbody = document.getElementById("meaMatrixBody");
@@ -367,7 +367,7 @@ function renderPayload(payload) {
   text("health", `health: ${health.ok ? "OK" : "FAIL"}`);
 
   const statusMap = {
-    hiddenStatus: "broken (excluded)",
+    hiddenStatus: statusFrom(hidden),
     sepmarkStatus: statusFrom(sepmark),
     lidmarkStatus: statusFrom(lidmark),
     waveguardStatus: statusFrom(waveguard),
@@ -384,7 +384,7 @@ function renderPayload(payload) {
   text("sepmarkCount", `${sampleCount(sepmark.summary, sepmark.progress)} images`);
   text("lidmarkCount", `${sampleCount(lidmark.summary, lidmark.progress)} images`);
   text("waveguardCount", `${sampleCount(waveguard.summary, waveguard.progress)} images`);
-  text("kadnetCount", `${kadnet?.summary?.n_images ?? 512} images (clean/jpeg/noise/resize 100%)`);
+  text("kadnetCount", `${kadnet?.summary?.n_images ?? 512} images · geo-finetuned (EP50)`);
   text("aggregatePath", aggregate.report_md_path || "pending");
 
   const sepClean = cleanAttack(sepmark);
@@ -423,6 +423,15 @@ function renderPayload(payload) {
     num((r) => fmtScore(r.mean_bit_accuracy_detector || r.mean_bit_accuracy)),
     num((r) => fmt(r.mean_bit_error_tracer)),
     num((r) => fmtScore(r.mean_bit_accuracy_tracer)),
+    num((r) => fmtScore(r.success_rate)),
+  ]);
+
+  rows("kadnetRows", attackSummaries(kadnet.summary), [
+    (r) => badge(r.attack_type || r.attack || "-"),
+    num((r) => fmt(r.mean_bit_error)),
+    num((r) => fmtScore(r.mean_bit_accuracy)),
+    num((r) => fmt(r.mean_psnr)),
+    num((r) => fmt(r.mean_ssim)),
     num((r) => fmtScore(r.success_rate)),
   ]);
 

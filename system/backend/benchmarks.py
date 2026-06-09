@@ -192,7 +192,7 @@ def mea_matrix_payload() -> dict[str, Any]:
     jsons = sorted(mea_dir.glob("mea_4x4_*.json"), key=lambda p: p.stat().st_mtime, reverse=True) if mea_dir.exists() else []
     latest = load_json(jsons[0]) if jsons else {}
     return {
-        "method": "MEA-4x4",
+        "method": "MEA-5x5",
         "images_per_cell": latest.get("images_per_cell", 128),
         "models": latest.get("models", []),
         "matrix": latest.get("matrix", {}),
@@ -203,12 +203,17 @@ def mea_matrix_payload() -> dict[str, Any]:
 
 def kadnet_benchmark_payload() -> dict[str, Any]:
     report_dir = REPORTS / "kadnet_lfw_benchmark"
+    status = "complete" if (report_dir / "summary.json").exists() else "pending"
+    summary = load_json(report_dir / "summary.json")
+    if isinstance(summary, dict):
+        summary = {**summary, "status": status}
     return {
         "method": "KAD-Net",
-        "checkpoint_type": "trained_100ep_checkpoint",
-        "summary": load_json(report_dir / "summary.json"),
+        "checkpoint_type": "trained_100ep_geom_50ep_checkpoint",
+        "summary": summary,
         "results_csv_path": str(report_dir / "results.csv"),
-        "status": "complete" if (report_dir / "summary.json").exists() else "pending",
+        "results_csv_exists": (report_dir / "results.csv").exists(),
+        "status": status,
     }
 
 def aggregate_benchmark_payload() -> dict[str, Any]:
