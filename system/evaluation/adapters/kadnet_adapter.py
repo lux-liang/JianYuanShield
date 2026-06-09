@@ -72,20 +72,19 @@ class KADNetAdapter(ModelAdapter):
         _dev_str = _os.environ.get("JYS_INFER_DEVICE", "cuda:2")
         self._device = torch.device(_dev_str if torch.cuda.is_available() else "cpu")
 
-        # Parse attention type from run directory name (e.g. _se_se_ → encoder=se, decoder=se)
-        parts = run_dir.name.split("_")
-        # Format: ST_KAD_Net_{size}_{msg_len}_{...}_{attn_enc}_{attn_dec}_{...}
-        attn_enc = parts[8] if len(parts) > 8 else None
-        attn_dec = parts[9] if len(parts) > 9 else None
-        attn_enc = attn_enc if attn_enc and attn_enc != "none" else None
-        attn_dec = attn_dec if attn_dec and attn_dec != "none" else None
+        state = torch.load(str(ckpt_path), map_location=self._device, weights_only=False)
+        enc_state = {k[len("encoder."):]: v for k, v in state.items() if k.startswith("encoder.")}
+        dec_state = {k[len("decoder_C."):]: v for k, v in state.items() if k.startswith("decoder_C.")}
+
+        # Auto-detect attention type from checkpoint keys (more robust than parsing run name)
+        has_enc_se = any(".se." in k for k in enc_state)
+        has_dec_se = any(".se." in k for k in dec_state)
+        attn_enc = "se" if has_enc_se else None
+        attn_dec = "se" if has_dec_se else None
 
         encoder = ST_Encoder(MSG_LEN, attention=attn_enc).to(self._device)
         decoder = ST_Decoder(MSG_LEN, attention=attn_dec).to(self._device)
 
-        state = torch.load(str(ckpt_path), map_location=self._device, weights_only=False)
-        enc_state = {k[len("encoder."):]: v for k, v in state.items() if k.startswith("encoder.")}
-        dec_state = {k[len("decoder_C."):]: v for k, v in state.items() if k.startswith("decoder_C.")}
         encoder.load_state_dict(enc_state, strict=True)
         decoder.load_state_dict(dec_state, strict=True)
         encoder.eval(); decoder.eval()

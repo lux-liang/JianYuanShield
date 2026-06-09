@@ -34,8 +34,16 @@ from model.hidden import Hidden  # noqa: E402
 from noise_layers.noiser import Noiser  # noqa: E402
 
 
-DEFAULT_OPTIONS = ROOT / "weights/mea/HiDDeN/runs/train-test-1 2025.07.09--12-49-43/options-and-config.pickle"
-DEFAULT_CHECKPOINT = ROOT / "weights/mea/HiDDeN/runs/train-test-1 2025.07.09--12-49-43/checkpoints/train-test-1--epoch-200.pyt"
+# New 300-epoch CelebA training (BER≈0.021 on val); falls back to old run if missing
+_HIDDEN_NEW_RUN = MODEL_SOURCE_ROOT / "MEA/codes/HiDDeN/runs/hidden_celeba_noise 2026.06.07--23-58-20"
+_HIDDEN_OLD_RUN = ROOT / "weights/mea/HiDDeN/runs/train-test-1 2025.07.09--12-49-43"
+_ACTIVE_RUN = _HIDDEN_NEW_RUN if (_HIDDEN_NEW_RUN / "options-and-config.pickle").exists() else _HIDDEN_OLD_RUN
+DEFAULT_OPTIONS = _ACTIVE_RUN / "options-and-config.pickle"
+DEFAULT_CHECKPOINT = _ACTIVE_RUN / "checkpoints" / (
+    "hidden_celeba_noise--epoch-300.pyt"
+    if _ACTIVE_RUN == _HIDDEN_NEW_RUN
+    else "train-test-1--epoch-200.pyt"
+)
 DEFAULT_IMAGE_ROOT = ROOT / "datasets/lfw_full_upload/unknown"
 REPORT_DIR = ROOT / "system/reports/hidden_lfw_full_benchmark"
 ASSET_DIR = ROOT / "system/assets/real_hidden_benchmark"
