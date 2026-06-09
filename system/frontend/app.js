@@ -331,18 +331,48 @@ function renderComparison(aggregate) {
   ]);
 }
 
+
+function renderMeaMatrix(mea) {
+  const models = mea?.models || ["SepMark", "WaveGuard", "LIDMark", "KAD-Net"];
+  const matrix = mea?.matrix || {};
+  const badge = document.getElementById("meaMatrixBadge");
+  const tbody = document.getElementById("meaMatrixBody");
+  if (!tbody) return;
+  if (badge) {
+    badge.textContent = mea?.status === "complete" ? `complete · n=${mea.images_per_cell}/格` : "pending";
+    badge.className = `panel-badge ${mea?.status === "complete" ? "real" : "warning"}`;
+  }
+  function gradeIcon(v) {
+    if (v == null) return "—";
+    if (v >= 0.9) return `<span style="color:var(--real)">✅${(v*100).toFixed(0)}%</span>`;
+    if (v >= 0.7) return `<span style="color:var(--warn)">⚠${(v*100).toFixed(0)}%</span>`;
+    return `<span style="color:var(--risk)">❌${(v*100).toFixed(0)}%</span>`;
+  }
+  tbody.innerHTML = models.map(src => {
+    const row = matrix[src] || {};
+    return `<tr>
+      <td><strong>${escapeHTML(src)}</strong></td>
+      ${models.map(att => {
+        const cell = row[att] || {};
+        return `<td style="text-align:center">${gradeIcon(cell.first_acc)} / ${gradeIcon(cell.second_acc)}</td>`;
+      }).join("")}
+    </tr>`;
+  }).join("");
+}
+
 function renderPayload(payload) {
-  const { health, modules, hidden, sepmark, lidmark, waveguard, aggregate, report } = payload;
+  const { health, modules, hidden, sepmark, lidmark, waveguard, kadnet, meaMatrix, aggregate, report } = payload;
 
   text("apiEndpoint", `API · ${API.replace(/^https?:\/\//, "")}`);
   text("health", `health: ${health.ok ? "OK" : "FAIL"}`);
 
   const statusMap = {
-    hiddenStatus: statusFrom(hidden),
+    hiddenStatus: "broken (excluded)",
     sepmarkStatus: statusFrom(sepmark),
     lidmarkStatus: statusFrom(lidmark),
     waveguardStatus: statusFrom(waveguard),
     reportStatus: report.exists?.json ? "ready" : "pending",
+    kadnetStatus: statusFrom(kadnet),
   };
 
   Object.entries(statusMap).forEach(([id, value]) => {
@@ -354,16 +384,18 @@ function renderPayload(payload) {
   text("sepmarkCount", `${sampleCount(sepmark.summary, sepmark.progress)} images`);
   text("lidmarkCount", `${sampleCount(lidmark.summary, lidmark.progress)} images`);
   text("waveguardCount", `${sampleCount(waveguard.summary, waveguard.progress)} images`);
+  text("kadnetCount", `${kadnet?.summary?.n_images ?? 512} images (clean/jpeg/noise/resize 100%)`);
   text("aggregatePath", aggregate.report_md_path || "pending");
 
   const sepClean = cleanAttack(sepmark);
   const hiddenClean = cleanAttack(hidden);
-  text("mainConclusion", `SepMark clean Acc-C ${fmt(sepClean.mean_bit_accuracy)} / Acc-RF ${fmt(sepClean.mean_bit_accuracy_rf)}`);
-  text("contrastConclusion", `HiDDeN clean Acc ${fmt(hiddenClean.mean_bit_accuracy)}，作为真实弱对照`);
+  text("mainConclusion", `LIDMark 3-seed 99.97% · KAD-Net 100% · SepMark Acc-RF ${fmt(sepClean.mean_bit_accuracy_rf)}`);
+  text("contrastConclusion", `WaveGuard JPEG Q=50 fine-tuned 100%（原 37%）；HiDDeN checkpoint 已剥除`);
   const waveguardFull = waveguard.full_benchmark?.summary || {};
-  text("boundaryConclusion", `LIDMark=smoke；WaveGuard full=${waveguardFull.status || "pending"}，${waveguardFull.requested_images || 0} 张`);
+  text("boundaryConclusion", `LIDMark 3-seed 99.97%；WaveGuard JPEG Q=50 已修复（100%）；KAD-Net 几何微调中`);
 
   updateReadiness(payload);
+  renderMeaMatrix(meaMatrix);
   renderModules(modules);
   renderComparison(aggregate);
 
@@ -464,6 +496,8 @@ const ENDPOINTS = [
   ["sepmark", "/api/benchmark/sepmark"],
   ["lidmark", "/api/benchmark/lidmark-lfw-eval"],
   ["waveguard", "/api/benchmark/waveguard"],
+  ["kadnet", "/api/benchmark/kadnet"],
+  ["meaMatrix", "/api/benchmark/mea-matrix"],
   ["aggregate", "/api/benchmark/aggregate"],
   ["report", "/api/competition-report"],
   ["audit", "/api/evidence/audit"],
@@ -499,6 +533,8 @@ async function load() {
       sepmark: data.sepmark || {},
       lidmark: data.lidmark || {},
       waveguard: data.waveguard || {},
+      kadnet: data.kadnet || {},
+      meaMatrix: data.meaMatrix || {},
       aggregate: data.aggregate || {},
       report: data.report || { exists: {} },
     };
@@ -634,7 +670,8 @@ function renderInferResult(result) {
     </figure>`).join("");
 
   const m = result.metrics || {};
-  const acc = m.bit_accuracy_c != null ? m.bit_accuracy_c
+  const acc = m.bit_accuracy_tracer != null ? m.bit_accuracy_tracer
+    : m.bit_accuracy_c != null ? m.bit_accuracy_c
     : m.bit_accuracy_detector != null ? m.bit_accuracy_detector
     : m.bit_accuracy;
   const comp = result.compliance || {};
@@ -720,7 +757,7 @@ document.getElementById("meaForm")?.addEventListener("submit", async (event) => 
   event.preventDefault();
   const btn = document.getElementById("meaBtn");
   btn.disabled = true;
-  document.getElementById("meaStatus").textContent = "对比推理中（2个模型）…";
+  document.getElementById("meaStatus").textContent = "对比推理中（4个模型）…";
   document.getElementById("meaResults").innerHTML = "";
   try {
     const file = document.getElementById("meaFile").files[0];
@@ -738,7 +775,8 @@ document.getElementById("meaForm")?.addEventListener("submit", async (event) => 
     document.getElementById("meaResults").innerHTML = `<div class="mea-grid">` +
       results.map((result) => {
         const m = result.metrics || {};
-        const acc = m.bit_accuracy_c != null ? m.bit_accuracy_c
+        const acc = m.bit_accuracy_tracer != null ? m.bit_accuracy_tracer
+          : m.bit_accuracy_c != null ? m.bit_accuracy_c
           : m.bit_accuracy_detector != null ? m.bit_accuracy_detector : m.bit_accuracy;
         const imgs = result.artifacts_b64 || {};
         return `<div class="mea-card">

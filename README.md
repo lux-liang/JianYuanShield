@@ -9,7 +9,7 @@
 <br>
 
 [![LFW](https://img.shields.io/badge/LFW_全量基准-13%2C233_imgs-023e8a?style=for-the-badge)](https://github.com/lux-liang/JianYuanShield)
-[![Accuracy](https://img.shields.io/badge/最高精度-99.98%25-0077b6?style=for-the-badge)](https://github.com/lux-liang/JianYuanShield)
+[![Accuracy](https://img.shields.io/badge/LIDMark精度-99.98%25(S1)-0077b6?style=for-the-badge)](https://github.com/lux-liang/JianYuanShield)
 [![Evidence](https://img.shields.io/badge/证据链-Ed25519_已验签-265073?style=for-the-badge&logo=gnuprivacyguard&logoColor=white)](https://github.com/lux-liang/JianYuanShield)
 
 [![Regulation](https://img.shields.io/badge/完整符合-AI内容标识办法-9b2226?style=for-the-badge)](https://github.com/lux-liang/JianYuanShield)
@@ -39,7 +39,7 @@
 </tr>
 <tr>
 <td align="center" width="25%">🏗️ <kbd>4 种模型</kbd><br><sub>协同水印平台</sub></td>
-<td align="center" width="25%">📱 <kbd>5 端全覆盖</kbd><br><sub>Web · Android · iOS · 小程序 · 鸿蒙</sub></td>
+<td align="center" width="25%">🌐 <kbd>Web 端已上线</kbd><br><sub>多端客户端开发中</sub></td>
 <td align="center" width="25%">🧪 <kbd>37 测试</kbd><br><sub>单元测试全通过</sub></td>
 <td align="center" width="25%">⚡ <kbd>&lt;2s / 张</kbd><br><sub>RTX 4090 实测</sub></td>
 </tr>
@@ -81,7 +81,7 @@ Deepfake 技术迭代加速——FaceSwap、SimSwap 已可在普通显卡实时�
 | **第八条** | 须支持**监管机构溯源查验** | ✅ Ed25519 签名证据包，可随时验签 |
 | **第十二条** | 须建立**内容可信体系** | ✅ 合规审计 API，自动生成 JSON 报告 |
 
-> 🏆 鉴源盾是目前**唯一**同时满足以上四条要求的开源技术方案。
+> 🏆 鉴源盾是目前**面向以上四条要求的完整开源技术方案**，提供从水印嵌入到司法取证的端到端实现。
 
 ### 🔍 现有方案的致命局限
 
@@ -111,10 +111,10 @@ Deepfake 技术迭代加速——FaceSwap、SimSwap 已可在普通显卡实时�
 152 维关键点水印向量，语义结构绑定。Deepfake 换脸后继承原始几何残留，仍可解码原创者 ID。
 
 3-seed 独立训练<br>
-精度 **99.98%** `[99.94%, 100%]`<br>
-Deepfake proxy **100%**
+精度 **99.98%** `[99.94%, 100%]` ¹<br>
+Stage2 Deepfake 微调进行中
 
-`全球首创 · VPSG原创`
+`CVPR 2026 · VPSG原创`
 
 </td>
 <td width="25%" align="center" valign="top">
@@ -149,17 +149,17 @@ API 实时验签<br>
 </td>
 <td width="25%" align="center" valign="top">
 
-### 📱 五端全覆盖
+### 🌐 Web 端 + 多端规划
 
 **统一 REST API**
 
-Web / Android / iOS / 微信小程序 / 鸿蒙，五端共用同一后端，零重复开发。
+Web Demo 已上线；Android / iOS / 微信小程序 / 鸿蒙客户端由团队成员并行开发，共用同一后端。
 
 < 2s 推理延迟<br>
 15+ API 端点<br>
 37 测试全通过
 
-`工程完整 · 即开即用`
+`后端完整 · 即开即用`
 
 </td>
 </tr>
@@ -216,11 +216,14 @@ sequenceDiagram
 
 | 指标 | 🏆 LIDMark (3-seed, 95% CI) | 同类竞品均值 |
 |:---|:---:|:---:|
-| Clean 精度 | **99.98%** `[99.94%, 100%]` | ≈ 88% |
-| JPEG Q=50 精度 | **99.96%** | ≈ 74% |
-| Deepfake proxy 精度 | **100%** | 无报告 |
+| Clean 精度 (Stage1) ¹ | **99.98%** `[99.94%, 100%]` | ≈ 88% |
+| JPEG Q=50 精度 (Stage1) | **99.96%** | ≈ 74% |
+| Deepfake proxy 精度 ² | **100%** | 无报告 |
 | 跨 seed 训练方差 | **± 0.02%** | 通常未报告 |
 | 独立训练验证 | **3 个独立 seed ✅** | 通常单 seed |
+
+> ¹ **Stage1（通用扭曲训练）**：已在 CelebA-HQ 30k 图像上完成，含 JPEG/噪声/缩放等扰动。Stage2（Deepfake 换脸微调）进行中。  
+> ² Deepfake proxy 为轻量代理实现，完整 SimSwap/UniFace 深度伪造场景评测待 Stage2 完成后更新。
 
 ---
 
@@ -242,6 +245,8 @@ sequenceDiagram
 
 **格式：Source 水印存活率 / Attacker 嵌入精度　　✅ ≥ 90%　　⚠️ 70–89%　　❌ < 70%**
 
+> ⚠️ **注**：下表为 MEA 协议框架设计与初步实验估算，完整 4×5 矩阵（每格 128 张 LFW）正式实验进行中，评审前将以真实结果替换。
+
 | Source ↓ · Attacker → | SepMark | WaveGuard | LIDMark | KAD-Net |
 |:---|:---:|:---:|:---:|:---:|
 | **SepMark** | 91% ✅ · 56% ❌ | 92% ✅ · 100% ✅ | 50% ❌ · 61% ❌ | 90% ✅ · 100% ✅ |
@@ -249,10 +254,10 @@ sequenceDiagram
 | **LIDMark** | 68% ⚠️ · 69% ⚠️ | 72% ⚠️ · 100% ✅ | 52% ❌ · 60% ❌ | 67% ⚠️ · 93% ✅ |
 | **KAD-Net** | 100% ✅ · 84% ⚠️ | 100% ✅ · 100% ✅ | 50% ❌ · 61% ❌ | 50% ❌ · 100% ✅ |
 
-**🔬 原创发现（国内外文献未见报道）：**
-- 🎯 **LIDMark 作为攻击者破坏性最强**——语义绑定机制改变面部几何，先嵌水印降至随机水平
-- 🤝 **KAD-Net × WaveGuard 双向兼容**（均 ≥ 95%），多层级标识部署最优组合
-- 📐 **对角线全部失效**——自攻击必然覆盖，验证实验设计有效性
+**🔬 初步研究假设（待正式矩阵实验验证）：**
+- 🎯 **LIDMark 作为攻击者破坏性最强假说**——语义绑定机制改变面部几何，预期先嵌水印降至随机水平
+- 🤝 **KAD-Net × WaveGuard 双向兼容假说**（均 ≥ 95%），多层级标识部署候选组合
+- 📐 **对角线失效规律**——自攻击覆盖，验证实验设计有效性（已观察到一致趋势）
 
 ---
 
@@ -305,12 +310,12 @@ openssl pkeyutl -verify -pubin -inkey public_key.pem \
 
 | 🔧 工程维度 | ✅ 实现情况 |
 |:---|:---|
-| **后端 API** | FastAPI，15+ 端点，lifespan 预热，< 2s/张推理 |
-| **🌐 Web 前端** | 原生 JS，4 场景交互 Demo（创作者保护/平台合规/MEA/Deepfake 溯源） |
-| **📱 Android** | Kotlin + Material Design 3，调用统一 REST API |
-| **🍎 iOS** | SwiftUI + URLSession，相册导入，原生体验 |
-| **💬 微信小程序** | WXML/JS，微信生态，一键分享 |
-| **🌸 鸿蒙** | ArkTS + ArkUI，原生鸿蒙 |
+| **后端 API** | FastAPI，15+ 端点，lifespan 预热，< 2s/张推理 ✅ |
+| **🌐 Web 前端** | 原生 JS，4 场景交互 Demo（创作者保护/平台合规/MEA/Deepfake 溯源）✅ |
+| **📱 Android** | Kotlin + Material Design 3，调用统一 REST API 🚧 开发中 |
+| **🍎 iOS** | SwiftUI + URLSession，相册导入，原生体验 🚧 开发中 |
+| **💬 微信小程序** | WXML/JS，微信生态，一键分享 🚧 开发中 |
+| **🌸 鸿蒙** | ArkTS + ArkUI，原生鸿蒙 🚧 开发中 |
 | **四模型适配** | Adapter 模式 + importlib 动态加载，解决命名空间冲突 |
 | **评测管线** | Bootstrap CI、Holm 校正、MEA 矩阵全自动生成 |
 | **证据链** | Ed25519 签名 + SHA-256，API 实时验签 |
@@ -328,12 +333,13 @@ openssl pkeyutl -verify -pubin -inkey public_key.pem \
 
 | 模型 | 指标 | 无攻击 | JPEG Q=50 | JPEG Q=70 | 噪声 | 缩放 | 样本量 |
 |:---|:---|:---:|:---:|:---:|:---:|:---:|:---:|
-| 🔵 **LIDMark** | ID 比特精度 (3-seed) | **99.98%** `[99.94,100%]` | 99.96% | — | 99.96% | 99.97% | 1,536 |
-| 🟢 **KAD-Net** | 比特精度 | **100%** | 99.97% | 100% | 100% | 100% | 512 |
+| 🔵 **LIDMark** | ID 比特精度 (3-seed, Stage1) | **99.98%** `[99.94,100%]` | 99.96% | — | 99.96% | 99.97% | 1,536 |
+| 🟢 **KAD-Net** | 比特精度 | **100%** | 99.3% † | 99.9% | 100% | 100% | 512→13,233 † |
 | 🟡 **WaveGuard** | Tracer 精度 | **100%** | **100%** | 100% | 100% | 100% | 512 |
 | 🟣 **SepMark** | 比特精度 (RF) | 91.2% `[90.9,91.5%]` | 88.1% | 89.8% | 90.7% | 91.0% | 13,233 |
 
-> 所有数据附 **95% Bootstrap 置信区间**（5,000 次重采样），LIDMark 同时覆盖跨 seed 训练方差。
+> 所有数据附 **95% Bootstrap 置信区间**（5,000 次重采样），LIDMark 同时覆盖跨 seed 训练方差。  
+> † KAD-Net 全量 13,233 张 LFW benchmark 运行中，JPEG Q=50 为 smoke 测试结果（n=512），完成后更新。
 
 **Pairwise 统计显著性（Holm 校正）：**
 
@@ -438,7 +444,7 @@ openssl pkeyutl -verify \
 | 15 种攻击统一评测 | ✅ | 通常 2–4 种 | — | — |
 | Bootstrap CI 置信区间 | ✅ | 罕见 | — | — |
 | MEA 跨模型攻击矩阵 | ✅ VPSG 原创 | ❌ | — | — |
-| 全终端客户端覆盖 | ✅ 5 端 | ❌ | ❌ | ❌ |
+| 全终端客户端覆盖 | Web ✅；Android/iOS/小程序/鸿蒙 🚧 | ❌ | ❌ | ❌ |
 | 实时推理 API | ✅ < 2s / 张 | 视方案 | ✅ | ❌ |
 
 ---
@@ -447,7 +453,7 @@ openssl pkeyutl -verify \
 
 ```mermaid
 flowchart TD
-    CLI["🌐 Web · 📱 Android · 🍎 iOS · 💬 小程序 · 🌸 鸿蒙"]
+    CLI["🌐 Web（已上线）· 📱 Android · 🍎 iOS · 💬 小程序 · 🌸 鸿蒙（开发中）"]
     CLI -->|"统一 REST API"| API["⚡ JianYuanShield · FastAPI · 15+ 端点"]
 
     subgraph MDL ["🏗️ 水印模型适配层"]
@@ -537,7 +543,7 @@ curl http://server:8026/api/evidence/audit
 [![Law](https://img.shields.io/badge/《人工智能生成合成内容标识办法》-技术落地-e17055?style=flat-square)](https://github.com/lux-liang/JianYuanShield)
 [![Competition](https://img.shields.io/badge/全国大学生信息安全竞赛-作品赛-FFD700?style=flat-square)](https://github.com/lux-liang/JianYuanShield)
 
-[![Platform](https://img.shields.io/badge/平台-Web_|_Android_|_iOS_|_小程序_|_鸿蒙-a29bfe?style=flat-square)](https://github.com/lux-liang/JianYuanShield)
+[![Platform](https://img.shields.io/badge/平台-Web✅_|_Android🚧_|_iOS🚧_|_小程序🚧_|_鸿蒙🚧-a29bfe?style=flat-square)](https://github.com/lux-liang/JianYuanShield)
 [![Models](https://img.shields.io/badge/模型-LIDMark_|_KAD--Net_|_WaveGuard_|_SepMark-55efc4?style=flat-square)](https://github.com/lux-liang/JianYuanShield)
 
 </div>

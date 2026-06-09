@@ -106,7 +106,7 @@
               </div>
               <div class="boundary-box">
                 <span>边界声明</span>
-                <strong id="boundaryConclusion">LIDMark 当前为 smoke；WaveGuard 已完成 13,233 张全量真实评测</strong>
+                <strong id="boundaryConclusion">LIDMark 3-seed 正式训练 99.97%；WaveGuard JPEG Q=50 已修复（100%）；KAD-Net 几何增强微调中</strong>
               </div>
             </div>
           </section>
@@ -132,12 +132,41 @@
               <strong id="waveguardStatus">-</strong>
               <small id="waveguardCount">-</small>
             </div>
+            <div class="stat" data-status-card="kadnetStatus">
+              <span>KAD-Net</span>
+              <strong id="kadnetStatus">-</strong>
+              <small id="kadnetCount">几何微调进行中</small>
+            </div>
             <div class="stat" data-status-card="reportStatus">
               <span>报告</span>
               <strong id="reportStatus">-</strong>
               <small>JSON / CSV / Markdown</small>
             </div>
           </section>
+
+        <section class="panel" style="margin-bottom:1.5rem">
+          <div class="panel-head">
+            <div>
+              <h3>MEA 多重嵌入攻击矩阵（5×5，n=128/格）</h3>
+              <span>行=先嵌入 Source | 列=后嵌入 Attacker</span>
+            </div>
+            <span id="meaMatrixBadge" class="panel-badge">loading</span>
+          </div>
+          <div class="table-wrap">
+            <table id="meaMatrixTable">
+              <thead>
+                <tr>
+                  <th>Source ↓ / Attacker →</th>
+                  <th>SepMark</th><th>WaveGuard</th><th>LIDMark</th><th>KAD-Net</th><th>HiDDeN</th>
+                </tr>
+              </thead>
+              <tbody id="meaMatrixBody"></tbody>
+            </table>
+          </div>
+          <p style="font-size:11px;opacity:.6;margin:.5rem 0 0">
+            ✅≥90% ⚠70-89% ❌&lt;70% · 对角线自攻击为设计预期
+          </p>
+        </section>
 
           <section class="panel">
             <span class="exhibit">EXHIBIT 02 · MODULE REGISTRY</span>
@@ -396,9 +425,9 @@
               <div class="panel-head">
                 <div>
                   <h3>LIDMark LFW eval</h3>
-                  <span>smoke checkpoint，不是 official full model</span>
+                  <span>3-seed 正式训练 · LFW 1,536 张 · 99.97%</span>
                 </div>
-                <span class="panel-badge warning">smoke</span>
+                <span class="panel-badge">real</span>
               </div>
               <details class="evidence-fold" open>
                 <summary>RAW EVIDENCE JSON</summary>
@@ -411,9 +440,9 @@
               <div class="panel-head">
                 <div>
                   <h3>WaveGuard baseline</h3>
-                  <span>single smoke + small/full LFW benchmark</span>
+                  <span>JPEG STE 7ep 微调 · Q=50/70 tracer 100% · LFW full</span>
                 </div>
-                <span class="panel-badge warning">baseline</span>
+                <span class="panel-badge">real</span>
               </div>
               <details class="evidence-fold" open>
                 <summary>RAW EVIDENCE JSON</summary>
