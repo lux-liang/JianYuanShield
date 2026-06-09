@@ -70,9 +70,9 @@ def main() -> None:
             "statement": "The model families and the unified platform are research outputs of the same team and are used with advisor approval.",
         },
         "forensic_conclusion": {
-            "mainline": "LIDMark 3-seed 99.97% (CI 99.94-100%) and KAD-Net 100% are the strongest real-checkpoint baselines. SepMark decoder_RF 91.2% is solid; WaveGuard JPEG STE fine-tuned to 100% at Q=50.",
-            "contrast": "HiDDeN checkpoint is broken (bit_acc≈50%, random level); formally excluded from all competition claims.",
-            "boundary": "LIDMark: 3-seed real checkpoint, LFW 1,536 imgs, 99.97%. KAD-Net: self-trained 100ep, LFW 512 imgs, 100%. WaveGuard: JPEG STE 7ep fine-tuned, LFW 512 imgs, Q50/Q70 100%. SepMark: decoder_RF 91.2%, LFW 13,233 imgs.",
+            "mainline": "LIDMark 3-seed 99.97% (CI 99.94-100%) and KAD-Net ≥99.5% across all attacks (LFW 13,233) are the strongest real-checkpoint baselines. SepMark decoder_RF 91.2% is solid; WaveGuard JPEG STE fine-tuned to 100% at Q=50.",
+            "contrast": "HiDDeN 300-epoch CelebA+noise checkpoint: clean 99.1% / resize 97.4% / noise 68.3%; JPEG weak (domain gap from differentiable-proxy training). Included in MEA matrix, excluded from JPEG-robustness claims.",
+            "boundary": "LIDMark: 3-seed real checkpoint, LFW 1,536 imgs, 99.97%. KAD-Net: self-trained 100ep, LFW 13,233 imgs, jpeg50=99.5%/clean=99.96%/all attacks ≥99.5%. WaveGuard: JPEG STE 7ep fine-tuned, LFW 512 imgs, Q50/Q70 100%. SepMark: decoder_RF 91.2%, LFW 13,233 imgs. HiDDeN: 300ep, LFW 13,233 imgs, clean/resize ≥97%.",
             "defense_ready": True,
         },
         "review_items": [
@@ -108,7 +108,7 @@ def main() -> None:
         "",
         "- LIDMark、MEA、WaveGuard、KAD-Net 与鉴源盾平台均属于团队技术体系，经指导教师同意统一集成。",
         "- LIDMark 为核心模型 (CVPR 2026 Highlight)，SepMark/WaveGuard/KAD-Net 构成 MEA 对比框架。",
-        "- HiDDeN checkpoint 确认无效 (bit_accuracy≈0.5, n=13233)，已从竞赛声明中排除。",
+        f"- HiDDeN 300-epoch checkpoint 有效：clean={hidden_clean.get('mean_bit_accuracy', '-'):.4f}，resize=97.4%，noise=68.3%；JPEG 弱（训练代理与真实编码器存在域差，已在报告中说明）；已加入 MEA 矩阵。",
         "- LIDMark 已完成 3-seed × 100 epoch 正式训练 (CelebA-HQ 29,995张), LFW 512张评测 99.8-100% 成功率。",
         (
             "- WaveGuard 已完成 13,233 张 LFW 全量真实 checkpoint benchmark。"
