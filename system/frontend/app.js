@@ -3,6 +3,8 @@ const API = params.get("api") || window.JYS_API_BASE || `${window.location.proto
 
 let currentFilter = "all";
 let lastPayload = null;
+let readinessLabel = "syncing";
+let readinessPercent = 0;
 
 class ApiError extends Error {
   constructor({ code, message, path, status, details }) {
@@ -34,6 +36,42 @@ function text(id, value) {
     void el.offsetWidth;
     el.classList.add("flash");
   }
+}
+
+/* 数字滚动（count-up / 里程表）：首帧 0→目标，之后仅在数值变化时再滚动；
+   prefers-reduced-motion 下直接落终值，不做动画。 */
+function animateNumber(el, to, { duration = 900, decimals = 0, prefix = "", suffix = "" } = {}) {
+  const target = Number(to);
+  if (!el || !Number.isFinite(target)) return false;
+  const fromRaw = Number(el.dataset.num);
+  const from = Number.isFinite(fromRaw) ? fromRaw : 0;
+  el.dataset.num = String(target);
+  const render = (v) => { el.textContent = `${prefix}${v.toFixed(decimals)}${suffix}`; };
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce || from === target) { render(target); return true; }
+  const startTime = performance.now();
+  const ease = (t) => 1 - Math.pow(1 - t, 3); // easeOutCubic
+  const step = (now) => {
+    const t = Math.min(1, (now - startTime) / duration);
+    render(from + (target - from) * ease(t));
+    if (t < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+  return true;
+}
+
+/* 数值字段：能转成有限数字就滚动，否则退回普通 text()（含连字符占位等） */
+function countField(id, number, options = {}) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const n = Number(number);
+  if (!Number.isFinite(n)) {
+    delete el.dataset.num;
+    const { prefix = "", suffix = "" } = options;
+    text(id, number == null || number === "" ? "-" : `${prefix}${number}${suffix}`);
+    return;
+  }
+  animateNumber(el, n, options);
 }
 
 function fmt(value) {
@@ -72,26 +110,27 @@ function setCardStatus(id, value) {
   card.classList.add(`status-${key === "neutral" ? "pending" : key}`);
 }
 
-/* cells 数组项：函数（普通列）或 { fn, cls }（如数值右对齐列） */
+/* cells 数组项：函数（普通列）或 { fn, cls }（如数值右对齐列）
+   内容签名（__sig）未变则跳过重建，避免每轮 30s 轮询都重放 rowIn 入场动画 */
 function rows(containerId, records, cells) {
   const body = document.getElementById(containerId);
   if (!body) return;
-  body.innerHTML = "";
+  let html;
   if (!records || records.length === 0) {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `<td colspan="${cells.length}">${badge("pending")}</td>`;
-    body.appendChild(tr);
-    return;
-  }
-  records.forEach((record, index) => {
-    const tr = document.createElement("tr");
-    tr.style.animationDelay = `${Math.min(index * 22, 220)}ms`;
-    tr.innerHTML = cells.map((cell) => {
-      if (typeof cell === "function") return `<td>${cell(record)}</td>`;
-      return `<td class="${cell.cls || ""}">${cell.fn(record)}</td>`;
+    html = `<tr><td colspan="${cells.length}">${badge("pending")}</td></tr>`;
+  } else {
+    html = records.map((record, index) => {
+      const delay = Math.min(index * 22, 220);
+      const tds = cells.map((cell) => {
+        if (typeof cell === "function") return `<td>${cell(record)}</td>`;
+        return `<td class="${cell.cls || ""}">${cell.fn(record)}</td>`;
+      }).join("");
+      return `<tr style="animation-delay:${delay}ms">${tds}</tr>`;
     }).join("");
-    body.appendChild(tr);
-  });
+  }
+  if (body.__sig === html) return;
+  body.__sig = html;
+  body.innerHTML = html;
 }
 
 const num = (fn) => ({ fn, cls: "num" });
@@ -239,16 +278,37 @@ function setImage(id, src) {
   image.src = `${API}${src}?t=${Date.now()}`;
 }
 
+/* 就绪度环 + 状态词：percent 驱动 conic 环（--p 平滑过渡）与数字滚动，
+   readinessLabel 仍供 ticker 使用 */
+function renderReadiness(percent, label) {
+  readinessPercent = percent;
+  readinessLabel = label;
+  const state = percent >= 90 ? "ready" : percent >= 60 ? "partial" : "low";
+  const word = state === "ready" ? "READY" : state === "partial" ? "PARTIAL" : "SYNCING";
+  const ring = document.getElementById("readinessRing");
+  if (ring) {
+    ring.style.setProperty("--p", percent);
+    ring.classList.remove("rs-ready", "rs-partial", "rs-low");
+    ring.classList.add(`rs-${state}`);
+  }
+  countField("readinessRingPct", percent, { suffix: "%" });
+  const strong = document.getElementById("evidenceReady");
+  if (strong) {
+    strong.classList.remove("rs-ready", "rs-partial", "rs-low");
+    strong.classList.add(`rs-${state}`);
+  }
+  text("evidenceReady", word);
+}
+
 function updateReadiness(payload) {
   if (payload.artifacts?.checks) {
     const checks = payload.artifacts.checks;
     const values = Object.values(checks);
     const readyCount = values.filter(Boolean).length;
     const percent = values.length ? Math.round((readyCount / values.length) * 100) : 0;
-    text("evidenceReady", payload.artifacts.ready_for_demo ? "ready for demo" : `${percent}% ready`);
+    const ready = payload.artifacts.ready_for_demo;
+    renderReadiness(ready ? 100 : percent, ready ? "ready for demo" : `${percent}% ready`);
     text("lastUpdated", `资产 ${payload.artifacts.summary?.status || "unknown"} · 最后同步 ${new Date().toLocaleTimeString("zh-CN", { hour12: false })}`);
-    const bar = document.getElementById("readinessBar");
-    if (bar) bar.style.width = `${Math.max(percent, 8)}%`;
     renderArtifactChecklist(checks, payload.artifacts.summary);
     return;
   }
@@ -267,10 +327,8 @@ function updateReadiness(payload) {
     return sum;
   }, 0);
   const percent = Math.round((score / statuses.length) * 100);
-  text("evidenceReady", `${percent}% ready`);
+  renderReadiness(percent, `${percent}% ready`);
   text("lastUpdated", `最后同步 ${new Date().toLocaleTimeString("zh-CN", { hour12: false })}`);
-  const bar = document.getElementById("readinessBar");
-  if (bar) bar.style.width = `${Math.max(percent, 8)}%`;
 }
 
 function renderArtifactChecklist(checks, summary) {
@@ -303,18 +361,16 @@ function renderArtifactChecklist(checks, summary) {
 function renderModules(modules) {
   const moduleList = document.getElementById("moduleList");
   if (!moduleList) return;
-  moduleList.innerHTML = "";
-  modules.forEach((item, index) => {
-    const node = document.createElement("section");
-    node.className = "module-item";
-    node.style.animationDelay = `${index * 45}ms`;
-    node.innerHTML = `
+  const html = modules.map((item) => `
+    <section class="module-item">
       <div class="badge-slot"><strong>${escapeHTML(item.name)}</strong>${badge(item.result)}</div>
       <p>${escapeHTML(item.function)}</p>
       <small>${escapeHTML(item.model_status)}</small>
-    `;
-    moduleList.appendChild(node);
-  });
+    </section>
+  `).join("");
+  if (moduleList.__sig === html) return;
+  moduleList.__sig = html;
+  moduleList.innerHTML = html;
 }
 
 function renderComparison(aggregate) {
@@ -348,7 +404,7 @@ function renderMeaMatrix(mea) {
     if (v >= 0.7) return `<span style="color:var(--warn)">⚠${(v*100).toFixed(0)}%</span>`;
     return `<span style="color:var(--risk)">❌${(v*100).toFixed(0)}%</span>`;
   }
-  tbody.innerHTML = models.map(src => {
+  const html = models.map(src => {
     const row = matrix[src] || {};
     return `<tr>
       <td><strong>${escapeHTML(src)}</strong></td>
@@ -358,6 +414,60 @@ function renderMeaMatrix(mea) {
       }).join("")}
     </tr>`;
   }).join("");
+  if (tbody.__sig === html) return;
+  tbody.__sig = html;
+  tbody.innerHTML = html;
+}
+
+/* ═══ 实时证据 Ticker ═══
+   汇总各模块状态 / 就绪度 / MEA / 报告 / 审计 / 签名 / 健康为一条横向滚动流。
+   内容签名未变则不重建 DOM，避免每轮轮询打断滚动动画。 */
+function statusClass(value) {
+  const k = statusKey(value);
+  return k === "real" ? "is-real" : k === "smoke" ? "is-smoke" : k === "pending" ? "is-pending" : "";
+}
+
+/* 把后端冗长状态（如 real_lfw_benchmark / running）归一成短醒目 token，ticker 更清爽 */
+function shortStatus(value) {
+  const k = statusKey(value);
+  return k === "real" ? "REAL" : k === "smoke" ? "RUNNING" : k === "pending" ? "PENDING" : String(value || "-").toUpperCase();
+}
+
+function renderTicker(payload, audit) {
+  const track = document.getElementById("tickerTrack");
+  if (!track) return;
+  const items = [];
+  const push = (key, val, statusVal) =>
+    items.push({ key, val: val == null || val === "" ? "-" : String(val), cls: statusClass(statusVal ?? val) });
+
+  const mod = (key, s) => push(key, shortStatus(s), s);
+  mod("HiDDeN", statusFrom(payload.hidden));
+  mod("SepMark", statusFrom(payload.sepmark));
+  mod("LIDMark", statusFrom(payload.lidmark));
+  mod("WaveGuard", statusFrom(payload.waveguard));
+  mod("KAD-Net", statusFrom(payload.kadnet));
+  const readyKey = readinessPercent >= 90 ? "ready" : readinessPercent >= 60 ? "smoke" : "pending";
+  push("就绪度", readinessLabel, readyKey);
+  if (payload.meaMatrix?.status) {
+    push("MEA 矩阵", payload.meaMatrix.status, payload.meaMatrix.status === "complete" ? "ready" : "smoke");
+  }
+  push("报告", payload.report?.exists?.json ? "ready" : "pending");
+  if (audit) {
+    const blocking = (audit.blocking_findings || []).length;
+    push("审计阻断", blocking, blocking === 0 ? "ready" : "pending");
+    const sig = audit.signature || {};
+    push("Ed25519", sig.verified ? "verified" : (sig.status || "pending"), sig.verified ? "ready" : "pending");
+  }
+  push("HEALTH", payload.health?.ok ? "OK" : "FAIL", payload.health?.ok ? "ready" : "pending");
+
+  const itemHTML = items.map((it) =>
+    `<span class="ticker-item ${it.cls}"><i class="tk-dot"></i><span class="tk-key">${escapeHTML(it.key)}</span><span class="tk-val">${escapeHTML(it.val)}</span></span>`
+  ).join("");
+  if (track.__sig === itemHTML) return;
+  track.__sig = itemHTML;
+  // 复制一份实现无缝循环；条目越多滚动时长越长，保持匀速观感（节奏偏快，让动感更明显）
+  track.innerHTML = itemHTML + itemHTML;
+  track.style.setProperty("--ticker-duration", `${Math.max(16, items.length * 1.8).toFixed(0)}s`);
 }
 
 function renderPayload(payload) {
@@ -380,15 +490,17 @@ function renderPayload(payload) {
     setCardStatus(id, value);
   });
 
-  text("hiddenCount", `${sampleCount(hidden.summary, hidden.progress)} images`);
-  text("sepmarkCount", `${sampleCount(sepmark.summary, sepmark.progress)} images`);
-  text("lidmarkCount", `${sampleCount(lidmark.summary, lidmark.progress)} images`);
-  text("waveguardCount", `${sampleCount(waveguard.summary, waveguard.progress)} images`);
-  text("kadnetCount", `${kadnet?.summary?.n_images ?? 512} images · geo-finetuned (EP50)`);
+  countField("hiddenCount", sampleCount(hidden.summary, hidden.progress), { suffix: " images" });
+  countField("sepmarkCount", sampleCount(sepmark.summary, sepmark.progress), { suffix: " images" });
+  countField("lidmarkCount", sampleCount(lidmark.summary, lidmark.progress), { suffix: " images" });
+  countField("waveguardCount", sampleCount(waveguard.summary, waveguard.progress), { suffix: " images" });
+  countField("kadnetCount", kadnet?.summary?.n_images ?? 512, { suffix: " images · geo-finetuned (EP50)" });
   text("aggregatePath", aggregate.report_md_path || "pending");
 
   const sepClean = cleanAttack(sepmark);
   const hiddenClean = cleanAttack(hidden);
+  const lidAcc = Number(cleanAttack(lidmark).mean_bit_accuracy);
+  countField("heroMetric", Number.isFinite(lidAcc) ? lidAcc * 100 : null, { decimals: 2 });
   text("mainConclusion", `LIDMark 3-seed 99.97% · KAD-Net 100% · SepMark Acc-RF ${fmt(sepClean.mean_bit_accuracy_rf)}`);
   text("contrastConclusion", `WaveGuard JPEG Q=50 fine-tuned 100%（原 37%）；HiDDeN checkpoint 已剥除`);
   const waveguardFull = waveguard.full_benchmark?.summary || {};
@@ -555,6 +667,8 @@ async function load() {
       text("auditStatus", "audit 接口不可用");
     }
 
+    renderTicker(lastPayload, data.audit);
+
     if (failed.length) {
       text("health", `health: ${lastPayload.health.ok ? "OK" : "FAIL"} · ${failed.length} 接口降级`);
       console.warn("[JYS] degraded endpoints:", failed.map((f) => `${f.path} (${formatApiError(f.error)})`));
@@ -579,6 +693,12 @@ function applyRoute() {
   document.querySelectorAll(".view").forEach((el) => {
     el.hidden = el.id !== `view-${view}`;
   });
+  const shown = document.getElementById(`view-${view}`);
+  if (shown) {
+    shown.classList.remove("entering");
+    void shown.offsetWidth; // 强制回流，重新触发交错入场动画
+    shown.classList.add("entering");
+  }
   document.querySelectorAll("#viewNav a").forEach((a) => {
     a.classList.toggle("active", a.dataset.view === view);
   });
@@ -604,6 +724,17 @@ function tickClock() {
 
 tickClock();
 setInterval(tickClock, 1000);
+
+/* ═══ 入场动画收尾：动画结束后移除遮罩；reduced-motion 直接移除 ═══ */
+(function dismissBoot() {
+  const boot = document.getElementById("bootScreen");
+  if (!boot) return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    boot.remove();
+    return;
+  }
+  setTimeout(() => boot.remove(), 1850);
+})();
 
 /* ═══ 事件绑定 ═══ */
 
@@ -644,7 +775,20 @@ document.querySelectorAll("[data-signature-file]").forEach((link) => {
 
 initializeDemo().catch(renderErrorState);
 load();
-setInterval(load, 30000);
+
+/* 30s 轮询；页面隐藏时暂停轮询与 ticker，切回时立即刷新一次 */
+let pollTimer = setInterval(load, 30000);
+document.addEventListener("visibilitychange", () => {
+  const track = document.getElementById("tickerTrack");
+  if (document.hidden) {
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    if (track) track.style.animationPlayState = "paused";
+  } else {
+    if (track) track.style.removeProperty("animation-play-state");
+    load();
+    if (!pollTimer) pollTimer = setInterval(load, 30000);
+  }
+});
 
 /* ═══ 互动取证场景切换 ═══ */
 
