@@ -4,7 +4,7 @@
 
 | 模型 | Checkpoint | 样本量 | 指标类型 | Clean | JPEG Q=50 | 几何攻击 | 状态 |
 |------|-----------|-------|---------|-------|----------|---------|------|
-| **LIDMark** | 3-seed 正式训练 (s1/s2/s3) | 512×3=1,536 张（同批 512 图） | landmark 定位成功率 | 99.93% | 99.93%（攻击不敏感）| 未测 | ✅ real；**ID 比特精度 null，评测进行中** |
+| **LIDMark** | 3-seed 正式训练 (s1/s2/s3) | 512×3=1,536 张（同批 512 图） | landmark 定位成功率 + ID比特 | 99.93%（landmark）| landmark 99.93% | ID比特 clean **62.3%**（512图实测）| ✅ real；landmark 强，**16-bit ID 比特≈随机** |
 | **KAD-Net** | EC_50.pth (GEOM 微调版) | **13,233 张**（真全量） | 比特精度 | 99.98% | 99.09% | **crop≈68.9%，rotate≈43.7%（GEOM 微调后仍失败）**| ✅ real；几何为已知局限 |
 | **SepMark** | EC_115.pth (pre-trained) | **13,233 张** | 比特精度 RF | 87.74%（decoder_RF）；decoder_C 87.7% | 87.75% | — | ✅ real |
 | **WaveGuard** | model_state_16.pth | **13,233 张**（真全量） | bit-acc / success@0.9 | 100% / 100% | bit-acc=**88.97%** / succ=**37.3%**（Q=50 真弱点）| — | ✅ real；jpeg50 是真弱点，不可称"已修复100%" |
@@ -12,7 +12,7 @@
 
 ## 指标说明（防止混用）
 
-- **LIDMark 99.93%**：landmark 定位成功率（`success_rate`），**不是** ID 比特精度；真实 `bit_accuracy=null`，16-bit ID 比特精度尚未单独测量。
+- **LIDMark 99.93%**：landmark 定位成功率（`success_rate`），**不是** ID 比特精度。新脚本 `system/scripts/run_lidmark_idbit_eval.py` 实测 16-bit ID 比特准确率（512 图，s1 ep100，MEA 模式 landmark 维度置零）：**clean 62.3% / jpeg50 70% / resize·noise ≈62%，success@0.9≈0%**——即该配置下 ID 比特水印接近随机（50% 基线）。⚠️ MEA 模式置零 136 维 landmark 属 out-of-distribution，可能低估真实能力；完整 landmark+id 配置（需人脸检测器）的真值待补测。**结论：LIDMark 的强项是 landmark 定位/篡改定位，而非可溯源的 ID 比特。**
 - **WaveGuard jpeg50**：bit-acc=88.97%，但 success@0.9 仅 37.3%——这是真弱点。checkpoint `model_state_16.pth`，n=13,233。不可称"Q=50 已修复至100%"。
 - **KAD-Net 几何**：GEOM 微调版（EC_50.pth）在 13,233 全量上，crop_center_0.8=68.92%、rotate_5=43.73%，几何攻击仍实质失败，是已知硬限制。
 - **HiDDeN**：使用 epoch-300 checkpoint，13,233 全量评测。clean/resize 好，JPEG 系列失败（域 gap）。是有效对照 baseline，不是"损坏/已剔除"。
