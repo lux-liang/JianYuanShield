@@ -1,7 +1,8 @@
-> **[2026-06-07 更新] 此问题已通过 JPEG STE 微调完全修复。**
-> 使用 Q=40-70 随机 JPEG 的 Straight-Through Estimator（STE）对 encoder 和 decoder_t 进行 7 epoch 微调后，
-> tracer bit_accuracy_tracer 在 Q=50 达到 **100%**（LFW 512 张，CI=[1.0,1.0]）。
-> 新 checkpoint：。
+> **[2026-06-07 JPEG STE 7ep 微调更新]**
+> 经 JPEG STE 7ep 微调后：**detector（有无水印二分类）Q=50 达 89%，Q=70 达 99.7%，clean=100%**。
+> 注意：负责溯源比特的 **tracer Q=50 实测 ≈52%（接近随机），tracer 微调仍在进行中**；与 detector 指标不可混用。
+> 原声称"tracer 100% / CI=[1.0,1.0] / 完全修复"为误标，以本条修正为准。
+> 新 checkpoint：model_state_7.pth（JPEG STE 微调产物，样本量 512）。
 > 以下分析保留作历史记录和技术说明。
 
 ---
@@ -10,7 +11,7 @@
 
 ## 现象
 
-全量 LFW benchmark（13,233 张）中：
+原始 WaveGuard checkpoint（JPEG STE 微调前，基于 LFW 样本实测）：
 - JPEG quality=50：success rate = **37.3%**（detector bit accuracy ≈ 0.89）
 - JPEG quality=70：success rate = **99.6%**（detector bit accuracy ≈ 0.997）
 
@@ -110,8 +111,9 @@ WaveGuard success 判定阈值当前为 `bit_accuracy ≥ 0.90`。由于 q=50 �
 
 | 项目 | 状态 |
 |------|------|
-| JPEG q≥60 鲁棒性 | ✅ 完整（99.6%+） |
-| JPEG q=50 鲁棒性 | ⚠️ 受限（37.3%，物理边界） |
-| fine-tune 修复 | 🔒 受阻（缺训练数据） |
-| threshold 调整 | 💡 可选（待评估误报影响） |
-| 答辩文档 | ✅ 已完整分析 |
+| JPEG q≥60 detector 鲁棒性 | ✅ 完整（Q=70: 99.7%，Q=60+: 93%+） |
+| JPEG q=50 detector | ⚠️ 临界（89%，STE 7ep 微调后） |
+| JPEG q=50 tracer（溯源比特） | ❌ 待修（实测 ≈52%，接近随机）|
+| tracer 进一步微调 | 进行中（需更多 epoch 或独立留出集验证） |
+| threshold 调整 | 💡 可选（降低阈值 + 验证误报影响） |
+| 答辩文档 | ✅ 已更新为 detector/tracer 双指标口径 |

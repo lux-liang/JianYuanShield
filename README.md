@@ -8,8 +8,8 @@
 
 <br>
 
-[![LFW](https://img.shields.io/badge/LFW_全量基准-13%2C233_imgs-023e8a?style=for-the-badge)](https://github.com/lux-liang/JianYuanShield)
-[![Accuracy](https://img.shields.io/badge/LIDMark精度-99.98%25(S1)-0077b6?style=for-the-badge)](https://github.com/lux-liang/JianYuanShield)
+[![LFW](https://img.shields.io/badge/SepMark_全量基准-13%2C233_imgs-023e8a?style=for-the-badge)](https://github.com/lux-liang/JianYuanShield)
+[![Accuracy](https://img.shields.io/badge/KADNet_比特精度-100%25(温和攻击)-0077b6?style=for-the-badge)](https://github.com/lux-liang/JianYuanShield)
 [![Evidence](https://img.shields.io/badge/证据链-Ed25519_已验签-265073?style=for-the-badge&logo=gnuprivacyguard&logoColor=white)](https://github.com/lux-liang/JianYuanShield)
 
 [![Regulation](https://img.shields.io/badge/完整符合-AI内容标识办法-9b2226?style=for-the-badge)](https://github.com/lux-liang/JianYuanShield)
@@ -32,10 +32,10 @@
 
 <table>
 <tr>
-<td align="center" width="25%">🎯 <kbd>99.98%</kbd><br><sub>LIDMark 最高精度</sub></td>
-<td align="center" width="25%">🖼️ <kbd>13,233 张</kbd><br><sub>LFW 全量评测</sub></td>
+<td align="center" width="25%">🎯 <kbd>99.93%</kbd><br><sub>LIDMark landmark 定位成功率<br>（ID 比特精度评测中）</sub></td>
+<td align="center" width="25%">🖼️ <kbd>13,233 张</kbd><br><sub>SepMark LFW 全量评测<br>（唯一全量模型）</sub></td>
 <td align="center" width="25%">⚔️ <kbd>15 种攻击</kbd><br><sub>统一评测框架</sub></td>
-<td align="center" width="25%">🔐 <kbd>22 文件</kbd><br><sub>Ed25519 签名覆盖</sub></td>
+<td align="center" width="25%">🔐 <kbd>Ed25519</kbd><br><sub>签名覆盖（文件数以接口返回为准）</sub></td>
 </tr>
 <tr>
 <td align="center" width="25%">🏗️ <kbd>4 种模型</kbd><br><sub>协同水印平台</sub></td>
@@ -77,11 +77,11 @@ Deepfake 技术迭代加速——FaceSwap、SimSwap 已可在普通显卡实时�
 | 条款 | 法规要求 | 🛡️ 鉴源盾对应能力 |
 |:---:|:---|:---|
 | **第六条** | 须添加**隐式标识**（不可见水印） | ✅ 四模型 API 批量嵌入，PSNR ≥ 37 dB |
-| **第七条** | 须**稳健抗干扰**，传播后仍可识别 | ✅ LFW 全量基准 91%–100%，覆盖 15 种攻击 |
+| **第七条** | 须**稳健抗干扰**，传播后仍可识别 | ✅ SepMark LFW 全量 91.2%；KAD-Net 温和攻击 100%（512 张）；覆盖 15 种攻击（几何攻击 partial）|
 | **第八条** | 须支持**监管机构溯源查验** | ✅ Ed25519 签名证据包，可随时验签 |
 | **第十二条** | 须建立**内容可信体系** | ✅ 合规审计 API，自动生成 JSON 报告 |
 
-> 🏆 鉴源盾是目前**面向以上四条要求的完整开源技术方案**，提供从水印嵌入到司法取证的端到端实现。
+> 鉴源盾是面向以上四条要求的**主动水印溯源技术方案**，提供从水印嵌入到证据链验签的端到端实现（演示级，详见局限性说明）。
 
 ### 🔍 现有方案的致命局限
 
@@ -111,7 +111,7 @@ Deepfake 技术迭代加速——FaceSwap、SimSwap 已可在普通显卡实时�
 152 维关键点水印向量，语义结构绑定。Deepfake 换脸后继承原始几何残留，仍可解码原创者 ID。
 
 3-seed 独立训练<br>
-精度 **99.98%** `[99.94%, 100%]` ¹<br>
+landmark 成功率 **99.93%**；ID 比特精度评测中 ¹<br>
 Stage2 Deepfake 微调进行中
 
 `CVPR 2026 · VPSG原创`
@@ -125,11 +125,11 @@ Stage2 Deepfake 微调进行中
 
 4×4 模型组合，16 种攻击路径，2,048 次独立实验。填补多水印并存场景评测空白。
 
-原创评测协议<br>
+原创评测协议（诚实红队诊断）<br>
 每格 **128** 张 LFW 图像<br>
-国内外文献未见报道
+据调研较少见于现有文献
 
-`VPSG原创 · 填补空白`
+`VPSG原创`
 
 </td>
 <td width="25%" align="center" valign="top">
@@ -138,13 +138,13 @@ Stage2 Deepfake 微调进行中
 
 **Ed25519 签名**
 
-22 文件 SHA-256 完整性保护，任何评审者可在 5 秒内独立验签，密码学不可抵赖。
+Ed25519 签名 + SHA-256 完整性保护，任何评审者可在 5 秒内独立验签（文件覆盖数以 `evidence_audit` 接口实际返回为准）。
 
 私钥离线保存<br>
 API 实时验签<br>
-等价区块链存证
+完整性自校验（演示级）
 
-`司法级 · 零信任验证`
+`完整性签名 · 来源绑定`
 
 </td>
 <td width="25%" align="center" valign="top">
@@ -195,7 +195,7 @@ sequenceDiagram
     activate J
     J->>J: 解码水印向量
     J->>J: 比对身份 ID 比特
-    J-->>V: ✅ bit_accuracy = 100%，原创者 ID 已确认
+    J-->>V: ✅ 水印解码完成，原创者 ID 比对结果（精度待 ID 比特评测回填）
     J-->>V: 📋 Ed25519 签名证据包（可独立验签）
     deactivate J
 ```
@@ -204,7 +204,7 @@ sequenceDiagram
 
 ## 四、核心优势详解
 
-### 🥇 优势一：LIDMark——全球首个 Deepfake 穿透溯源方案
+### 🥇 优势一：LIDMark——面向 Deepfake 穿透的主动溯源方案（团队原创）
 
 ```
 水印向量 [152维]:
@@ -214,27 +214,26 @@ sequenceDiagram
 
 > 💡 **核心突破**：Deepfake 在替换面部时不可避免地继承原始面部几何结构残留——LIDMark 利用这一物理约束，在换脸后依然解码出原始创作者 ID。这是**被动检测根本无法做到的**。
 
-| 指标 | 🏆 LIDMark (3-seed, 95% CI) | 同类竞品均值 |
-|:---|:---:|:---:|
-| Clean 精度 (Stage1) ¹ | **99.98%** `[99.94%, 100%]` | ≈ 88% |
-| JPEG Q=50 精度 (Stage1) | **99.96%** | ≈ 74% |
-| Deepfake proxy 精度 ² | **100%** | 无报告 |
-| 跨 seed 训练方差 | **± 0.02%** | 通常未报告 |
-| 独立训练验证 | **3 个独立 seed ✅** | 通常单 seed |
+| 指标 | LIDMark (3-seed) | 说明 |
+|:---|:---:|:---|
+| Landmark 定位成功率 (Stage1) ¹ | **99.93%** | 对 clean/jpeg/noise/resize 几乎一致，不代表水印鲁棒性 |
+| ID 比特精度（bit accuracy） | **评测进行中** | 当前 `bit_accuracy=null`，待正式评测 |
+| Deepfake proxy 精度 ² | 待测 | Stage2 完成后评测 |
+| 独立训练 seed | **3 个（20260603/04/05）** | 每 seed 512 张（同批图像） |
 
-> ¹ **Stage1（通用扭曲训练）**：已在 CelebA-HQ 30k 图像上完成，含 JPEG/噪声/缩放等扰动。Stage2（Deepfake 换脸微调）进行中。  
+> ¹ **Stage1（通用扭曲训练）**：3-seed 正式 checkpoint 已完成，landmark 定位成功率 99.93%；**ID 比特精度评测进行中**（bit_accuracy 字段待补充）。Stage2（Deepfake 换脸微调）进行中。  
 > ² Deepfake proxy 为轻量代理实现，完整 SimSwap/UniFace 深度伪造场景评测待 Stage2 完成后更新。
 
 ---
 
 ### 🥈 优势二：四模型协同水印——多层次防御体系
 
-| 模型 | 嵌入域 | 水印长度 | 无攻击精度 | 核心优势 |
-|:---|:---:|:---:|:---:|:---|
-| 🔵 **LIDMark** | 空间域（关键点） | 152 bit | **99.98%** | 语义绑定，Deepfake 后溯源 |
-| 🟢 **KAD-Net** | 空间域（KAN+SE） | 30 bit | **100%** | KAN 非线性，全场景 100% |
-| 🟡 **WaveGuard** | 频域（DTCWT） | 1 bit | **100%** | 频域不变性，抗平台压缩 |
-| 🟣 **SepMark** | 频域（分离子带） | 30 bit | **91.2%** | 高低频分离，RF 解码器增强 |
+| 模型 | 嵌入域 | 水印长度 | Clean 精度（指标类型） | 核心优势 | 样本量 |
+|:---|:---:|:---:|:---:|:---|:---:|
+| 🔵 **LIDMark** | 空间域（关键点） | 152 bit | **99.93%**（landmark 成功率；ID 比特精度评测中） | 语义绑定，Deepfake 后溯源 | 512×3 |
+| 🟢 **KAD-Net** | 空间域（KAN+SE） | 30 bit | **100%**（比特精度） | KAN 非线性，温和攻击全 100% | 512 |
+| 🟡 **WaveGuard** | 频域（DTCWT） | 1 bit | **100%**（detector）；tracer Q=50≈52%（进行中）| 频域不变性，抗平台压缩 | 512 |
+| 🟣 **SepMark** | 频域（分离子带） | 30 bit | **91.2%**（比特精度 RF） | 高低频分离，RF 解码器增强 | **13,233**（唯一全量）|
 
 ---
 
@@ -245,7 +244,7 @@ sequenceDiagram
 
 **格式：Source 水印存活率 / Attacker 嵌入精度　　✅ ≥ 90%　　⚠️ 70–89%　　❌ < 70%**
 
-> ⚠️ **注**：下表为 MEA 协议框架设计与初步实验估算，完整 4×5 矩阵（每格 128 张 LFW）正式实验进行中，评审前将以真实结果替换。
+> 🔬 **真实实验结果（n=128/格，诚实红队诊断）**：下表为真实 artifact 数据，非估算。格式：Source 水印存活率 first_acc / Attacker 嵌入精度 second_acc。
 
 | Source ↓ · Attacker → | SepMark | WaveGuard | LIDMark | KAD-Net |
 |:---|:---:|:---:|:---:|:---:|
@@ -254,17 +253,17 @@ sequenceDiagram
 | **LIDMark** | 68% ⚠️ · 69% ⚠️ | 72% ⚠️ · 100% ✅ | 52% ❌ · 60% ❌ | 67% ⚠️ · 93% ✅ |
 | **KAD-Net** | 100% ✅ · 84% ⚠️ | 100% ✅ · 100% ✅ | 50% ❌ · 61% ❌ | 50% ❌ · 100% ✅ |
 
-**🔬 初步研究假设（待正式矩阵实验验证）：**
-- 🎯 **LIDMark 作为攻击者破坏性最强假说**——语义绑定机制改变面部几何，预期先嵌水印降至随机水平
-- 🤝 **KAD-Net × WaveGuard 双向兼容假说**（均 ≥ 95%），多层级标识部署候选组合
-- 📐 **对角线失效规律**——自攻击覆盖，验证实验设计有效性（已观察到一致趋势）
+**红队诊断发现（诚实叙事）：**
+- **对角线自鲁棒性全 FAIL**（SepMark=56%/91%；WaveGuard=52%/98%；LIDMark≈51–60%；KAD-Net first=50%）：揭示同模型二次覆盖会摧毁先嵌水印，属真实安全风险发现，不是"创新有效"卖点。
+- **LIDMark 整行整列≈随机（49–73%）**：与 LIDMark ID 比特精度 null 的结论一致，跨模型水印恢复极差。
+- **核心价值**：MEA 协议诚实揭示了多水印并存场景的安全弱点，为平台部署策略提供红队依据；大样本重跑进行中。
 
 ---
 
-### 🏅 优势四：Ed25519 密码学证据链——司法级不可抵赖性
+### 🏅 优势四：Ed25519 密码学证据链——完整性签名与来源绑定
 
 ```
-证据包（22 个文件，SHA-256 完整性保护）
+证据包（SHA-256 完整性保护，文件数以 evidence_audit 接口实际返回为准）
 ├── 📋 manifest.json     所有评测文件的哈希清单
 ├── 🔐 signature.b64     对清单的 Ed25519 签名（私钥离线保存）
 ├── 🔑 public_key.pem    公开验证密钥
@@ -278,7 +277,7 @@ openssl pkeyutl -verify -pubin -inkey public_key.pem \
 # → Signature Verified Successfully ✅
 ```
 
-> 📌 评测结果具有**密码学不可抵赖性**，与区块链存证等价，但无需链上确认延迟。
+> 📌 评测结果具有**密码学可验证的完整性**（Ed25519 签名），无需链上确认延迟；演示级实现，私钥由运行方现场生成。
 
 ---
 
@@ -300,9 +299,9 @@ openssl pkeyutl -verify -pubin -inkey public_key.pem \
 |:---|:---|:---|
 | **95% 置信区间** | Bootstrap 5,000 次重采样 | 每条结论可信度量化 |
 | **多重比较校正** | Holm-Bonferroni（FWER < 0.05） | 杜绝 p-hacking 刷榜 |
-| **训练方差验证** | LIDMark 3 个独立 seed | 同时捕捉两类不确定性 |
+| **训练方差验证** | LIDMark 3 个独立 seed（注：同批图重复，非不重叠样本） | 跨 seed 训练方差参考 |
 
-> 📊 LIDMark clean 精度 **99.98%**，95% CI = [99.94%, 100%]，vs. SepMark 差值 **p < 0.001**（Holm 校正后仍显著）
+> 📊 LIDMark landmark 成功率 **99.93%**（注：ID 比特精度评测进行中，未测前不做显著性比较）；SepMark clean 比特精度 91.2% `[90.9,91.5%]`。
 
 ---
 
@@ -331,23 +330,22 @@ openssl pkeyutl -verify -pubin -inkey public_key.pem \
 
 <br>
 
-| 模型 | 指标 | 无攻击 | JPEG Q=50 | JPEG Q=70 | 噪声 | 缩放 | 样本量 |
-|:---|:---|:---:|:---:|:---:|:---:|:---:|:---:|
-| 🔵 **LIDMark** | ID 比特精度 (3-seed, Stage1) | **99.98%** `[99.94,100%]` | 99.96% | — | 99.96% | 99.97% | 1,536 |
-| 🟢 **KAD-Net** | 比特精度 | **100%** | 99.3% † | 99.9% | 100% | 100% | 512→13,233 † |
-| 🟡 **WaveGuard** | Tracer 精度 | **100%** | **100%** | 100% | 100% | 100% | 512 |
-| 🟣 **SepMark** | 比特精度 (RF) | 91.2% `[90.9,91.5%]` | 88.1% | 89.8% | 90.7% | 91.0% | 13,233 |
+| 模型 | 指标类型 | 无攻击 | JPEG Q=50 | JPEG Q=70 | 噪声 | 缩放 | 几何 | 样本量 |
+|:---|:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| 🔵 **LIDMark** | **landmark 成功率**（非比特精度） | **99.93%** | 99.93% | — | 99.93% | 99.93% | 未测 | 512×3（同批）|
+| 🔵 **LIDMark** | **ID 比特精度** | **评测进行中** | — | — | — | — | — | — |
+| 🟢 **KAD-Net** | 比特精度 | **100%** | 99.97% | 100% | 100% | 100% | crop≈68.9%<br>rotate≈43.7%（EP50）| **512**（全量评测进行中）|
+| 🟡 **WaveGuard** | **detector**（有无水印） | **100%** | **89%** | 99.7% | 100% | 100% | 未测 | 512 |
+| 🟡 **WaveGuard** | **tracer**（溯源比特） | **100%** | **≈52%**（进行中）| — | — | — | — | 512 |
+| 🟣 **SepMark** | 比特精度 RF | 91.2% `[90.9,91.5%]` | 88.1% | 89.8% | 90.7% | 91.0% | — | **13,233**（唯一全量）|
 
-> 所有数据附 **95% Bootstrap 置信区间**（5,000 次重采样），LIDMark 同时覆盖跨 seed 训练方差。  
-> † KAD-Net 全量 13,233 张 LFW benchmark 运行中，JPEG Q=50 为 smoke 测试结果（n=512），完成后更新。
+> 样本量说明：唯一完成 LFW 全量（13,233 张）评测的模型为 SepMark；LIDMark 为同批 512 图重复 3 seed；WaveGuard/KAD-Net 均为 512 张。  
+> LIDMark 99.93% 为 **landmark 定位成功率**（对攻击不敏感），**不是** ID 比特精度（当前 null，评测进行中）。  
+> WaveGuard detector ≠ tracer：detector=有无水印二分类；tracer=溯源比特精度，两者需分别报告。
 
-**Pairwise 统计显著性（Holm 校正）：**
+**统计显著性说明：**
 
-| 对比 | 精度差 | p 值 | Holm 校正后 |
-|:---|:---:|:---:|:---:|
-| LIDMark vs. SepMark | +8.78 pp | < 0.001 | **显著** ✅ |
-| KAD-Net vs. SepMark | +8.80 pp | < 0.001 | **显著** ✅ |
-| WaveGuard vs. SepMark | +8.80 pp | < 0.001 | **显著** ✅ |
+LIDMark ID 比特精度未测（null），相关配对比较暂不报出。SepMark（13,233 张）统计分析完整，附 Bootstrap CI。跨指标配对检验（landmark 成功率 vs 比特精度）无效，已删除。
 
 </details>
 
@@ -385,7 +383,7 @@ PSNR ≈ 44 dB（肉眼不可见）
         ↓
 解码 ID 水印 → 定位原创作者
         ↓
-bit_accuracy = 100% ✅
+landmark 成功率 99.93%（ID 比特精度评测进行中）
 ```
 
 </td>
@@ -528,7 +526,8 @@ curl http://server:8026/api/benchmark/aggregate
 
 # 🔐 证据链完整性验证
 curl http://server:8026/api/evidence/audit
-# → {"signature_valid": true, "files_covered": 22, "ready_for_demo": true}
+# → {"signature_valid": true, "files_covered": <实际值，以接口返回为准>, "ready_for_demo": true}
+# TODO(P2-1): 统一文档引用文件数与 evidence_audit 接口实际返回值
 ```
 
 ---

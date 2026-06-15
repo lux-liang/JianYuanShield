@@ -10,7 +10,7 @@
 
 ## 哪些结果是真实 checkpoint？
 
-SepMark、WaveGuard 均使用真实 checkpoint，完成 13,233 张 LFW 全量评测。LIDMark 已完成 3 个独立 seed（20260603/04/05）的正式 checkpoint 训练，每 seed 评测 512 张，3-seed 合并 95% CI 为 [99.94%, 100%]。KAD-Net 已在服务器独立训练 100 epoch，完成 512 张 LFW 评测，clean/jpeg/noise/resize 全部 100%。HiDDeN checkpoint 损坏（精度≈50%），已从正式评测中剔除。
+SepMark 使用真实 checkpoint，完成 13,233 张 LFW 全量评测（decoder_RF clean=91.2%）。WaveGuard 使用真实 checkpoint，512 张 LFW 评测，clean detector=100%，JPEG STE 7ep 微调后 Q=50 detector=89%、Q=70 detector=99.7%（注意：tracer 溯源比特 Q=50 实测 ≈52%，tracer 进一步训练进行中）。LIDMark 已完成 3 个独立 seed（20260603/04/05）的正式 checkpoint 训练，每 seed 评测 512 张；注意：当前上报的 99.93% 为 **landmark 定位成功率**，ID 比特精度（bit accuracy）评测进行中。KAD-Net 已在服务器独立训练 100 epoch，完成 512 张 LFW 评测，clean/jpeg/noise/resize 全部 100%（几何攻击 crop≈68.9%/rotate≈43.7%，微调进行中）。HiDDeN checkpoint 损坏（精度≈50%），已从正式评测中剔除，作为失效案例对照保留。
 
 ## 为什么 HiDDeN 指标不高还要展示？
 
@@ -20,10 +20,10 @@ SepMark、WaveGuard 均使用真实 checkpoint，完成 13,233 张 LFW 全量评
 
 四模型均已完成正式 checkpoint 评测，按场景推荐如下：
 
-- **LIDMark（首推）**：3-seed 正式训练，LFW 1,536 张，ID 比特精度 99.97–99.98%，95% CI 全部 ≥ 99.88%。语义绑定（人脸关键点+用户 ID）是本组独创技术亮点，竞赛辨识度最高。
-- **KAD-Net（算法精度首推）**：独立训练 100ep，LFW 512 张，clean/jpeg50/jpeg70/resize/noise 全部 **100%**。CVPR 2026 方向，展示团队前沿研究实力。几何增强微调进行中（EP17/50）；EP16 中间结果：crop=71.2%，rotate=39.8%，较原始 33%/30% 显著改善。
-- **WaveGuard**：JPEG STE 7ep 微调后，LFW 512 张 JPEG Q=50 tracer 比特精度 **100%**（CI=[100%,100%]），完全修复原 37.3% 问题；JPEG70/noise/resize 同样 100%。
-- **SepMark**：LFW 13,233 张，decoder_RF clean=91.19%（CI=[90.90%, 91.48%]），原 decoder_C=87.74%；RF 解码器是本组重新训练的改进版本。
+- **LIDMark（核心亮点）**：3-seed 正式训练，LFW 每 seed 512 张；landmark 定位成功率 99.93%（对攻击不敏感）；ID 比特精度（bit accuracy）评测进行中，待补充后更新。语义绑定（人脸关键点+用户 ID）是本组独创技术亮点，竞赛辨识度最高。
+- **KAD-Net（比特精度首推）**：独立训练 100ep，LFW 512 张，clean/jpeg50/jpeg70/resize/noise 比特精度 **100%**。CVPR 2026 方向，展示团队前沿研究实力。几何增强微调进行中（EP17/50）；EP16 中间结果：crop≈68.9%（EP50），rotate≈43.7%（EP50），仍为 partial 结果。
+- **WaveGuard**：JPEG STE 7ep 微调后，LFW 512 张，detector（有无水印二分类）Q=50 达 89%，Q=70 达 99.7%，clean=100%。注意：tracer（溯源比特）Q=50 实测 ≈52%，进一步训练进行中；答辩时需区分 detector 与 tracer 两个指标。
+- **SepMark**：LFW 13,233 张（pre-trained checkpoint EC_115.pth），decoder_RF clean=91.2%（CI=[90.90%, 91.48%]），JPEG Q=50=88.1%；RF 解码器是本组重新训练的改进版本。
 
 ## 为什么 WaveGuard 有多个接近 100% 的指标？
 
@@ -35,19 +35,19 @@ MEA 多重嵌入攻击体现信息安全攻防：攻击者可以通过二次嵌�
 
 ## 结果是否做了统计显著性分析？
 
-已对 13,233 张逐图配对结果生成 Bootstrap 置信区间、配对符号翻转检验、效应量和 Holm 多重比较校正。LIDMark 的置信区间来自 3 个独立 seed（共 1,536 张），同时捕捉图像采样和训练随机性不确定性。SepMark、WaveGuard 目前仍为单 seed，区间仅反映图像采样不确定性；如需 between-seed 方差，需补充重训。
+已对 SepMark（13,233 张）逐图配对结果生成 Bootstrap 置信区间、配对符号翻转检验、效应量和 Holm 多重比较校正。LIDMark 的置信区间来自 3 个独立 seed（共 512×3=1,536 张，同一批 512 图重复 3 次），注意：这 3 个 seed 使用同批图像，between-seed 方差为训练随机性，建议配合互不重叠的更大样本重测。LIDMark 当前上报的"精度"为 landmark 定位成功率（99.93%），ID 比特精度评测进行中。WaveGuard 当前 512 张，单 seed，区间仅反映图像采样不确定性。
 
 ## 报告如何防篡改？
 
-系统使用 Ed25519 对 canonical evidence manifest 签名，当前覆盖协议、诊断、统计、报告和 checkpoint 等 19 个文件。前端可下载 manifest、签名和公钥，修改任意已覆盖文件都会触发 `content_mismatch`。
+系统使用 Ed25519 对 canonical evidence manifest 签名，覆盖协议、诊断、统计、报告和 checkpoint 等文件（以 `evidence_audit` 接口实际返回的 `files_covered` 字段为准，TODO：统一 README 与本文件中的引用数字）。前端可下载 manifest、签名和公钥，修改任意已覆盖文件都会触发 `content_mismatch`。
 
 ## KAD-Net 的当前评测状态？
 
-KAD-Net 已完成服务器独立训练（100 epoch）和正式集成。LFW 512 张全量评测结果：
-- clean / jpeg / jpeg50 / jpeg70 / resize / noise：全部 **100%**（或 99.97%）
-- 几何增强微调中（EP17/50）；EP16 中间：crop_center_0.8 ≈ **71.2%**，rotate_5 ≈ **39.8%**（EP50 完成后更新）
+KAD-Net 已完成服务器独立训练（100 epoch）和正式集成。LFW 512 张评测结果：
+- clean / jpeg50 / jpeg70 / resize / noise：**比特精度 100%**（jpeg50 = 99.97%）
+- 几何攻击：EP50 中间结果 crop≈68.9%，rotate≈43.7%（EP50 完成后更新最终值）
 
-MEA 矩阵显示 KAD-Net 与 WaveGuard 兼容性最佳（KAD→WG: 100% | 100%，WG→KAD: 100% | 100%）。
+MEA 矩阵 KAD-Net↔WaveGuard 对角线外相对兼容（KAD→WG: 100%|100%，WG→KAD: 100%|100%），但 KAD→KAD first_acc=50%（自鲁棒性失效，与单模型 clean 100% 矛盾，口径 bug 排查中）。
 
 ---
 
@@ -58,12 +58,12 @@ MEA 矩阵显示 KAD-Net 与 WaveGuard 兼容性最佳（KAD→WG: 100% | 100%�
 WaveGuard 使用 DTCWT（双树复小波变换）频域嵌入水印。JPEG 压缩对不同频段的量化阈值不同：
 - WaveGuard 主要使用**高频子带**（LH/HL/HH）嵌入信息
 - 高频子带的 JPEG 量化阈值约在 q≈60-65 处
-- 原始权重 q=50 时高频子带被量化，成功率 37.3%；已通过 JPEG STE 7ep 微调修复至 **100%**
-- q=70 时高频子带受到保护 → 成功率 99.6%
+- 原始权重 q=50 时高频子带被量化，detector 成功率 37.3%
+- q=70 时高频子带受到保护 → detector 成功率 99.6%
 
 我们对 50 张图像做了 q=40→90 的梯度实验，结论一致（q=60: 93%, q=70: 99.7%）。
 
-**修复状态**：已通过 JPEG STE 微调修复，Q=40-70 全范围 tracer 比特精度 100%。主流平台（q=75-85）从未受影响。
+**当前状态（JPEG STE 7ep 微调后，n=512）**：detector Q=50 已提升至 89%，Q=70 达 99.7%，clean=100%。**tracer（溯源比特）Q=50 实测 ≈52%（仍接近随机），tracer 进一步微调进行中**。主流平台（q=75-85）detector 从未受影响，始终接近 100%。
 
 ---
 
