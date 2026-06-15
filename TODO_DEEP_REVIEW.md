@@ -1,12 +1,14 @@
 # 鉴源盾（JianYuanShield）信息安全作品赛——首席评审锐评 + 迭代 TODO
 
 > **一句话定性**：这是一个**主题选得对、底层工程有功底、但被一层系统性夸大叙事包裹的"半成品旗舰"**——核心技术若如实呈现本可冲奖，可眼下对外文档/前端/报告把"512 图小样本、tracer 随机水平、对角线全 FAIL、landmark 定位率"统统包装成"全量 13,233 / 100% 已修复 / 创新有效 / 比特精度 99.97%"，任何一位评委交叉核对一次 artifact 即可当场证伪，**当前最大的失分点不是技术不行，而是诚信会先翻车**。
+>
+> 【更正 2026-06-15：经 system/reports 权威核实】初版锐评因依赖 `runs/` 下较旧的 _remote_evidence_brief.md 而高估了"样本量造假"的严重程度——真实情况是：KAD-Net/WaveGuard/HiDDeN/SepMark 四模型均已完成 13,233 全量 LFW 评测（system/reports/ 权威）；"512 图被包装成 13,233"这一指控对这四个模型不成立。真正的核心待办为：(1) KAD-Net 几何攻击实质失败（crop 68.9%/rotate 43.7%）被淡化未进主表；(2) WaveGuard jpeg50 弱点（bit-acc 89%/成功率 37%）曾被误称"100% 已修复"；(3) LIDMark 16-bit id 比特准确率尚未测量；(4) MEA 需大样本重跑。技术底子比初版锐评评估的更扎实，但上述四项核心待办和原有的诚信/后端/统计硬伤仍须解决。
 
 ---
 
 ## 一、深度锐评（毫不留情，但有据）
 
-1. **"诚信"是这个项目的头号风险，不是技术。** 对外材料（README/TECHNICAL_REPORT/JUDGE_QA/DEFENSE_SCRIPT/前端/报告导出器）与真实 artifact 之间存在**至少 5 处可一键证伪的硬冲突**：WaveGuard tracer Q=50 真实 52% vs 宣称"100% 已修复"、KAD-Net 512 图 vs 宣称"13,233 全量"、LIDMark landmark 定位率 99.93% 被当成"99.97% 比特精度"、MEA 对角线全 FAIL 被当"创新有效"、同一 KAD-Net 一处 100% 一处 50%。这些不是观点分歧，是数值层面的实锤矛盾。
+1. **"诚信"是这个项目的头号风险，不是技术。** 对外材料（README/TECHNICAL_REPORT/JUDGE_QA/DEFENSE_SCRIPT/前端/报告导出器）与真实 artifact 之间存在**至少 4 处可一键证伪的硬冲突**：WaveGuard jpeg50 bit-acc 真实 89%/成功率 37% vs 宣称"tracer 100% 已修复"、LIDMark landmark 定位率 99.93% 被当成"99.97% 比特精度"、MEA 对角线全 FAIL 被当"创新有效"、同一 KAD-Net 一处 100% 一处 50%。【更正 2026-06-15：经 system/reports 权威核实】"KAD-Net 512 图 vs 宣称 13,233"已从硬冲突列表移除——KAD-Net（EC_50 几何版）真实确为 13,233 全量；原初版锐评此条基于旧简报误判。其余硬冲突仍成立。
 
 2. **旗舰创新 MEA 当前是"自爆现场"。** 真实产物 `mea_4x4_1781010787.json` 对角线（模型自鲁棒性）大面积 FAIL，LIDMark 整行整列≈随机（49–73%）。把"我们最大的原创"做成一张以红叉为主的矩阵，还用"符合理论预期"话术兜底——评委只会问一句"你的水印连自己都解不出来？"叙事就崩了。**MEA 真正的价值是"诚实的红队发现"，现在被错误地当成了"我们很强"的卖点。**
 
@@ -42,7 +44,7 @@
 
 ### P0-2 LIDMark "99.97% 比特精度" 实为 landmark 定位成功率，bit_acc=null
 - **问题**：旗舰模型对外 99.97/99.98% 被表述为"ID 比特精度/bit accuracy"并进显著性检验，但真实产物 `mean_bit_accuracy=0.0`、per-seed `bit_accuracy=null`，99.93% 是 landmark 定位成功率（对攻击不敏感、与水印鲁棒性无关）。
-- **证据**：`README.md:35,114,219,336`、`docs/TECHNICAL_REPORT.md`、`docs/JUDGE_QA.md:23`、`system/frontend/index.html`（"3-SEED CLEAN BIT-ACC"）；真实值见证据简报 §2。
+- **证据**：`README.md:35,114,219,336`、`docs/TECHNICAL_REPORT.md`、`docs/JUDGE_QA.md:23`、`system/frontend/index.html`（"3-SEED CLEAN BIT-ACC"）；真实值见 _authoritative_benchmarks.md LIDMark 节。
 - **对评分影响**：项目首推模型的 hero 数字、徽章、统计显著性全建立在误标之上；评委一问"这 99.97% 是消息恢复还是关键点检测"即翻车，且意味着 Deepfake 穿透溯源的核心能力当前**无比特级证据**。
 - **迭代动作**：
   - [ ] **真正测出并上报 LIDMark bit-level ID 准确率**（当前 null 必须补），3-seed 用**互不重叠样本**而非同 512 图重复。
@@ -50,14 +52,20 @@
   - [ ] 统计显著性表先删除对 LIDMark 比特精度的 p 值，待真实 bit_acc 跑出再上。
 - **工作量**：M（含实验）。
 
-### P0-3 KAD-Net 512 图被写成"LFW 13,233 全量 / 全攻击 ≥99.5%"（样本量约 26×）
-- **问题**：报告导出器与 README 把 KAD-Net 写成 13,233 全量、所有攻击≥99.5%；真实只跑 512 图且仅温和攻击，几何攻击实质失败（crop 68.9% / rotate 43.7%）。
-- **证据**：`system/scripts/export_competition_report.py:73,75`、`README.md:337`（`512→13,233 †`）、`README.md:342`（自注"运行中"，与正文自相矛盾）；真实值见证据简报 §1。
-- **对评分影响**：`export_competition_report.py` 产出的是答辩取证报告，硬编码 13,233 会进入正式证据材料，与 `n_images=512` 一键对不上。
+【更正 2026-06-15：经 system/reports 权威核实】此条仍成立。补充说明：LIDMark landmark 定位成功率 99.93%（landmark_aed≈0.01px）是**真实强项**，可作为技术亮点正面陈述；问题仅在于**被误标为 bit accuracy**。正确叙事应为"LIDMark landmark 定位精度业界领先（99.93%），16-bit id 水印比特准确率评测进行中"——而非把该数字从展示材料中删除。
+
+### P0-3 KAD-Net 几何攻击实质失败（crop 68.9% / rotate 43.7%）被淡化，未进主表
+
+【更正 2026-06-15：经 system/reports 权威核实】原条目写"KAD-Net 512 图被写成 13,233 全量"——此描述有误。KAD-Net（checkpoint EC_50.pth 几何微调版）真实评测 n=13,233 全量 LFW，JPEG/resize/noise 全部 ≥99%，13,233 为真实不夸大。原条目中的样本量指控已被权威真值表推翻，不应再作为问题列出。真正的问题是：几何攻击（crop_center_0.8=68.9%、rotate_5=43.7%）在 GEOM 微调后仍实质失败，但这一关键局限在主表/答辩文档中被淡化甚至省略，造成"全攻击鲁棒"的错误印象。
+
+- **问题（更正后）**：KAD-Net JPEG/resize/noise 均 ≥99%（真实）；但**几何攻击失败（crop 68.9%/rotate 43.7%）被淡化未进主表**，主表只呈现温和攻击的优秀指标，让评委误以为所有攻击鲁棒。
+- **证据**：`system/scripts/export_competition_report.py:73,75`（几何列缺失）、`README.md:337`（无 crop/rotate 行）、`README.md:342`（标"几何微调进行中"与 EC_50.pth 已完成微调自相矛盾）；真实值见 _authoritative_benchmarks.md KAD-Net 节。
+- **对评分影响**：裁剪/旋转是社交转发最常见操作；主表省略这两列=鲁棒性高估，且与 P0-5 的 MEA 几何失败相呼应，评委一问即翻车。
 - **迭代动作**：
-  - [ ] **首选做实**：把 KAD-Net 真跑 LFW 13,233 全量，并补 crop/rotate 几何微调到达标，让"13,233 + 几何鲁棒"成为真结果。
-  - [ ] 在做实前：`export_competition_report.py:73,75`、`README.md:337` 统一标 512、仅温和攻击 100%、几何 partial，删除"→13,233"暗示。
-- **工作量**：文案 S；做实 M–L。
+  - [ ] **主表如实列出几何攻击数值**：crop_center_0.8=68.9%、rotate_5=43.7%，明确标 FAIL，不隐藏。
+  - [ ] **继续做实**：几何鲁棒性微调（数据增强 crop+rotate），争取达标后更新主表为真实强结果。
+  - [ ] `export_competition_report.py` 输出中补几何攻击列（含真实失败数值）。
+- **工作量**：文案止血 S；几何微调做实 M–L。
 
 ### P0-4 旗舰创新 MEA 矩阵对角线全 FAIL / LIDMark 整行随机，却作"创新有效"卖点
 - **问题**：MEA 5×5 真实结果以 FAIL/MARGINAL 为主（SepMark second 56%、WaveGuard 62.8%、LIDMark 51.8/60.2%、KAD-Net first 50.2%、HiDDeN 51.3% 全 FAIL；LIDMark 整行≈49–73% 随机），被当"填补空白/创新有效"宣传。
@@ -105,25 +113,35 @@
 - **证据**：`README.md:11-13,35-46` vs `README_COMPETITION.md:46`、`docs/JUDGE_QA.md:13`。
 - **影响**：诚信硬伤，连带使真实成果也被怀疑。
 - **动作**：
-  - [ ] 以 COMPETITION 诚实口径为准重写 README，所有数字标真实样本量与 stage/seed 状态；删除/脚注"13,233 全量"徽章（仅 SepMark 成立）。
+  - [ ] 以 COMPETITION 诚实口径为准重写 README，所有数字标真实样本量与 stage/seed 状态；"13,233 全量"徽章对 KAD-Net/WaveGuard/HiDDeN/SepMark 四模型均成立（属实），LIDMark 为 512×3，各模型分行如实标注。【更正 2026-06-15：原写"仅 SepMark 成立"有误，四模型均为 13,233 全量】
   - [ ] 三份文档建立单一数据源（自动报告回填），杜绝漂移。
 - **工作量**：M。
 
-### P1-2 WaveGuard / INNOVATION_POINTS 借用 SepMark 的 13,233 样本量
-- **问题**：多处称 WaveGuard 也完成 13,233 全量、INNOVATION_POINTS 把"13,233 大规模对照"扩张到 HiDDeN+SepMark+WaveGuard 三模型；真实唯一 13,233 的是 SepMark，WaveGuard=512、HiDDeN 损坏。
-- **证据**：`docs/JUDGE_QA.md:13`、`docs/DEFENSE_SCRIPT_3MIN.md:9`、`docs/WAVEGUARD_JPEG_ANALYSIS.md:13`、`system/frontend/index.html:404,408`（"LFW FULL"）、`docs/INNOVATION_POINTS.md:7`；真实值证据简报 §6。（注：`JUDGE_QA.md:25` 已写"512 张"，存在文内不一致，需团队自查 WaveGuard 是否另有 13,233 运行。）
-- **影响**：可一键证伪的样本量夸大，与 `CI=[1.0,1.0]` 叠加更显刻意。
+### P1-2 WaveGuard jpeg50 弱点被误称"100% 已修复"，INNOVATION_POINTS "13,233 大规模对照"实为属实声明
+
+【更正 2026-06-15：经 system/reports 权威核实】原条目写"WaveGuard/INNOVATION_POINTS 借用 SepMark 的 13,233"——此描述有误。根据权威真值表，WaveGuard 自身已有 13,233 全量 LFW 评测（checkpoint model_state_16.pth），并非借用 SepMark；INNOVATION_POINTS 所称"13,233 大规模对照"扩张到四个模型（KAD-Net/SepMark/WaveGuard/HiDDeN）也是**基本属实**的陈述，不应作为夸大指控删除。真正的问题是 WaveGuard jpeg50 弱点被掩盖或误称已修复。
+
+- **问题（更正后）**：WaveGuard 除 jpeg50 外 ≈100%（真实）；但**jpeg50 是真实弱点（bit-acc 88.97%/成功率仅 37.3%），文档/前端曾宣称"jpeg Q=50 已完全修复至 100%/CI=[1.0,1.0]"**，与真实数值严重不符。
+- **证据**：`docs/WAVEGUARD_JPEG_ANALYSIS.md:1-3`（"100% 已修复"措辞）、`docs/JUDGE_QA.md:25`（"512 张"与 FULL 标注互斥，需核查是旧版还是两者并存）、`system/frontend/index.html:404,408`（"LFW FULL"）；真实值见 _authoritative_benchmarks.md WaveGuard 节（13,233 全量，jpeg50 bit-acc=89%/succ=37%）。
+- **影响**：jpeg50 弱点被主动掩盖是诚信硬伤；"CI=[1.0,1.0]"在 WaveGuard Q=50 上直接证伪；"13,233 大规模对照"本身属实，不应因此被削弱。
 - **动作**：
-  - [ ] 统一标注各模型真实样本量（SepMark 13,233 / WaveGuard 512 / HiDDeN 小样本且损坏）；去掉 `index.html:404,408` 的 FULL 标注。
+  - [ ] 删除"WaveGuard jpeg Q=50 已修复 100%/CI=[1.0,1.0]"措辞；改为真实陈述："WaveGuard 除 Q=50 外 ≈100%，Q=50 bit-acc≈89%、成功率仅 37%，jpeg50 鲁棒性有待加强"。
+  - [ ] `docs/WAVEGUARD_JPEG_ANALYSIS.md`、`docs/JUDGE_QA.md`、`docs/DEFENSE_SCRIPT_3MIN.md`、`app.js:505,507` 统一按真实值修订。
+  - [ ] "13,233 四模型大规模对照"声明保留（属实），各模型分行标注真实样本量（均为 13,233）。
 - **工作量**：S。
 
-### P1-3 HiDDeN "损坏剔除" 与 "300ep 有效纳入" 状态自相矛盾
-- **问题**：一处"checkpoint 损坏、≈随机、已剔除、不能说有效"，另一处"300ep 有效 clean 99.1%、纳入 MEA 对照"，JPEG success=0%。
-- **证据**：`docs/REAL_BENCHMARK_STATUS.md:11,28`、`docs/JUDGE_QA.md:13` vs `system/scripts/export_competition_report.py:74,111`、`system/backend/benchmarks.py:253,279`；适配器层 `system/evaluation/adapters/__init__.py:37-39` 仍注册 HiDDeN 为可用。
-- **影响**：评委并排看即发现"又死又活"，削弱"证据可核验"卖点本身。
+### P1-3 HiDDeN 表述不一致：须统一为"有效 baseline + JPEG 局限"并修数据卫生 bug
+
+【更正 2026-06-15：经 system/reports 权威核实】HiDDeN（checkpoint epoch-300）已有完整的 13,233 全量 LFW 评测：clean 99.05%/resize 98.07% 表现好，noise 93.31%/68%succ 中等，JPEG 系列失败（jpeg50 bit-acc 57%/成功率 0%）。HiDDeN **并非"损坏/已剔除"**——那描述的是更早的坏 checkpoint；epoch-300 有效且作为 JPEG 局限对照 baseline 有充分价值。原条目把"又死又活"当作主要问题，实为对旧 checkpoint 与 epoch-300 的混淆。真正待修的问题降级为：①统一表述口径；②修数据卫生 bug（jpeg70/jpeg90 行数为 26466=13233×2，重复写入需去重）。
+
+- **问题（更正后）**：文档中部分处仍写"checkpoint 损坏/已剔除"（`docs/JUDGE_QA.md:13`、`docs/REAL_BENCHMARK_STATUS.md:11`），与真实有效的 epoch-300 结果（13,233 全量，clean 99.1%）冲突；另有 **jpeg70/jpeg90 评测行数 n=26466（=13233×2）的重复写入数据卫生 bug** 需修复。
+- **证据**：`docs/JUDGE_QA.md:13`（"HiDDeN 已剔除"）vs `system/scripts/export_competition_report.py:74,111`（引用 epoch-300 有效结果）；_authoritative_benchmarks.md HiDDeN 节（jpeg70/jpeg90 n=26466 重复行注记）。
+- **影响**：评委看到"已剔除"但又出现在 MEA 矩阵中，不是因为"又死又活"而是文档口径滞后；数据卫生 bug 若不修会在重现时暴露。
 - **动作**：
-  - [ ] 二选一全局对齐：(a) 真剔除——从 `get_available_adapters` 与 MEA 移除；或 (b) 仅作"失败案例 baseline"——矩阵/汇总显式标 clean≈99.1% 但 JPEG 0%、checkpoint 来源存疑、不作能力。
-- **工作量**：S。
+  - [ ] **统一表述**：全文/前端/报告将 HiDDeN 定位为"有效对照 baseline（epoch-300，13,233 全量）+ JPEG 失效局限"；删除"损坏/已剔除"措辞（`docs/JUDGE_QA.md:13`、`docs/REAL_BENCHMARK_STATUS.md:11` 改为真实状态描述）。
+  - [ ] **修数据卫生 bug**：排查 jpeg70/jpeg90 评测脚本重复写入来源，去重后结果行数恢复为 n=13,233。
+  - [ ] JPEG 局限（jpeg50 bit-acc 57%/成功率 0%）在主表中如实标注 FAIL，不隐藏、不宣称"有效"。
+- **工作量**：S（表述统一）+ S（去重 bug）。
 
 ### P1-4 MEA grade 阈值 0.85/0.65 凭空硬编码，与协议 success_threshold=0.9 冲突
 - **问题**：`grade()` 硬编码 PASS≥0.85 / MARGINAL≥0.65，与统一协议明文 0.9 且"不允许脚本硬编码"冲突；旗舰矩阵的 PASS/FAIL 结论建立在未论证的任意阈值上。
@@ -250,12 +268,12 @@
 - [ ] **拔掉所有可一键证伪的硬编码**：`benchmarks.py:261,288`、`app.js:504-507`、`index.html:482,497`、`export_competition_report.py:73,75,42`、Ed25519 22/19 全部改为读真实字段或如实标注。【必须】
 - [ ] **指标语义纠偏**：全文/前端区分 detector vs tracer、landmark_success_rate vs id_bit_acc；删除"100% 已修复/CI=[1.0,1.0]/99.97% 比特精度"等误标。【必须】
 - [ ] **HiDDeN 状态二选一并全局对齐**；**MEA 状态统一为 complete 并改红队叙事**。【必须】
-- [ ] **README 以 COMPETITION 诚实口径重写**，样本量按真实标注（SepMark 13,233 / 其余 512）。【必须】
+- [ ] **README 以 COMPETITION 诚实口径重写**，样本量按真实标注（KAD-Net/WaveGuard/HiDDeN/SepMark 均为 13,233 全量；LIDMark 512×3；各模型分行标注真实局限）。【必须】【更正 2026-06-15：原写"SepMark 13,233/其余 512"有误，权威真值表确认四模型均为 13,233】
 - [ ] **后端安全 P0 急修**：torch.load weights_only=True、上传体积/MIME 校验、compliance fallback 503/warning。【必须】
 
 ### 阶段二 · 补强（必须做，3–10 天，决定"技术成色"）
 - [ ] **先修口径 bug 再大规模重算**：修 `strict=False` 静默丢权重、统一 MEA 协议 seed、排查 KAD 100%↔50%——否则大规模重跑只是放大错误。【必须】
-- [ ] **做实大样本**：KAD-Net 512→13,233 全量；LIDMark 真测 bit-level id_acc（不重叠样本 3-seed）；WaveGuard 独立留出集 >512 重训 tracer 报双指标。【必须】
+- [ ] **做实大样本**：KAD-Net/WaveGuard/HiDDeN/SepMark 已有 13,233 全量（属实，无需重测样本量）；LIDMark 真测 bit-level id_acc（不重叠样本 3-seed，当前 null 须补）；WaveGuard 独立留出集重训 tracer 报双指标（jpeg50 bit-acc 89%/succ 37% 须改善）。【必须】【更正 2026-06-15：KAD-Net 已为 13,233 全量，不需要"512→13,233"；重点改为几何鲁棒微调和 LIDMark id-bitacc 补测】
 - [ ] **几何鲁棒做实**：KAD-Net crop/rotate 微调至达标，全部攻击进主 summary。【必须】
 - [ ] **MEA 128→大样本重跑**，每格补 CI/n/decoder/msg_len，叙事定为"诚实红队发现"。【必须】
 - [ ] **统计口径修正**：between-seed 用 n=3、分指标成表、只同指标内做配对检验。【必须】

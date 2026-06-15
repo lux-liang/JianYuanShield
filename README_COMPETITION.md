@@ -4,11 +4,11 @@
 
 ## 当前状态
 
-- MEA/HiDDeN：真实 checkpoint 已接入，LFW full benchmark 已完成。
-- MEA/SepMark：真实 checkpoint 已接入，13,233 张 LFW full benchmark 已完成。
-- LIDMark：smoke checkpoint 已接入，LFW eval sanity 已支持。
-- WaveGuard：真实 checkpoint 已接入，13,233 张 LFW full benchmark 已完成。
-- KAD-Net：源码已接入，但 checkpoint 缺失，当前按机器可读 gate 阻断，不进入排名。
+- **KAD-Net**：EC_50.pth（GEOM 微调版），13,233 张 LFW 全量评测已完成。JPEG/noise/resize ≥99%；**几何攻击（crop≈68.9%，rotate≈43.7%）为已知硬限制**。
+- **SepMark**：EC_115.pth（pre-trained），13,233 张 LFW 全量评测已完成。bit-acc≈85-89%（clean 87.74%）。
+- **WaveGuard**：model_state_16.pth，13,233 张 LFW 全量评测已完成。clean/jpeg70+/noise/resize≈100%；**jpeg50 是真弱点（bit-acc≈89%，success=37.3%）**，正在改进。
+- **HiDDeN**：epoch-300 checkpoint（有效），13,233 张 LFW 全量评测已完成。clean/resize 好；**JPEG 域 gap 为已知局限（jpeg50 success=0%）**；有效对照 baseline。
+- **LIDMark**：3-seed 正式 checkpoint 已完成，512×3 张评测；landmark 定位成功率 99.93%；**ID 比特精度（bit accuracy）评测进行中**。
 - 系统：后端 8026，前端 8027，提供交互式取证演示、全量真实评测、双层发布门禁、统计分析、Ed25519 证据签名和报告下载。
 
 ## 技术归属
@@ -42,5 +42,5 @@ LIDMark、MEA、WaveGuard、KAD-Net 与鉴源盾统一平台均属于团队原�
 ## 重要声明
 
 系统严格区分真实结果、smoke sanity 和 pending 状态，不把 smoke 结果伪装成正式结论。
-当前 HiDDeN 接近随机、WaveGuard 部分指标饱和，均列入协议复核项，不直接包装为算法优越性结论。
-当前 `ready_for_demo=yes`，但 `ready_for_claims=no`：HiDDeN、LIDMark 正式训练、KAD-Net、真实二次嵌入和多 seed 仍是研究结论阻断项。
+四模型（KAD-Net/SepMark/WaveGuard/HiDDeN）均已完成 13,233 张 LFW 全量评测，结果属实；LIDMark 为 512×3（landmark 定位成功率有效，ID 比特精度评测进行中）。已知局限诚实标注：WaveGuard jpeg50 成功率仅 37%、KAD-Net 几何攻击实质失败、HiDDeN JPEG 域 gap。不称 HiDDeN 为"损坏/剔除"——是有效 baseline。
+当前 `ready_for_demo=yes`；LIDMark ID 比特精度、WaveGuard jpeg50 改进、真实 Deepfake 评测仍是研究结论阻断项。

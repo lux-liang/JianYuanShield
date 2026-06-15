@@ -11,11 +11,11 @@
 
 | 模型 | checkpoint 状态 | LFW bit_acc (clean) | PSNR | 主要短板 |
 |------|----------------|---------------------|------|----------|
-| LIDMark | ✅ real (3 seeds) | 99.8–100% (eval adapter) / **81.25% (backend)** | 33.8 | backend landmark 坐标系不对齐 |
-| KAD-Net | ✅ real (自训练 100ep) | 100% | 37.5 | MEA 中 first_acc 偏低 (50%) |
-| SepMark | ✅ pre-trained | 87.7% (LFW 13K) | 41–45 | clean 准确率低于预期 |
-| WaveGuard | ✅ real | 100% (clean/jpeg70+) | 33.0 | JPEG50 success=36% |
-| HiDDeN | ❌ 已排除 | ~50% | — | checkpoint 损坏，不参赛 |
+| LIDMark | ✅ real (3 seeds) | landmark 成功率 99.93%；ID 比特精度 null（评测中）| 33.8 | ID 比特精度未测；backend 坐标系对齐 |
+| KAD-Net | ✅ real (EC_50，GEOM 微调，n=13,233) | 99.98% | 37.5 | **几何攻击实质失败（crop≈68.9%，rotate≈43.7%）**，已知硬限制 |
+| SepMark | ✅ pre-trained (EC_115，n=13,233) | ~88%（87.74%；"91.2%"为特定 decoder 偏高）| 41–45 | success@0.9 仅 59-72%（128-bit 长消息） |
+| WaveGuard | ✅ real (model_state_16，n=13,233) | 100% (clean) | 33.0 | **jpeg50 真弱点**（bit-acc=89%，success=37.3%）|
+| HiDDeN | ✅ real (epoch-300，n=13,233) | 99.05%（clean 好）| — | **JPEG 域 gap**（jpeg50 success=0%）；有效对照 baseline |
 
 ---
 

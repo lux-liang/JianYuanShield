@@ -19,10 +19,10 @@
 | 模型 | 原生颜色空间 | 输入尺寸 | 当前状态 |
 |---|---|---:|---|
 | LIDMark | RGB | 128×128 | real checkpoint (3-seed) |
-| HiDDeN | RGB | checkpoint config | BROKEN (excluded) |
+| HiDDeN | RGB | checkpoint config | epoch-300 checkpoint（有效），13,233 全量评测已完成；clean/resize 好，JPEG 域 gap 为已知局限；有效对照 baseline |
 | SepMark | RGB | 256×256 | full benchmark |
-| WaveGuard | YUV | 256×256 | full benchmark |
-| KAD-Net | RGB | 128×128 | real checkpoint (100ep) |
+| WaveGuard | YUV | 256×256 | model_state_16.pth，13,233 全量评测已完成；jpeg50 为真弱点（succ=37.3%），除 jpeg50 外≈100% |
+| KAD-Net | RGB | 128×128 | EC_50.pth (GEOM 微调版)，13,233 全量评测已完成；几何攻击为已知局限 |
 
 ## 攻击 ID
 

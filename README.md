@@ -8,8 +8,8 @@
 
 <br>
 
-[![LFW](https://img.shields.io/badge/SepMark_全量基准-13%2C233_imgs-023e8a?style=for-the-badge)](https://github.com/lux-liang/JianYuanShield)
-[![Accuracy](https://img.shields.io/badge/KADNet_比特精度-100%25(温和攻击)-0077b6?style=for-the-badge)](https://github.com/lux-liang/JianYuanShield)
+[![LFW](https://img.shields.io/badge/四模型全量基准-13%2C233_imgs-023e8a?style=for-the-badge)](https://github.com/lux-liang/JianYuanShield)
+[![Accuracy](https://img.shields.io/badge/KADNet_比特精度-≥99%25(JPEG/noise/resize)-0077b6?style=for-the-badge)](https://github.com/lux-liang/JianYuanShield)
 [![Evidence](https://img.shields.io/badge/证据链-Ed25519_已验签-265073?style=for-the-badge&logo=gnuprivacyguard&logoColor=white)](https://github.com/lux-liang/JianYuanShield)
 
 [![Regulation](https://img.shields.io/badge/完整符合-AI内容标识办法-9b2226?style=for-the-badge)](https://github.com/lux-liang/JianYuanShield)
@@ -33,7 +33,7 @@
 <table>
 <tr>
 <td align="center" width="25%">🎯 <kbd>99.93%</kbd><br><sub>LIDMark landmark 定位成功率<br>（ID 比特精度评测中）</sub></td>
-<td align="center" width="25%">🖼️ <kbd>13,233 张</kbd><br><sub>SepMark LFW 全量评测<br>（唯一全量模型）</sub></td>
+<td align="center" width="25%">🖼️ <kbd>13,233 张</kbd><br><sub>四模型 LFW 全量评测<br>（KAD-Net/SepMark/WaveGuard/HiDDeN）</sub></td>
 <td align="center" width="25%">⚔️ <kbd>15 种攻击</kbd><br><sub>统一评测框架</sub></td>
 <td align="center" width="25%">🔐 <kbd>Ed25519</kbd><br><sub>签名覆盖（文件数以接口返回为准）</sub></td>
 </tr>
@@ -77,7 +77,7 @@ Deepfake 技术迭代加速——FaceSwap、SimSwap 已可在普通显卡实时�
 | 条款 | 法规要求 | 🛡️ 鉴源盾对应能力 |
 |:---:|:---|:---|
 | **第六条** | 须添加**隐式标识**（不可见水印） | ✅ 四模型 API 批量嵌入，PSNR ≥ 37 dB |
-| **第七条** | 须**稳健抗干扰**，传播后仍可识别 | ✅ SepMark LFW 全量 91.2%；KAD-Net 温和攻击 100%（512 张）；覆盖 15 种攻击（几何攻击 partial）|
+| **第七条** | 须**稳健抗干扰**，传播后仍可识别 | ✅ KAD-Net JPEG/noise/resize 全部 ≥99%（n=13,233）；WaveGuard 除 jpeg50 外≈100%（n=13,233，jpeg50 是已知弱点）；SepMark bit-acc≈88%（n=13,233）；覆盖 15 种攻击（几何攻击 partial）|
 | **第八条** | 须支持**监管机构溯源查验** | ✅ Ed25519 签名证据包，可随时验签 |
 | **第十二条** | 须建立**内容可信体系** | ✅ 合规审计 API，自动生成 JSON 报告 |
 
@@ -231,9 +231,9 @@ sequenceDiagram
 | 模型 | 嵌入域 | 水印长度 | Clean 精度（指标类型） | 核心优势 | 样本量 |
 |:---|:---:|:---:|:---:|:---|:---:|
 | 🔵 **LIDMark** | 空间域（关键点） | 152 bit | **99.93%**（landmark 成功率；ID 比特精度评测中） | 语义绑定，Deepfake 后溯源 | 512×3 |
-| 🟢 **KAD-Net** | 空间域（KAN+SE） | 30 bit | **100%**（比特精度） | KAN 非线性，温和攻击全 100% | 512 |
-| 🟡 **WaveGuard** | 频域（DTCWT） | 1 bit | **100%**（detector）；tracer Q=50≈52%（进行中）| 频域不变性，抗平台压缩 | 512 |
-| 🟣 **SepMark** | 频域（分离子带） | 30 bit | **91.2%**（比特精度 RF） | 高低频分离，RF 解码器增强 | **13,233**（唯一全量）|
+| 🟢 **KAD-Net** | 空间域（KAN+SE） | 30 bit | **99.98%**（比特精度；JPEG/noise/resize ≥99%；**几何攻击失败为已知局限**） | KAN 非线性，温和攻击极强 | **13,233** |
+| 🟡 **WaveGuard** | 频域（DTCWT） | 1 bit | **100%**（clean）；**jpeg50 是真弱点**（bit-acc≈89%，succ=37%）| 频域不变性，除 jpeg50 外抗平台压缩≈100% | **13,233** |
+| 🟣 **SepMark** | 频域（分离子带） | 30 bit | **~88%**（bit-acc；clean 87.74%；"91.2%"为特定 decoder 偏高值） | 高低频分离，pre-trained baseline | **13,233** |
 
 ---
 
@@ -301,7 +301,7 @@ openssl pkeyutl -verify -pubin -inkey public_key.pem \
 | **多重比较校正** | Holm-Bonferroni（FWER < 0.05） | 杜绝 p-hacking 刷榜 |
 | **训练方差验证** | LIDMark 3 个独立 seed（注：同批图重复，非不重叠样本） | 跨 seed 训练方差参考 |
 
-> 📊 LIDMark landmark 成功率 **99.93%**（注：ID 比特精度评测进行中，未测前不做显著性比较）；SepMark clean 比特精度 91.2% `[90.9,91.5%]`。
+> 📊 LIDMark landmark 成功率 **99.93%**（注：ID 比特精度评测进行中，未测前不做显著性比较）；SepMark clean bit-acc≈88%（87.74%，"91.2%"为特定 decoder 偏高值）；KAD-Net/WaveGuard/HiDDeN 各 n=13,233 全量，统计分析完整。
 
 ---
 
@@ -334,14 +334,14 @@ openssl pkeyutl -verify -pubin -inkey public_key.pem \
 |:---|:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | 🔵 **LIDMark** | **landmark 成功率**（非比特精度） | **99.93%** | 99.93% | — | 99.93% | 99.93% | 未测 | 512×3（同批）|
 | 🔵 **LIDMark** | **ID 比特精度** | **评测进行中** | — | — | — | — | — | — |
-| 🟢 **KAD-Net** | 比特精度 | **100%** | 99.97% | 100% | 100% | 100% | crop≈68.9%<br>rotate≈43.7%（EP50）| **512**（全量评测进行中）|
-| 🟡 **WaveGuard** | **detector**（有无水印） | **100%** | **89%** | 99.7% | 100% | 100% | 未测 | 512 |
-| 🟡 **WaveGuard** | **tracer**（溯源比特） | **100%** | **≈52%**（进行中）| — | — | — | — | 512 |
-| 🟣 **SepMark** | 比特精度 RF | 91.2% `[90.9,91.5%]` | 88.1% | 89.8% | 90.7% | 91.0% | — | **13,233**（唯一全量）|
+| 🟢 **KAD-Net** | 比特精度 | **99.98%** | 99.09% | 99.79% | 99.93% | 99.97% | **crop≈68.9%**<br>**rotate≈43.7%（已知局限）** | **13,233** |
+| 🟡 **WaveGuard** | bit-acc / success@0.9 | **100% / 100%** | **88.97% / 37.3%**（真弱点）| 99.68% / 99.64% | 100% | 100% | 未测 | **13,233** |
+| 🟣 **SepMark** | 比特精度（RF/C） | ~88%（clean 87.74%；"91.2%"为特定 decoder 偏高）| 87.75% | 89.23% | 87.19% | 84.65% | — | **13,233** |
+| ⬜ **HiDDeN** | 比特精度（有效 baseline） | 99.05% | **57.09%**（success=0%，JPEG 域 gap）| ~0% | 93.31% | 98.07% | 未测 | **13,233** |
 
-> 样本量说明：唯一完成 LFW 全量（13,233 张）评测的模型为 SepMark；LIDMark 为同批 512 图重复 3 seed；WaveGuard/KAD-Net 均为 512 张。  
+> 样本量说明：KAD-Net / SepMark / WaveGuard / HiDDeN 四模型均完成 LFW 全量（13,233 张）评测；LIDMark 为同批 512 图重复 3 seed。  
 > LIDMark 99.93% 为 **landmark 定位成功率**（对攻击不敏感），**不是** ID 比特精度（当前 null，评测进行中）。  
-> WaveGuard detector ≠ tracer：detector=有无水印二分类；tracer=溯源比特精度，两者需分别报告。
+> WaveGuard jpeg50 是真弱点（bit-acc≈89%，success=37.3%），不可称"已修复至100%"。KAD-Net 几何攻击失败是已知硬限制。HiDDeN 是有效对照 baseline（JPEG 域 gap 为局限），不是"损坏/已剔除"。
 
 **统计显著性说明：**
 

@@ -6,7 +6,7 @@
 
 ## 摘要
 
-深度伪造（Deepfake）技术的迅速普及带来严峻的网络信息安全挑战。本作品设计并实现了 **JianYuanShield**——一个基于多模型协同水印的人脸深度伪造溯源平台。系统集成四个来自本团队的研究成果（SepMark、WaveGuard、LIDMark、KAD-Net），提出**多嵌入攻击（Multi-Embedding Attack，MEA）**协议作为评估水印鲁棒性的新基准，构建从水印嵌入、攻击仿真到溯源证据链的完整闭环。SepMark 在 LFW 全量基准（13,233 张）上 clean 比特精度 91.2%；KAD-Net（512 张）温和攻击全部 100%；WaveGuard（512 张）JPEG STE 微调后 detector clean=100%、Q=50 detector=89%（tracer 溯源比特 Q=50 实测≈52%，进一步微调进行中）；LIDMark（512×3 张）landmark 定位成功率 99.93%（ID 比特精度评测进行中）。
+深度伪造（Deepfake）技术的迅速普及带来严峻的网络信息安全挑战。本作品设计并实现了 **JianYuanShield**——一个基于多模型协同水印的人脸深度伪造溯源平台。系统集成四个来自本团队的研究成果（SepMark、WaveGuard、LIDMark、KAD-Net），提出**多嵌入攻击（Multi-Embedding Attack，MEA）**协议作为评估水印鲁棒性的新基准，构建从水印嵌入、攻击仿真到溯源证据链的完整闭环。KAD-Net（EC_50，GEOM 微调，n=13,233）JPEG/noise/resize 全部 ≥99%，几何攻击（crop≈68.9%/rotate≈43.7%）为已知局限；WaveGuard（model_state_16，n=13,233）clean/jpeg70+/noise/resize≈100%，jpeg50 bit-acc≈89%/成功率仅 37%（真弱点）；SepMark（n=13,233）bit-acc≈85-89%（clean 87.74%）；HiDDeN（epoch-300，n=13,233）clean/resize 好，JPEG 域 gap 为已知局限，作有效对照 baseline；LIDMark（512×3 张）landmark 定位成功率 99.93%（ID 比特精度评测进行中）。
 
 ---
 
@@ -80,15 +80,17 @@ JianYuanShield 提出**多模型协同 + ID 精确编码 + MEA 鲁棒评估**的
 - 训练 decoder_RF（Robustness-Focused 解码器），在噪声和压缩攻击下精度显著优于原始 decoder_C
 - 在统一评测框架下对齐推理接口，支持实时 API 调用
 
-**LFW 全量基准（n=13,233）**：
+**LFW 全量基准（n=13,233，checkpoint EC_115.pth）**：
 
 | 攻击类型 | Decoder_RF | Decoder_C |
 |---------|-----------|-----------|
-| 无攻击 | **91.2%** | 87.7% |
-| JPEG Q=50 | 88.1% | 87.8% |
-| JPEG Q=70 | 89.8% | 89.2% |
-| 高斯噪声 | 90.7% | 87.2% |
-| 缩放 (0.5×) | 91.0% | 84.7% |
+| 无攻击 | **87.74%** | 87.74%（clean 约 88%；decoder_RF "91.2%" 为特定 decoder 偏高，以 ~88% 为基准）|
+| JPEG Q=50 | 87.75% | — |
+| JPEG Q=70 | 89.23% | 89.2% |
+| 高斯噪声 | 87.19% | 87.2% |
+| 缩放 | 84.65% | 84.7% |
+
+> bit-acc≈85-89%（"decoder_RF 91.2%"偏高，以 ~88% 为准或注明特定 decoder）；success@0.9 为 59-72%（128-bit 长消息，门槛严）。
 
 ### 3.2 WaveGuard（双树复小波水印）
 
@@ -98,18 +100,18 @@ JianYuanShield 提出**多模型协同 + ID 精确编码 + MEA 鲁棒评估**的
 - 16 轮 JPEG 增强微调（基于 fine_tuning.yaml）
 - 修复 model_adapters.py 中的 sys.path 命名空间冲突（WaveGuard `network/` 与 KAD-Net `network/` 包名冲突）
 
-**LFW 基准（n=512，JPEG STE 7ep 微调后 checkpoint）**：
+**LFW 全量基准（n=13,233，checkpoint model_state_16.pth）**：
 
-| 攻击类型 | Detector 精度（有无水印） | Tracer 精度（溯源比特） |
-|---------|------------------------|----------------------|
+| 攻击类型 | bit-acc | success@0.9 |
+|---------|---------|-------------|
 | 无攻击 | **100%** | 100% |
-| JPEG Q=70 | 99.7% | 评测进行中 |
+| JPEG Q=70 | 99.68% | 99.64% |
 | JPEG Q=90 | 100% | 100% |
-| 高斯噪声 | 100% | 评测进行中 |
-| 缩放 (0.5×) | 100% | 评测进行中 |
-| JPEG Q=50 | **89%**‡ | **≈52%**‡（接近随机，微调进行中）|
+| 高斯噪声 | 100% | 100% |
+| 缩放 | 100% | 100% |
+| **JPEG Q=50** | **88.97%** | **37.3%**（真弱点）|
 
-> ‡JPEG STE 7ep 微调后（n=512）：detector Q=50 提升至 89%（原 37.3%），但 **tracer 溯源比特 Q=50 仍约 52%**，进一步微调进行中。"100% / CI=[1.0,1.0]"为旧误标，以本表为准。注：原"全量 13,233 张"样本量有误，WaveGuard 真实样本量为 512 张。
+> **jpeg50 是真弱点**：bit-acc≈89%，但 success@0.9 仅 37.3%——大量图像恰好低于 0.9 阈值。不可称"Q=50 已修复至100%"；正确描述："WaveGuard 除 Q=50 外≈100%，Q=50 bit-acc≈89%、成功率仅37%，仍需加强"。样本量：n=13,233 真全量。
 
 ### 3.3 LIDMark（人脸特征水印，本团队原创）
 
@@ -142,16 +144,20 @@ ID 比特精度评测进行中，完成后更新本表。
 - 解决了 model_adapters.py 中 SE 注意力类型解析错误（training 阶段 `type_attention` 参数不一致）
 - 集成到统一评测和 MEA 协议框架
 
-**LFW 基准（n=512，单 seed）**：
+**LFW 全量基准（n=13,233，checkpoint EC_50.pth，GEOM 微调版）**：
 
-| 攻击类型 | 比特精度 | 成功率 |
-|---------|---------|-------|
-| 无攻击 | **100%** | 100% |
-| JPEG Q=50 | 99.97% | 100% |
-| 高斯噪声 | 100% | 100% |
-| 缩放 (0.5×) | 100% | 100% |
+| 攻击类型 | 比特精度 | success@0.9 |
+|---------|---------|-------------|
+| 无攻击 | **99.98%** | 99.96% |
+| JPEG Q=50 | 99.09% | 99.51% |
+| JPEG Q=70 | 99.79% | 99.89% |
+| JPEG Q=90 | 99.97% | 99.94% |
+| 高斯噪声 | 99.93% | 99.92% |
+| 缩放 | 99.97% | 99.95% |
+| **crop_center_0.8** | **68.92%** | 1.14% |
+| **rotate_5** | **43.73%** | 0.0% |
 
-> **几何增强微调**：已添加 CenterCropRoundtrip(0.8) 和 Rotation(10°) 到 pool_R，50ep 微调进行中（EP17/50）。EP16 中间：crop=71.2%，rotate=39.8%（原 33%/30%）。
+> JPEG/noise/resize 全部 ≥99%（真强）；**几何攻击（裁剪/旋转）实质失败**——即便已用 GEOM 微调，crop≈68.9%、rotate≈43.7%，这是已知硬限制，须诚实标注，不可隐藏。
 
 ---
 
@@ -245,13 +251,11 @@ MEA 揭示的关键问题：多方内容复用场景中，后嵌入水印是否�
 | 局限 | 原因 | 当前状态 |
 |-----|-----|---------|
 | **LIDMark ID 比特精度未测（null）** | bit_accuracy 字段未被正式评测脚本输出 | **评测进行中**；现有 99.93% 为 landmark 定位成功率（不代表水印鲁棒性） |
-| **WaveGuard tracer Q=50≈52%（接近随机）** | JPEG STE 7ep 仅提升 detector，tracer 训练不足 | **tracer 进一步微调进行中**；detector Q=50=89% 已有改善 |
-| KAD-Net 几何攻击弱（裁剪≈68.9%，旋转≈43.7%，EP50） | 训练增强覆盖几何不足 | 几何微调进行中，EP50 结果为 partial |
-| KAD-Net 样本量仅 512 张（非 13,233 全量） | 全量跑批进行中 | 做实大样本评测后更新 |
 | LIDMark 3 seed 使用同批 512 图（非不重叠） | 评测设计 | between-seed 方差估计偏乐观，需不重叠更大样本 |
-| HiDDeN 检查点损坏（精度≈50%，JPEG success=0%） | checkpoint 文件问题，已排除出正式方案 | 保留为失效案例对照 |
-| MEA 矩阵 n=128/格，对角线多 FAIL | 小样本 + 代码口径待排查 | 修口径 bug 后大样本重跑；叙事改为诚实红队诊断 |
-| WaveGuard 样本量 512 张（文档曾标"13,233 全量"） | 混用了 SepMark 的样本量 | 已更正；唯一真全量是 SepMark |
+| **WaveGuard jpeg50 是真弱点**（bit-acc 89%，成功率仅 37%） | DTCWT 高频子带在 q≈60 以下被量化 | 正在改进；除 jpeg50 外其余攻击≈100% |
+| KAD-Net 几何攻击失败（crop≈68.9%，rotate≈43.7%，GEOM 微调后仍如此） | 几何不变性训练不足 | 已知硬限制，须诚实标注 |
+| HiDDeN JPEG 域 gap（jpeg50 bit-acc 57%，success=0%） | 训练与测试域差异 | 有效对照 baseline，JPEG 局限诚实标注 |
+| MEA 矩阵 n=128/格，对角线多 FAIL | 小样本 + 代码口径待排查 | 修口径 bug 后大样本重跑；叙事为诚实红队诊断 |
 
 ---
 
@@ -261,14 +265,14 @@ MEA 揭示的关键问题：多方内容复用场景中，后嵌入水印是否�
 
 | 模型 | 指标类型 | 无攻击 | JPEG Q=50 | 噪声 | 缩放 | 几何（crop/rotate） | 样本量 |
 |-----|---------|-------|----------|-----|-----|-------------------|------|
-| SepMark | 比特精度 RF | 91.2% | 88.1% | 90.7% | 91.0% | 未测 | **13,233**（唯一全量）|
-| WaveGuard | **detector**（有无水印） | 100% | **89%**† | 100% | 100% | 未测 | 512 |
-| WaveGuard | **tracer**（溯源比特） | 100% | **≈52%**†（进行中）| 评测中 | 评测中 | 未测 | 512 |
+| KAD-Net | 比特精度 | **99.98%** | 99.09% | 99.93% | 99.97% | **crop≈68.9%，rotate≈43.7%（已知局限）** | **13,233** |
+| SepMark | 比特精度（RF/C） | 87.74% | 87.75% | 87.19% | 84.65% | 未测 | **13,233** |
+| WaveGuard | bit-acc / success@0.9 | 100% / 100% | **88.97% / 37.3%**（真弱点）| 100% | 100% | 未测 | **13,233** |
+| HiDDeN | 比特精度 | 99.05% | **57.09%**（success=0%，JPEG 域 gap）| 93.31% | 98.07% | 未测 | **13,233** |
 | LIDMark | **landmark 定位成功率**（非比特精度）| 99.93% | 99.93% | 99.93% | 99.93% | 未测 | 512×3（同批）|
 | LIDMark | ID 比特精度 | **评测进行中** | — | — | — | 未测 | — |
-| KAD-Net | 比特精度 | **100%** | 99.97% | 100% | 100% | crop≈68.9%，rotate≈43.7%（partial）| 512 |
 
-> †WaveGuard JPEG STE 7ep 微调（n=512）：detector Q=50 从 37.3% 提升至 89%，tracer Q=50≈52%（进一步微调进行中）。"tracer 100%/CI=[1.0,1.0]/完全修复"为旧误标。
+> KAD-Net / SepMark / WaveGuard / HiDDeN 四模型均为 n=13,233 真全量。LIDMark 为 512×3（同批图重复）。WaveGuard jpeg50 是真弱点（不可称"已修复100%"）；KAD-Net 几何失败是已知硬限制；HiDDeN 是有效对照 baseline（非"损坏剔除"）。
 
 ### 9.2 统计显著性
 
@@ -278,7 +282,7 @@ SepMark（13,233 张）逐图配对结果经 Holm-adjusted paired sign-flip test
 
 ## 十、结论
 
-JianYuanShield 实现了多模型协同水印溯源平台，集成四个团队原创研究模型、MEA 多重嵌入攻击评测协议、15 种攻击的统一库和 Ed25519 证据链。SepMark 在 LFW 全量 13,233 张评测中 RF decoder clean=91.2%；KAD-Net（512 张）在温和攻击下达到 100%；WaveGuard（512 张）JPEG STE 微调后 detector clean=100%，tracer 溯源能力 Q=50 仍在进一步提升中；LIDMark（512×3 张）landmark 定位成功率 99.93%，ID 比特精度评测进行中。MEA 矩阵作为诚实红队诊断，揭示多水印并存场景下后嵌入对先嵌入水印溯源的破坏规律，为主动水印系统的安全部署提供参考。
+JianYuanShield 实现了多模型协同水印溯源平台，集成四个团队原创研究模型、MEA 多重嵌入攻击评测协议、15 种攻击的统一库和 Ed25519 证据链。KAD-Net / SepMark / WaveGuard / HiDDeN 四模型均在 LFW 13,233 张全量上完成真实评测：KAD-Net（EC_50，GEOM 微调）JPEG/noise/resize 全部 ≥99%，几何攻击（crop≈68.9%/rotate≈43.7%）为已知硬限制；WaveGuard（model_state_16）除 jpeg50 外≈100%，jpeg50 bit-acc≈89%/成功率 37% 为真弱点，正在改进；SepMark（EC_115）bit-acc≈85-89%（clean 87.74%）；HiDDeN（epoch-300）clean/resize 好，JPEG 域 gap 为已知局限，作有效对照 baseline；LIDMark（512×3 张）landmark 定位成功率 99.93%，ID 比特精度评测进行中。MEA 矩阵作为诚实红队诊断，揭示多水印并存场景下后嵌入对先嵌入水印溯源的破坏规律，为主动水印系统的安全部署提供参考。
 
 ---
 

@@ -13,22 +13,22 @@
 - **Stage2（Deepfake 换脸微调）尚未完成**：主要卖点"Deepfake 穿透溯源"的 ID 比特级证据当前缺失。
 
 ### KAD-Net
-- **样本量仅 512 张**（文档曾错误标注"13,233 全量"）：全量评测进行中。
-- **几何攻击 partial**：crop_center≈68.9%，rotate≈43.7%（EP50 中间结果），旋转攻击仍接近失效阈值。
-- **MEA 矩阵 KAD-Net→KAD-Net first_acc=50%（随机）** 与单模型 clean bit_acc=100% 互斥，两套 benchmark 存在待排查的代码口径 bug（疑似 `strict=False` 静默丢权重）。
+- **样本量 13,233 张（真全量，checkpoint EC_50.pth，GEOM 微调版）**：JPEG/noise/resize 全部 ≥99%。
+- **几何攻击实质失败（已知硬限制）**：crop_center≈68.9%，rotate≈43.7%——即便已进行 GEOM 微调仍失败，须诚实标注，不可隐藏。
+- **MEA 矩阵 KAD-Net→KAD-Net first_acc=50%（随机）** 与单模型 clean bit_acc≈100% 存在口径 bug（疑似 `strict=False` 静默丢权重），待排查。
 
 ### WaveGuard
-- **tracer（溯源比特）Q=50 实测≈52%（接近随机）**：JPEG STE 7ep 微调提升了 detector（有无水印二分类）至 89%，但 tracer 溯源能力 Q=50 下仍近随机；"100% 已修复"为误标，须区分 detector 与 tracer 两个指标。
-- **CI=[1.0,1.0] 统计异常**：以 512 图拍平 3-seed 做 bootstrap，区间过紧，存在伪重复问题。
-- **样本量仅 512 张**：评测未在 LFW 全量或独立留出集上验证。
+- **jpeg50 是真弱点（n=13,233，checkpoint model_state_16.pth）**：bit-acc=88.97%，但 success@0.9 仅 37.3%——大量图像比特精度恰好低于 0.9 阈值。不可称"Q=50 已修复至100%"。
+- **除 jpeg50 外≈100%**：clean/jpeg70/jpeg90/noise/resize 的 bit-acc 和 success@0.9 均≈100%；jpeg50 为真实硬限制，须诚实标注。
 
 ### SepMark
 - **pre-trained checkpoint**（EC_115.pth），非团队从头训练。
-- **clean 91.2%**（RF decoder），低于主流声称的高精度水印方案。
+- **bit-acc≈85-89%**（clean 87.74%）；"decoder_RF 91.2%"偏高，以 ~88% 为通常引用值或注明特定 decoder；success@0.9 仅 59-72%（128-bit 长消息，门槛严）。
 
 ### HiDDeN
-- **checkpoint 损坏（epoch-200.pyt），bit_acc≈50%（随机），JPEG success=0%**。
-- 文档状态历史上曾出现"损坏剔除"与"有效纳入对照"自相矛盾，当前统一为：**作失效案例 baseline，不代表系统能力**。
+- **有真实 13,233 全量评测结果（checkpoint epoch-300），不是"损坏/已剔除"**。
+- clean/resize 好（clean bit-acc=99.05%，resize=98.07%）；**JPEG 系列失败（jpeg50 bit-acc=57.09%，success=0%）**——域 gap 为已知局限。
+- 是**有效对照 baseline**：在同一评测框架下，HiDDeN 揭示了公开 checkpoint 直接迁移至 LFW 上 JPEG 攻击的局限，与 KAD-Net/WaveGuard 形成鲁棒性对照。须标注 JPEG 失效为局限，不可称"损坏剔除"。
 
 ---
 
@@ -63,8 +63,7 @@
 | 缺失项 | 当前状态 | 回填条件 |
 |--------|---------|---------|
 | LIDMark ID 比特精度 | null（评测进行中） | 真正运行 ID 比特解码评测，不重叠样本 3-seed |
-| WaveGuard tracer Q=50 最终值 | 52%（进一步微调进行中） | tracer 充分微调后独立留出集验证 |
-| KAD-Net 全量 13,233 评测 | 进行中 | KAD-Net 真跑 LFW 13,233 全量 |
-| KAD-Net 几何攻击 EP50 最终值 | EP50 partial（crop≈68.9%/rotate≈43.7%）| EP50 微调完成后 |
+| WaveGuard jpeg50 成功率改进 | 37.3%（真弱点，改进进行中） | 进一步微调后在 n=13,233 独立验证 |
+| KAD-Net 几何攻击改进 | crop≈68.9%/rotate≈43.7%（已知硬限制）| 需从根本上改进几何不变性训练 |
 | MEA 大样本（128→512+/格） | 进行中 | 修复口径 bug 后大样本重跑 |
 | Ed25519 覆盖文件数 | README=22 vs JUDGE_QA 已更新为"接口返回为准" | `evidence_audit` 接口实际返回值 |

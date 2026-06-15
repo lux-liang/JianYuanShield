@@ -10,7 +10,7 @@
 
 ## 哪些结果是真实 checkpoint？
 
-SepMark 使用真实 checkpoint，完成 13,233 张 LFW 全量评测（decoder_RF clean=91.2%）。WaveGuard 使用真实 checkpoint，512 张 LFW 评测，clean detector=100%，JPEG STE 7ep 微调后 Q=50 detector=89%、Q=70 detector=99.7%（注意：tracer 溯源比特 Q=50 实测 ≈52%，tracer 进一步训练进行中）。LIDMark 已完成 3 个独立 seed（20260603/04/05）的正式 checkpoint 训练，每 seed 评测 512 张；注意：当前上报的 99.93% 为 **landmark 定位成功率**，ID 比特精度（bit accuracy）评测进行中。KAD-Net 已在服务器独立训练 100 epoch，完成 512 张 LFW 评测，clean/jpeg/noise/resize 全部 100%（几何攻击 crop≈68.9%/rotate≈43.7%，微调进行中）。HiDDeN checkpoint 损坏（精度≈50%），已从正式评测中剔除，作为失效案例对照保留。
+KAD-Net / SepMark / WaveGuard / HiDDeN 四模型均使用真实 checkpoint，完成 13,233 张 LFW 全量评测（n=13,233）。KAD-Net（EC_50，GEOM 微调）clean/jpeg/noise/resize 全部 ≥99%；几何攻击（crop≈68.9%，rotate≈43.7%）为已知硬限制。WaveGuard（model_state_16）clean/jpeg70+/noise/resize≈100%；**jpeg50 是真弱点**：bit-acc≈89%、成功率仅 37.3%，正在改进，不可称"已修复至100%"。SepMark（EC_115）bit-acc≈85-89%（clean 87.74%）。HiDDeN（epoch-300）clean/resize 好，JPEG 域 gap 为已知局限；**是有效对照 baseline，不是"损坏剔除"**。LIDMark 已完成 3 个独立 seed（20260603/04/05）的正式 checkpoint 训练，每 seed 评测 512 张；注意：当前上报的 99.93% 为 **landmark 定位成功率**，ID 比特精度（bit accuracy）评测进行中。
 
 ## 为什么 HiDDeN 指标不高还要展示？
 
@@ -21,9 +21,9 @@ SepMark 使用真实 checkpoint，完成 13,233 张 LFW 全量评测（decoder_R
 四模型均已完成正式 checkpoint 评测，按场景推荐如下：
 
 - **LIDMark（核心亮点）**：3-seed 正式训练，LFW 每 seed 512 张；landmark 定位成功率 99.93%（对攻击不敏感）；ID 比特精度（bit accuracy）评测进行中，待补充后更新。语义绑定（人脸关键点+用户 ID）是本组独创技术亮点，竞赛辨识度最高。
-- **KAD-Net（比特精度首推）**：独立训练 100ep，LFW 512 张，clean/jpeg50/jpeg70/resize/noise 比特精度 **100%**。CVPR 2026 方向，展示团队前沿研究实力。几何增强微调进行中（EP17/50）；EP16 中间结果：crop≈68.9%（EP50），rotate≈43.7%（EP50），仍为 partial 结果。
-- **WaveGuard**：JPEG STE 7ep 微调后，LFW 512 张，detector（有无水印二分类）Q=50 达 89%，Q=70 达 99.7%，clean=100%。注意：tracer（溯源比特）Q=50 实测 ≈52%，进一步训练进行中；答辩时需区分 detector 与 tracer 两个指标。
-- **SepMark**：LFW 13,233 张（pre-trained checkpoint EC_115.pth），decoder_RF clean=91.2%（CI=[90.90%, 91.48%]），JPEG Q=50=88.1%；RF 解码器是本组重新训练的改进版本。
+- **KAD-Net（比特精度首推）**：EC_50（GEOM 微调），LFW **13,233 张全量**，clean/jpeg/noise/resize 全部 ≥99%（clean=99.98%，jpeg50=99.09%）。CVPR 2026 方向，展示团队前沿研究实力。**几何攻击（crop≈68.9%，rotate≈43.7%）为已知硬限制**，须诚实向评委说明。
+- **WaveGuard**：model_state_16，LFW **13,233 张全量**，clean/jpeg70+/noise/resize≈100%。**jpeg50 是真弱点**（bit-acc=88.97%，success=37.3%），答辩时须主动说明，不称"已修复"。
+- **SepMark**：LFW 13,233 张（pre-trained checkpoint EC_115.pth），bit-acc≈85-89%（clean=87.74%）；success@0.9 为 59-72%（128-bit 长消息）；"decoder_RF 91.2%"偏高，以 ~88% 为准。
 
 ## 为什么 WaveGuard 有多个接近 100% 的指标？
 
@@ -35,7 +35,7 @@ MEA 多重嵌入攻击体现信息安全攻防：攻击者可以通过二次嵌�
 
 ## 结果是否做了统计显著性分析？
 
-已对 SepMark（13,233 张）逐图配对结果生成 Bootstrap 置信区间、配对符号翻转检验、效应量和 Holm 多重比较校正。LIDMark 的置信区间来自 3 个独立 seed（共 512×3=1,536 张，同一批 512 图重复 3 次），注意：这 3 个 seed 使用同批图像，between-seed 方差为训练随机性，建议配合互不重叠的更大样本重测。LIDMark 当前上报的"精度"为 landmark 定位成功率（99.93%），ID 比特精度评测进行中。WaveGuard 当前 512 张，单 seed，区间仅反映图像采样不确定性。
+已对 SepMark（13,233 张）逐图配对结果生成 Bootstrap 置信区间、配对符号翻转检验、效应量和 Holm 多重比较校正。LIDMark 的置信区间来自 3 个独立 seed（共 512×3=1,536 张，同一批 512 图重复 3 次），注意：这 3 个 seed 使用同批图像，between-seed 方差为训练随机性，建议配合互不重叠的更大样本重测。LIDMark 当前上报的"精度"为 landmark 定位成功率（99.93%），ID 比特精度评测进行中。WaveGuard 当前 n=13,233 全量，统计分析完整。
 
 ## 报告如何防篡改？
 
@@ -43,9 +43,9 @@ MEA 多重嵌入攻击体现信息安全攻防：攻击者可以通过二次嵌�
 
 ## KAD-Net 的当前评测状态？
 
-KAD-Net 已完成服务器独立训练（100 epoch）和正式集成。LFW 512 张评测结果：
-- clean / jpeg50 / jpeg70 / resize / noise：**比特精度 100%**（jpeg50 = 99.97%）
-- 几何攻击：EP50 中间结果 crop≈68.9%，rotate≈43.7%（EP50 完成后更新最终值）
+KAD-Net 已完成 GEOM 微调（checkpoint EC_50.pth），**LFW 13,233 张全量**评测结果：
+- clean：bit-acc=**99.98%**，jpeg50=99.09%，jpeg70=99.79%，jpeg90=99.97%，noise=99.93%，resize=99.97%
+- **几何攻击（已知硬限制）**：crop_center_0.8=68.92%（success=1.14%），rotate_5=43.73%（success=0%）——即便 GEOM 微调后仍实质失败
 
 MEA 矩阵 KAD-Net↔WaveGuard 对角线外相对兼容（KAD→WG: 100%|100%，WG→KAD: 100%|100%），但 KAD→KAD first_acc=50%（自鲁棒性失效，与单模型 clean 100% 矛盾，口径 bug 排查中）。
 
@@ -63,19 +63,15 @@ WaveGuard 使用 DTCWT（双树复小波变换）频域嵌入水印。JPEG 压�
 
 我们对 50 张图像做了 q=40→90 的梯度实验，结论一致（q=60: 93%, q=70: 99.7%）。
 
-**当前状态（JPEG STE 7ep 微调后，n=512）**：detector Q=50 已提升至 89%，Q=70 达 99.7%，clean=100%。**tracer（溯源比特）Q=50 实测 ≈52%（仍接近随机），tracer 进一步微调进行中**。主流平台（q=75-85）detector 从未受影响，始终接近 100%。
+**当前状态（model_state_16，n=13,233 全量）**：jpeg50 bit-acc=88.97%，但 **success@0.9=37.3%**（真弱点）；jpeg70/jpeg90/noise/resize≈100%；clean=100%。主流平台（q=75-85）始终≈100%。jpeg50 改进进行中，不可称"已修复至100%"。
 
 ---
 
 ## HiDDeN 的失效是域偏移还是别的原因？
 
-**确认是 checkpoint 本身损坏**，而非域偏移。
+HiDDeN 使用 **epoch-300 checkpoint**，完成 **n=13,233 全量评测**。结果：clean bit-acc=99.05%（好），resize=98.07%（好），noise=93.31%（中等）；**JPEG 系列失败**：jpeg50 bit-acc=57.09%、success=0%——这是**域 gap**（训练域与测试 LFW 的 JPEG 处理差异）。
 
-我们做了闭环验证：对 CelebA-HQ 人脸图像（与训练域相似）做编码→解码，理论上应该接近 100% accuracy，实测仅 **49.6%（随机水平）**。
-
-根本原因：checkpoint 文件为 `epoch-200.pyt`，但原始训练配置 `number_of_epochs=100`，说明训练被非标准地延长，过程中很可能发生了梯度发散。训练数据来自已不可访问的 AutoDL 平台，无法复现。
-
-**这反而证明了鉴源盾的价值**：系统通过双层门禁（`ready_for_demo / ready_for_claims`）自动识别出 HiDDeN 的失效，并标记为 ⚠️ 待复核状态，而不是把失效结果暴露给用户。
+HiDDeN 是**有效对照 baseline**，在同一评测框架下揭示了不同水印方案对 JPEG 攻击的鲁棒性差异，与 KAD-Net/WaveGuard 形成强弱对照。它**不是"损坏/已剔除"**——那是对一个更早的坏 checkpoint（epoch-200）的错误描述。答辩时可主动展示：同一评测框架下，HiDDeN 的 JPEG 局限 vs. KAD-Net/WaveGuard 的 JPEG 鲁棒性，体现平台的多模型横向对比价值。
 
 ---
 
