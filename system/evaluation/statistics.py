@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import erf, sqrt
+from statistics import NormalDist
 from typing import Iterable
 
 import numpy as np
@@ -14,6 +15,23 @@ class ConfidenceInterval:
     high: float
     confidence: float
     samples: int
+
+
+@dataclass(frozen=True)
+class SeedLevelSummary:
+    """跨 seed（between-seed）不确定性汇总。
+
+    与 ``bootstrap_ci`` 严格区分：这里的样本是「每个 seed 的图像级均值」，
+    n 即独立训练 seed 的个数（本项目仅 3），故区间反映的是模型重训之间的
+    方差，而非图像采样噪声。n 很小时区间仅供参考，不应当作严格统计结论。
+    """
+
+    mean: float
+    std: float
+    low: float
+    high: float
+    confidence: float
+    n_seeds: int
 
 
 def bootstrap_ci(
@@ -38,6 +56,64 @@ def bootstrap_ci(
         high=float(high),
         confidence=confidence,
         samples=int(array.size),
+    )
+
+
+def _student_t_critical(confidence: float, dof: int) -> float:
+    """双侧 Student-t 临界值。
+
+    n 很小（dof≤2）时无 scipy 可用，这里对常见的 95% 置信度给出查表值，
+    其余置信度退化为正态近似（并由调用方在文档中坦诚标注 n 小、仅供参考）。
+    """
+    if dof <= 0:
+        return float("nan")
+    # 仅对最常用的 95% 双侧置信度内置 t 表（dof=1..6），覆盖 n=3 主用例。
+    if abs(confidence - 0.95) < 1e-9:
+        table = {1: 12.706, 2: 4.303, 3: 3.182, 4: 2.776, 5: 2.571, 6: 2.447}
+        if dof in table:
+            return table[dof]
+    # 退化：正态近似（dof 较大或非标准置信度时）。
+    return float(NormalDist().inv_cdf(1.0 - (1.0 - confidence) / 2.0))
+
+
+def seed_level_summary(
+    seed_means: Iterable[float],
+    *,
+    confidence: float = 0.95,
+) -> SeedLevelSummary:
+    """由「每个 seed 的图像级均值」估计 between-seed 不确定性。
+
+    输入必须是每个独立训练 seed 的单一标量（如该 seed 在某攻击下的图像级
+    平均 bit_accuracy），而不是把所有图拍平的逐图值——后者会把图像采样噪声
+    误当作 between-seed 方差（pseudoreplication）。当 n_seeds<2 时无法估方差，
+    区间退化为点估计；n 小时区间仅供参考。
+    """
+    array = np.asarray(list(seed_means), dtype=np.float64)
+    if array.size == 0:
+        raise ValueError("seed_means must not be empty")
+    if not 0 < confidence < 1:
+        raise ValueError("confidence must be between 0 and 1")
+    mean = float(array.mean())
+    if array.size < 2:
+        return SeedLevelSummary(
+            mean=mean,
+            std=0.0,
+            low=mean,
+            high=mean,
+            confidence=confidence,
+            n_seeds=int(array.size),
+        )
+    std = float(array.std(ddof=1))
+    standard_error = std / sqrt(array.size)
+    critical = _student_t_critical(confidence, array.size - 1)
+    margin = critical * standard_error
+    return SeedLevelSummary(
+        mean=mean,
+        std=std,
+        low=mean - margin,
+        high=mean + margin,
+        confidence=confidence,
+        n_seeds=int(array.size),
     )
 
 
