@@ -494,17 +494,37 @@ function renderPayload(payload) {
   countField("sepmarkCount", sampleCount(sepmark.summary, sepmark.progress), { suffix: " images" });
   countField("lidmarkCount", sampleCount(lidmark.summary, lidmark.progress), { suffix: " images" });
   countField("waveguardCount", sampleCount(waveguard.summary, waveguard.progress), { suffix: " images" });
-  countField("kadnetCount", kadnet?.summary?.n_images ?? 512, { suffix: " images · geo-finetuned (EP50)" });
+  countField("kadnetCount", kadnet?.summary?.n_images ?? 512, { suffix: " images" });
   text("aggregatePath", aggregate.report_md_path || "pending");
 
   const sepClean = cleanAttack(sepmark);
   const hiddenClean = cleanAttack(hidden);
-  const lidAcc = Number(cleanAttack(lidmark).mean_bit_accuracy);
-  countField("heroMetric", Number.isFinite(lidAcc) ? lidAcc * 100 : null, { decimals: 2 });
-  text("mainConclusion", `LIDMark 3-seed 99.97% · KAD-Net 100% · SepMark Acc-RF ${fmt(sepClean.mean_bit_accuracy_rf)}`);
-  text("contrastConclusion", `WaveGuard JPEG Q=50 fine-tuned 100%（原 37%）；HiDDeN checkpoint 已剥除`);
-  const waveguardFull = waveguard.full_benchmark?.summary || {};
-  text("boundaryConclusion", `LIDMark 3-seed 99.97%；WaveGuard JPEG Q=50 已修复（100%）；KAD-Net 几何微调中`);
+  // LIDMark 真实指标为 landmark 定位成功率（99.93%），比特级 id_acc 评测进行中
+  const lidSuccessRate = cleanAttack(lidmark).success_rate;
+  const lidHeroVal = Number.isFinite(Number(lidSuccessRate)) ? Number(lidSuccessRate) * 100 : null;
+  countField("heroMetric", lidHeroVal, { decimals: 2 });
+
+  // 主结论：从后端真实字段动态拼接，字段缺失则标"评测进行中"
+  const sepRf = sepClean.mean_bit_accuracy_rf;
+  const sepRfStr = sepRf != null ? `SepMark Acc-RF ${fmt(sepRf)}` : "SepMark 评测进行中";
+  // KAD-Net clean bit_acc 真实值来自后端 summary
+  const kadClean = cleanAttack(kadnet);
+  const kadBitAcc = kadClean.bit_accuracy ?? kadClean.mean_bit_accuracy;
+  const kadStr = kadBitAcc != null ? `KAD-Net clean ${(Number(kadBitAcc) * 100).toFixed(1)}%` : "KAD-Net 评测进行中";
+  text("mainConclusion", `LIDMark landmark 成功率 99.93%（ID比特精度：评测进行中）· ${kadStr} · ${sepRfStr}`);
+
+  // WaveGuard 真实值：detector Q=50 89% / tracer Q=50 52%（≈随机）；Q=70 detector 99.7%
+  const wgFull = waveguard.full_benchmark?.summary || waveguard.small_benchmark?.summary || {};
+  const wgDetector = wgFull.attacks?.jpeg?.mean_bit_accuracy_detector ?? wgFull.attacks?.jpeg?.mean_bit_accuracy;
+  const wgTracer  = wgFull.attacks?.jpeg?.mean_bit_accuracy_tracer;
+  const wgStr = wgDetector != null
+    ? `WaveGuard Q=50 detector ${(Number(wgDetector)*100).toFixed(0)}% / tracer ${wgTracer != null ? (Number(wgTracer)*100).toFixed(0)+"%" : "评测进行中"}`
+    : "WaveGuard JPEG Q=50 detector 89% / tracer 52%（约随机，微调进行中）";
+  text("contrastConclusion", `${wgStr}；HiDDeN JPEG 0%（局限案例，仅作对照）`);
+
+  text("boundaryConclusion",
+    `LIDMark landmark 定位成功率 99.93%，ID 比特精度评测进行中；` +
+    `WaveGuard JPEG Q=50 tracer 微调进行中（已知 tracer≈52%）；KAD-Net 几何攻击 partial（crop 68.9% / rotate 43.7%）`);
 
   updateReadiness(payload);
   renderMeaMatrix(meaMatrix);
@@ -683,7 +703,7 @@ async function load() {
 const VIEW_META = {
   overview: { title: "概览", sub: "防御结论 · 模块状态 · 证据就绪度" },
   forensics: { title: "互动取证", sub: "真实 checkpoint 推理 · 上传取证 · 合规检测" },
-  benchmark: { title: "Benchmark", sub: "LFW 13,233 全量评测 · 方法对比 · 退化曲线" },
+  benchmark: { title: "Benchmark", sub: "LFW 评测（SepMark 13,233 · 其余 512）· 方法对比 · 退化曲线" },
   audit: { title: "证据审计", sub: "协议审计 · Ed25519 签名 · 原始证据 JSON" },
 };
 
@@ -828,12 +848,23 @@ function renderInferResult(result) {
     : m.bit_accuracy_detector != null ? m.bit_accuracy_detector
     : m.bit_accuracy;
   const comp = result.compliance || {};
+  const isSimulation = result.mode !== "real_checkpoint";
+  // 模拟模式：橙色醒目 banner，合规结论不显示真实数字
+  const complianceDisplay = isSimulation
+    ? '<span class="verdict-warn">—（模拟，非真实推理）</span>'
+    : verdictBadge(comp.verdict);
+  const simulationBanner = isSimulation
+    ? `<div class="simulation-banner" style="background:rgba(232,180,76,0.15);border:1px solid var(--warn);border-radius:var(--r);padding:6px 10px;margin-bottom:8px;color:var(--warn);font-size:12px;">
+        ⚠ 模拟模式（simulation）：当前使用启发式替代推理，数值仅供界面演示，<strong>非真实模型输出</strong>，请勿引用于取证结论。
+      </div>`
+    : "";
   document.getElementById("inferMetrics").innerHTML = `
+    ${simulationBanner}
     <div class="infer-metric-row">
-      <span>Bit Accuracy</span><strong>${acc != null ? (acc * 100).toFixed(1) + "%" : "—"}</strong>
-      <span>PSNR</span><strong>${m.psnr != null ? m.psnr.toFixed(1) + " dB" : "—"}</strong>
-      <span>合规结论</span><strong>${verdictBadge(comp.verdict)}</strong>
-      <span>推理模式</span><strong>${result.mode === "real_checkpoint" ? '<span class="verdict-ok">✔ 真实模型</span>' : '<span class="verdict-warn">⚠ 模拟</span>'}</strong>
+      <span>Bit Accuracy</span><strong>${!isSimulation && acc != null ? (acc * 100).toFixed(1) + "%" : "—"}</strong>
+      <span>PSNR</span><strong>${!isSimulation && m.psnr != null ? m.psnr.toFixed(1) + " dB" : "—"}</strong>
+      <span>合规结论</span><strong>${complianceDisplay}</strong>
+      <span>推理模式</span><strong>${isSimulation ? '<span class="verdict-warn">⚠ 模拟（非真实模型）</span>' : '<span class="verdict-ok">✔ 真实模型</span>'}</strong>
     </div>`;
   document.getElementById("inferEvidence").textContent = JSON.stringify({
     task_id: result.task_id, model: result.model, attack: result.attack,
@@ -910,7 +941,7 @@ document.getElementById("meaForm")?.addEventListener("submit", async (event) => 
   event.preventDefault();
   const btn = document.getElementById("meaBtn");
   btn.disabled = true;
-  document.getElementById("meaStatus").textContent = "对比推理中（4个模型）…";
+  document.getElementById("meaStatus").textContent = "对比推理中（SepMark / WaveGuard）…";
   document.getElementById("meaResults").innerHTML = "";
   try {
     const file = document.getElementById("meaFile").files[0];

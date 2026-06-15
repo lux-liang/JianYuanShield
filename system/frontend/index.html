@@ -111,7 +111,7 @@
           </div>
           <div class="top-meta">
             <span class="clock" id="clock" aria-hidden="true">--:--:--</span>
-            <span class="clock-sub">LFW 13,233 · LIDMark / MEA / WaveGuard / KAD-Net</span>
+            <span class="clock-sub">LIDMark / MEA / WaveGuard / KAD-Net · SepMark 13,233</span>
           </div>
         </header>
 
@@ -133,14 +133,14 @@
               <div class="hero-copy">
                 <div class="hero-figure">
                   <div class="hero-figure-val"><span id="heroMetric">--</span><i>%</i></div>
-                  <span class="hero-figure-label" id="heroMetricLabel">LIDMARK · 3-SEED CLEAN BIT-ACC</span>
+                  <span class="hero-figure-label" id="heroMetricLabel">LIDMARK · 3-SEED LANDMARK 成功率</span>
                 </div>
                 <h3 id="mainConclusion">SepMark clean Acc-C - / Acc-RF -</h3>
                 <p id="contrastConclusion">HiDDeN clean Acc -，作为真实弱对照</p>
               </div>
               <div class="boundary-box">
                 <span>边界声明</span>
-                <strong id="boundaryConclusion">LIDMark 3-seed 正式训练 99.97%；WaveGuard JPEG Q=50 已修复（100%）；KAD-Net 几何增强微调中</strong>
+                <strong id="boundaryConclusion">LIDMark landmark 成功率 99.93%，ID 比特精度评测进行中；WaveGuard Q=50 tracer 微调进行中；KAD-Net 几何攻击 partial</strong>
               </div>
             </div>
           </section>
@@ -361,7 +361,7 @@
 
           <section class="evidence-grid">
             <article class="panel">
-              <span class="exhibit">EXHIBIT 22 · SEPMARK / LFW FULL</span>
+              <span class="exhibit">EXHIBIT 22 · SEPMARK / LFW 13,233</span>
               <div class="panel-head">
                 <div>
                   <h3>SepMark LFW benchmark</h3>
@@ -381,7 +381,7 @@
             </article>
 
             <article class="panel">
-              <span class="exhibit">EXHIBIT 23 · HIDDEN / LFW FULL</span>
+              <span class="exhibit">EXHIBIT 23 · HIDDEN / 小样本（局限案例）</span>
               <div class="panel-head">
                 <div>
                   <h3>HiDDeN LFW 全量 benchmark</h3>
@@ -401,11 +401,11 @@
             </article>
 
             <article class="panel">
-              <span class="exhibit">EXHIBIT 24 · WAVEGUARD / LFW FULL</span>
+              <span class="exhibit">EXHIBIT 24 · WAVEGUARD / LFW 512</span>
               <div class="panel-head">
                 <div>
                   <h3>WaveGuard baseline</h3>
-                  <span>detector / tracer 双通道 · full LFW benchmark</span>
+                  <span>detector / tracer 双通道 · 512 张 · Q=50 detector 89% / tracer 52%</span>
                 </div>
                 <span class="panel-badge warning">baseline</span>
               </div>
@@ -421,11 +421,11 @@
 
 
             <article class="panel">
-              <span class="exhibit">EXHIBIT 24B · KAD-NET / LFW FULL</span>
+              <span class="exhibit">EXHIBIT 24B · KAD-NET / LFW 512</span>
               <div class="panel-head">
                 <div>
                   <h3>KAD-Net LFW benchmark</h3>
-                  <span>geo-finetuned · clean / jpeg / resize / noise / crop_center / rotate</span>
+                  <span>512 张 · clean/jpeg/resize/noise 100% · 几何攻击 partial（crop 68.9% / rotate 43.7%）</span>
                 </div>
                 <span class="panel-badge">real</span>
               </div>
@@ -479,7 +479,7 @@
               <div class="panel-head">
                 <div>
                   <h3>LIDMark LFW eval</h3>
-                  <span>3-seed 正式训练 · LFW 1,536 张 · 99.97%</span>
+                  <span>3-seed 正式训练 · LFW 512×3 张 · landmark 成功率 99.93%（ID 比特精度：评测进行中）</span>
                 </div>
                 <span class="panel-badge">real</span>
               </div>
@@ -494,7 +494,7 @@
               <div class="panel-head">
                 <div>
                   <h3>WaveGuard baseline</h3>
-                  <span>JPEG STE 7ep 微调 · Q=50/70 tracer 100% · LFW full</span>
+                  <span>JPEG STE 7ep 微调 · Q=50 detector 89% / tracer 52% · Q=70 detector 99.7% · 512 张</span>
                 </div>
                 <span class="panel-badge">real</span>
               </div>
