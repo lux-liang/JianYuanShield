@@ -1,3 +1,22 @@
+"""证据完整性自校验 + 来源数字签名（演示级）。
+
+诚实定位（请勿对外夸大为"司法级防篡改证据链"）：
+  - 完整性：对一份 canonical evidence manifest（覆盖协议/诊断/统计/报告/checkpoint
+    等文件的 SHA-256）做一次 Ed25519 签名，任意被覆盖文件改动都会触发
+    ``content_mismatch``，实现"是否被篡改"的自校验。
+  - 来源签名：Ed25519 私钥由运行方现场生成（``generate_private_key``，``chmod 600``）、
+    绝不入库，对外只导出公钥，用于核验 manifest 出自持私钥的一方。
+  - 追加式弱链：``build_evidence_manifest`` 写入 ``prev_hash`` / ``record_seq``，
+    新 manifest 携带上一份 manifest 的哈希，构成轻量 append-only 链，便于检测
+    历史 manifest 是否被整体替换；但这**不是** Merkle 树，也无外部锚定。
+
+明确的非目标（演示级局限，须在答辩中诚实说明）：
+  - 时间戳取本机 ``time.time()``（``time_source='local_clock'``），**非 RFC3161
+    可信时间戳机构（TSA）背书**，可被持机者伪造，不具备法庭证明力。
+  - 私钥与验签器同机生成、无 HSM/密钥托管，仅作演示。
+  - prev_hash 链只防"局部篡改/历史替换"的弱场景，无分布式见证、无可信锚点。
+"""
+
 from __future__ import annotations
 
 import base64
@@ -83,14 +102,39 @@ def _checkpoint_paths(summary_paths: Iterable[Path]) -> list[Path]:
     return checkpoints
 
 
+def _previous_manifest_chain() -> tuple[str | None, int]:
+    """读取上一份 manifest，派生 prev_hash 与下一条 record_seq。
+
+    构成轻量 append-only 链：新 manifest 携带上一份 manifest 文件内容的
+    SHA-256（prev_hash），便于检测历史 manifest 是否被整体替换。
+    首条 manifest 的 prev_hash 为 None（genesis），record_seq 从 0 起。
+    注意：这不是 Merkle 树，也无外部可信锚定，仅为演示级弱链。
+    """
+    if not MANIFEST_PATH.is_file():
+        return None, 0
+    prev_hash = sha256_file(MANIFEST_PATH)
+    try:
+        prev = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+        prev_seq = int(prev.get("record_seq", 0))
+    except (OSError, json.JSONDecodeError, TypeError, ValueError):
+        prev_seq = 0
+    return prev_hash, prev_seq + 1
+
+
 def build_evidence_manifest(files: Iterable[Path] | None = None) -> dict[str, Any]:
     evidence_files = list(files or default_evidence_files())
     checkpoint_files = _checkpoint_paths(evidence_files)
+    prev_hash, record_seq = _previous_manifest_chain()
     return {
-        "schema_version": "evidence-manifest.v1",
+        "schema_version": "evidence-manifest.v2",
         "generated_at": int(time.time()),
+        # 诚实标注：时间戳取本机时钟，非 RFC3161 可信时间戳机构（TSA）背书，可被伪造。
+        "time_source": "local_clock",
         "hash_algorithm": "sha256",
         "signature_algorithm": "ed25519",
+        # 追加式弱链：prev_hash 指向上一份 manifest 的 SHA-256，record_seq 单调递增。
+        "prev_hash": prev_hash,
+        "record_seq": record_seq,
         "project_root": str(ROOT),
         "files": [
             {
@@ -184,6 +228,11 @@ def verify_evidence_bundle(
             "file_count": len(manifest.get("files", [])),
             "mismatches": mismatches,
             "public_key_fingerprint_sha256": hashlib.sha256(public_der).hexdigest(),
+            # 追加式弱链字段（演示级，非 Merkle/无外部锚定）。
+            "record_seq": manifest.get("record_seq"),
+            "prev_hash": manifest.get("prev_hash"),
+            # 诚实标注：本机时钟时间戳，非可信 TSA。
+            "time_source": manifest.get("time_source", "local_clock"),
             "manifest_path": str(manifest_path),
             "signature_path": str(signature_path),
             "public_key_path": str(public_key_path),
