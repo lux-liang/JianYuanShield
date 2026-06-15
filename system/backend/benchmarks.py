@@ -258,7 +258,7 @@ def modules_payload() -> list[dict[str, Any]]:
         {
             "name": "内容保护",
             "function": "使用主动水印/主动取证模型生成可验证保护信号。",
-            "model_status": "LIDMark landmark定位成功率99.93%（ID比特精度：评测进行中）；KAD-Net clean/jpeg/noise/resize≈100%（512图，温和攻击，几何partial）；WaveGuard JPEG detector Q=50 89%/tracer Q=50 52%（溯源待改进）/Q=70 99.7%；SepMark decoder_RF 91.2%（13,233图）",
+            "model_status": "LIDMark landmark定位成功率99.93%（ID比特精度：评测进行中）；KAD-Net 13,233图 JPEG/resize/noise≥99%，几何攻击失败（crop 68.9%/rotate 43.7%）；WaveGuard 13,233图 clean/Q=70/noise/resize≈100%，Q=50 bit-acc 89%/成功率37%（已知弱点）；SepMark≈88% bit-acc（13,233图）",
             "result": "real" if hidden else "pending",
             "sample": asset_if_exists("real_hidden_benchmark/grid.png"),
             "metrics": "BER, bit accuracy, PSNR, SSIM",
@@ -285,7 +285,7 @@ def modules_payload() -> list[dict[str, Any]]:
         {
             "name": "取证恢复",
             "function": "从攻击后图像恢复消息/身份信号并输出取证指标。",
-            "model_status": "SepMark decoder_RF 91.2%（13,233图）；LIDMark landmark定位成功率99.93%（ID比特精度：评测进行中）；KAD-Net 512图温和攻击≈100%/几何partial（crop 68.9%/rotate 43.7%）；WaveGuard detector Q=50 89%/tracer Q=50 52%/Q=70 99.7%",
+            "model_status": "SepMark≈88% bit-acc（13,233图）；LIDMark landmark定位成功率99.93%（ID比特精度：评测进行中）；KAD-Net 13,233图 JPEG/resize/noise≥99%，几何失败（crop 68.9%/rotate 43.7%）；WaveGuard 13,233图 Q=50 bit-acc 89%/成功率37%/Q=70 99.7%",
             "result": "real",
             "sample": asset_if_exists("sepmark_lfw_benchmark/grid.png"),
             "metrics": "decoded bit accuracy, LIDMark ID BER, landmark AED",

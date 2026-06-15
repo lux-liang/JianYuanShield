@@ -494,7 +494,7 @@ function renderPayload(payload) {
   countField("sepmarkCount", sampleCount(sepmark.summary, sepmark.progress), { suffix: " images" });
   countField("lidmarkCount", sampleCount(lidmark.summary, lidmark.progress), { suffix: " images" });
   countField("waveguardCount", sampleCount(waveguard.summary, waveguard.progress), { suffix: " images" });
-  countField("kadnetCount", kadnet?.summary?.n_images ?? 512, { suffix: " images" });
+  countField("kadnetCount", kadnet?.summary?.n_images ?? kadnet?.summary?.num_images ?? 13233, { suffix: " images" });
   text("aggregatePath", aggregate.report_md_path || "pending");
 
   const sepClean = cleanAttack(sepmark);
@@ -518,13 +518,14 @@ function renderPayload(payload) {
   const wgDetector = wgFull.attacks?.jpeg?.mean_bit_accuracy_detector ?? wgFull.attacks?.jpeg?.mean_bit_accuracy;
   const wgTracer  = wgFull.attacks?.jpeg?.mean_bit_accuracy_tracer;
   const wgStr = wgDetector != null
-    ? `WaveGuard Q=50 detector ${(Number(wgDetector)*100).toFixed(0)}% / tracer ${wgTracer != null ? (Number(wgTracer)*100).toFixed(0)+"%" : "评测进行中"}`
-    : "WaveGuard JPEG Q=50 detector 89% / tracer 52%（约随机，微调进行中）";
+    ? `WaveGuard Q=50 bit-acc ${(Number(wgDetector)*100).toFixed(0)}% / 成功率${wgTracer != null ? (Number(wgTracer)*100).toFixed(0)+"%" : "评测进行中"}`
+    : "WaveGuard Q=50 bit-acc 89%、成功率仅 37%（已知弱点；clean/Q=70/noise/resize≈100%）";
   text("contrastConclusion", `${wgStr}；HiDDeN JPEG 0%（局限案例，仅作对照）`);
 
   text("boundaryConclusion",
     `LIDMark landmark 定位成功率 99.93%，ID 比特精度评测进行中；` +
-    `WaveGuard JPEG Q=50 tracer 微调进行中（已知 tracer≈52%）；KAD-Net 几何攻击 partial（crop 68.9% / rotate 43.7%）`);
+    `WaveGuard（n=13,233）除 Q=50 外≈100%，Q=50 bit-acc 89%、成功率仅 37%（已知弱点，仍需加强）；` +
+    `KAD-Net（n=13,233）JPEG/resize/noise≥99%，几何攻击失败：crop 68.9% / rotate 43.7%`);
 
   updateReadiness(payload);
   renderMeaMatrix(meaMatrix);
@@ -703,7 +704,7 @@ async function load() {
 const VIEW_META = {
   overview: { title: "概览", sub: "防御结论 · 模块状态 · 证据就绪度" },
   forensics: { title: "互动取证", sub: "真实 checkpoint 推理 · 上传取证 · 合规检测" },
-  benchmark: { title: "Benchmark", sub: "LFW 评测（SepMark 13,233 · 其余 512）· 方法对比 · 退化曲线" },
+  benchmark: { title: "Benchmark", sub: "LFW 全量评测（KAD-Net / WaveGuard / SepMark / HiDDeN 均 13,233）· 方法对比 · 退化曲线" },
   audit: { title: "证据审计", sub: "协议审计 · Ed25519 签名 · 原始证据 JSON" },
 };
 

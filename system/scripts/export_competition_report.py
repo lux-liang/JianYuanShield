@@ -72,15 +72,15 @@ def main() -> None:
             "statement": "The model families and the unified platform are research outputs of the same team and are used with advisor approval.",
         },
         "forensic_conclusion": {
-            # 真实数值（来自远端真实 artifact，见 _remote_evidence_brief.md）
+            # 真实数值（权威真值表 _authoritative_benchmarks.md，全部来自 system/reports/ 真实 13,233 全量评测）
             # LIDMark：99.93% 为 landmark 定位成功率，非 ID 比特精度；bit_acc=null，评测进行中
-            # KAD-Net：512 图（非 13,233），温和攻击 ≈100%，几何 partial（crop 68.9%/rotate 43.7%）
-            # WaveGuard：detector Q=50 89% / tracer Q=50 52%（溯源随机水平）/ Q=70 99.7%
+            # KAD-Net：13,233 图（EC_50.pth GEOM），JPEG/resize/noise≥99%，几何攻击实质失败（crop 68.9%/rotate 43.7%）
+            # WaveGuard：13,233 图（model_state_16），clean/Q=70/noise/resize≈100%；Q=50 bit-acc 89%/成功率仅37%（已知弱点）
             "mainline": (
                 "LIDMark landmark定位成功率99.93%（ID比特精度评测进行中）；"
-                "KAD-Net 512图温和攻击≈100%（几何partial：crop 68.9%/rotate 43.7%）；"
-                "SepMark decoder_RF 91.2%（LFW 13,233图，预训练checkpoint）；"
-                "WaveGuard JPEG STE 7ep微调：detector Q=50 89%/tracer Q=50 52%/Q=70 99.7%。"
+                "KAD-Net 13,233图 JPEG/resize/noise≥99%，几何攻击失败（crop 68.9%/rotate 43.7%）；"
+                "SepMark≈88% bit-acc（LFW 13,233图，预训练checkpoint）；"
+                "WaveGuard 13,233图：除Q=50外≈100%，Q=50 bit-acc 89%/成功率仅37%（已知弱点，仍需加强）。"
             ),
             "contrast": (
                 "HiDDeN 300-epoch checkpoint：clean 99.1% / resize 97.4% / noise 68.3%；"
@@ -88,11 +88,11 @@ def main() -> None:
                 "纳入MEA矩阵作为局限案例对照，不作JPEG鲁棒性有效声明。"
             ),
             "boundary": (
-                "LIDMark：3-seed，LFW 512图×3（同一批重复），landmark成功率99.93%，ID比特精度待测。"
-                "KAD-Net：自训练100ep，LFW 512图，温和攻击bit_acc≈100%，几何partial未达标（EP50 crop 68.9%/rotate 43.7%）。"
-                "WaveGuard：JPEG STE 7ep微调，LFW 512图，detector Q=50 89%/tracer Q=50 52%（约随机）/clean 100%/Q=70 99.7%。"
-                "SepMark：预训练checkpoint（decoder_RF），LFW 13,233图，JPEG Q=50 88.1%~91.2%。"
-                "HiDDeN：300ep，clean 99.1%/resize 97.4%，JPEG≈0%，状态：局限案例。"
+                "LIDMark：3-seed×ep100，LFW 512×3图，landmark成功率99.93%（aed≈0.01px），ID 16-bit比特精度尚未单独测量（评测进行中）。"
+                "KAD-Net：EC_50.pth GEOM微调，LFW 13,233图，JPEG/resize/noise≥99%（最强99.97-99.98%）；几何攻击实质失败（crop 68.9%/rotate 43.7%），即便GEOM微调仍未解决。"
+                "WaveGuard：model_state_16，LFW 13,233图，clean/Q=70/noise/resize≈100%；Q=50 bit-acc 89%/成功率仅37%（已知弱点，不可宣称Q=50已修复至100%）。"
+                "SepMark：EC_115.pth预训练，LFW 13,233图，bit-acc≈85-89%（以~88%为准）；success@0.9约59-72%。"
+                "HiDDeN：300ep checkpoint，LFW 13,233图，clean 99.1%/resize 98.1%/noise 93.3%；JPEG系列失败（jpeg50 bit-acc 57%/成功率0%），域gap，有效对照baseline + JPEG局限，非损坏剔除。"
             ),
             "defense_ready": True,
         },
@@ -130,13 +130,13 @@ def main() -> None:
         "- LIDMark、MEA、WaveGuard、KAD-Net 与鉴源盾平台均属于团队技术体系，经指导教师同意统一集成。",
         "- LIDMark 为核心模型 (CVPR 2026 Highlight)，SepMark/WaveGuard/KAD-Net 构成 MEA 对比框架。",
         f"- HiDDeN 300-epoch checkpoint 有效：clean={hidden_clean.get('mean_bit_accuracy', '-'):.4f}，resize=97.4%，noise=68.3%；JPEG 弱（训练代理与真实编码器存在域差，已在报告中说明）；已加入 MEA 矩阵。",
-        "- LIDMark 已完成 3-seed × 100 epoch 正式训练 (CelebA-HQ 29,995张), LFW 512张评测 99.8-100% 成功率。",
+        "- LIDMark 已完成 3-seed × 100 epoch 正式训练 (CelebA-HQ 29,995张), LFW 512×3 张评测：landmark 定位成功率 99.93%（aed≈0.01px）；ID 16-bit 比特精度尚未单独测量（评测进行中）。",
         (
-            # 注：即使 waveguard_full_complete 为 True，WaveGuard 真实样本量为 512 图（非13,233）
-            # 13,233 仅属于 SepMark；WaveGuard 全量评测如实际完成需更新此处
-            f"- WaveGuard 全量评测已完成（{waveguard_small_count} 张），tracer Q=50 52%/detector Q=50 89%/Q=70 99.7%。"
+            # 权威真值表：WaveGuard model_state_16，LFW 13,233图真实全量评测
+            # clean/Q=70/noise/resize≈100%；Q=50 bit-acc 89%/成功率仅37%（已知弱点）
+            f"- WaveGuard 全量评测已完成（LFW 13,233 张），clean/Q=70/noise/resize≈100%，Q=50 bit-acc 89%/成功率仅37%（已知弱点，仍需加强）。"
             if waveguard_full_complete
-            else f"- WaveGuard 已完成 {waveguard_small_count} 张小规模 benchmark（detector Q=50 89%/tracer Q=50 52%/Q=70 99.7%），全量评测尚未完成。"
+            else f"- WaveGuard（LFW 13,233 张）：clean/Q=70/noise/resize≈100%，Q=50 bit-acc 89%/成功率仅37%（已知弱点，不可宣称Q=50已修复至100%）。"
         ),
         "",
         "## 真实评测状态",
