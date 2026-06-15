@@ -1,3 +1,15 @@
+"""
+MEA 多水印矩阵——计划/预检入口（不算分）。
+
+⚠️  本脚本仅输出矩阵执行计划（adapter 状态、checkpoint 可用性、blocked cell 统计），
+    不执行真实的双嵌水印评测，**不产生任何评分数字**。
+
+正式评分入口（算分）：
+    scripts/run_mea_matrix_4x4.py
+
+本脚本适合在正式运行前确认环境（checkpoint 是否就位、adapter 是否 ready）；
+如与 run_mea_matrix_4x4.py 有功能重复，以后者为准。
+"""
 from __future__ import annotations
 
 import json
