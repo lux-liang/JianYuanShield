@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import threading
 from contextlib import asynccontextmanager
 
@@ -53,16 +54,36 @@ async def lifespan(app: FastAPI):  # noqa: ARG001
     yield
 
 
+# 安全：CORS 显式 origin 白名单（从 env 读，默认 localhost），
+# 避免 allow_origins=["*"] + allow_credentials=True 的违规组合。
+_DEFAULT_CORS_ORIGINS = [
+    "http://localhost",
+    "http://localhost:5173",
+    "http://localhost:8000",
+    "http://127.0.0.1",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:8000",
+]
+
+
+def _cors_origins() -> list[str]:
+    raw = os.getenv("JYS_CORS_ORIGINS")
+    if not raw:
+        return _DEFAULT_CORS_ORIGINS
+    origins = [o.strip() for o in raw.split(",") if o.strip()]
+    return origins or _DEFAULT_CORS_ORIGINS
+
+
 def create_app() -> FastAPI:
     ensure_runtime_dirs()
     logger.info("starting backend app assets_dir=%s", ASSETS)
     app = FastAPI(title="VPSG Deepfake Active Forensics Competition System", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=_cors_origins(),
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization"],
     )
     app.mount("/artifacts", StaticFiles(directory=str(ASSETS)), name="artifacts")
     app.include_router(router)

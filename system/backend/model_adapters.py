@@ -185,7 +185,8 @@ class SepMarkAdapter:
         enc = DW_Encoder(self.MSG_LEN, attention="se").to(self.device)
         dec_c = DW_Decoder(self.MSG_LEN, attention="se").to(self.device)
         dec_rf = DW_Decoder(self.MSG_LEN, attention="se").to(self.device)
-        state = torch.load(SEPMARK_CKPT, map_location=self.device)
+        # 安全：权重为纯 state_dict（仅张量），强制 weights_only=True 关闭 pickle 反序列化面（防 RCE）
+        state = torch.load(SEPMARK_CKPT, map_location=self.device, weights_only=True)
 
         def strip(prefix: str) -> dict:
             return {k[len(prefix):]: v for k, v in state.items() if k.startswith(prefix)}
@@ -290,7 +291,8 @@ class WaveGuardAdapter:
         enc = Encoder().to(self.device).eval()
         dec_t = Decoder(type="tracer").to(self.device).eval()
         dec_d = Decoder(type="detector").to(self.device).eval()
-        state = torch.load(WAVEGUARD_CKPT, map_location=self.device)
+        # 安全：权重为纯 state_dict（仅张量），强制 weights_only=True 关闭 pickle 反序列化面（防 RCE）
+        state = torch.load(WAVEGUARD_CKPT, map_location=self.device, weights_only=True)
 
         def strip(prefix: str) -> dict:
             return {k[len(prefix):]: v for k, v in state.items() if k.startswith(prefix)}
@@ -410,7 +412,10 @@ class LIDMarkAdapter:
             cfg.decoder_channels, cfg.decoder_blocks, cfg.watermark_length,
             self.device, ["Identity()"],
         ).to(self.device)
-        state = torch.load(str(ckpt_path), map_location=self.device, weights_only=False)
+        # 安全：checkpoint 仅含 model_state_dict(张量) 与 configs(list/dict 等原始类型)，
+        # 均在 weights_only=True 的安全白名单内；改 True 关闭任意 pickle 反序列化（防 RCE）。
+        # TODO(阶段二)：若某 epoch checkpoint 因含自定义对象加载失败，应改为离线导出纯权重后再加载，而非退回 False。
+        state = torch.load(str(ckpt_path), map_location=self.device, weights_only=True)
         self.model.load_state_dict(state["model_state_dict"], strict=False)
         self.model.eval()
         self.wm_length = cfg.watermark_length  # 152
@@ -529,7 +534,8 @@ class KADNetAdapter:
         from network.ST_EncoderDecoder import ST_Encoder, ST_Decoder
         encoder = ST_Encoder(self.MSG_LEN, attention=attn_enc).to(self.device)
         decoder = ST_Decoder(self.MSG_LEN, attention=attn_dec).to(self.device)
-        state = torch.load(str(ckpt_path), map_location=self.device, weights_only=False)
+        # 安全：权重为纯 state_dict（仅张量），强制 weights_only=True 关闭 pickle 反序列化面（防 RCE）
+        state = torch.load(str(ckpt_path), map_location=self.device, weights_only=True)
         enc_s = {k[len("encoder."):]: v for k, v in state.items() if k.startswith("encoder.")}
         dec_s = {k[len("decoder_C."):]: v for k, v in state.items() if k.startswith("decoder_C.")}
         encoder.load_state_dict(enc_s, strict=True)

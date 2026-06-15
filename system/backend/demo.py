@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import time
 import uuid
 from pathlib import Path
@@ -18,8 +19,18 @@ from .evidence import sha256_file
 from .model_adapters import LIDMarkAdapter
 
 
+# 安全：sample_id 白名单，防路径穿越（仅字母数字、下划线、连字符，长度 1-64）
+_SAFE_SAMPLE_ID_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+
+
 def sample_path(sample_id: str) -> Path:
-    return DATASETS / f"{sample_id}.png"
+    if not sample_id or not _SAFE_SAMPLE_ID_RE.match(sample_id):
+        raise ValueError(f"非法的 sample_id：{sample_id!r}")
+    path = (DATASETS / f"{sample_id}.png").resolve()
+    # 双重保险：拼接解析后必须仍在样本目录内
+    if not path.is_relative_to(DATASETS.resolve()):
+        raise ValueError(f"非法的 sample_id：{sample_id!r}")
+    return path
 
 
 def ensure_sample(sample_id: str = "sample_face_001") -> Path:

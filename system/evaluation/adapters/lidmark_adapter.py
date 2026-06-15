@@ -54,7 +54,10 @@ class LIDMarkAdapter(ModelAdapter):
         from model.lidmark import LIDMarkEncoder, FHD
 
         ckpt_path = _latest_ckpt(S1_CKPT_DIR)
-        ckpt = torch.load(str(ckpt_path), map_location="cpu", weights_only=False)
+        # 安全：checkpoint 仅含 model_state_dict(张量) 与 configs(list/dict 等原始类型)，
+        # 均在 weights_only=True 的安全白名单内；改 True 关闭任意 pickle 反序列化（防 RCE）。
+        # TODO(阶段二)：若某 checkpoint 因含自定义对象加载失败，应离线导出纯权重后再加载，而非退回 False。
+        ckpt = torch.load(str(ckpt_path), map_location="cpu", weights_only=True)
         cfg_list = ckpt.get("configs", [])
         cfg = dict(cfg_list) if isinstance(cfg_list, list) else cfg_list
 

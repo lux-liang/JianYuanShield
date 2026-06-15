@@ -72,7 +72,8 @@ class KADNetAdapter(ModelAdapter):
         _dev_str = _os.environ.get("JYS_INFER_DEVICE", "cuda:2")
         self._device = torch.device(_dev_str if torch.cuda.is_available() else "cpu")
 
-        state = torch.load(str(ckpt_path), map_location=self._device, weights_only=False)
+        # 安全：权重为纯 state_dict（仅张量），强制 weights_only=True 关闭 pickle 反序列化面（防 RCE）
+        state = torch.load(str(ckpt_path), map_location=self._device, weights_only=True)
         enc_state = {k[len("encoder."):]: v for k, v in state.items() if k.startswith("encoder.")}
         dec_state = {k[len("decoder_C."):]: v for k, v in state.items() if k.startswith("decoder_C.")}
 

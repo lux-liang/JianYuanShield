@@ -84,7 +84,11 @@ class HiDDeNAdapter(ModelAdapter):
         device = torch.device(device_str if torch.cuda.is_available() else "cpu")
         train_options, hidden_config, noise_config = utils.load_options(str(_ACTIVE_OPTIONS))
         noiser = Noiser(noise_config, device)
-        checkpoint = torch.load(str(_ACTIVE_CKPT), map_location=device)
+        # 安全：HiDDeN checkpoint 为 dict（enc-dec/discriminator 的 state_dict + optimizer 状态 + epoch），
+        # 均为张量/原始类型，落在 weights_only=True 安全白名单内；改 True 关闭任意 pickle 反序列化（防 RCE）。
+        # 注意：HiDDeN 模型族在本项目仅作失败/局限案例，加载失败时由调用方按 blocker 处理；
+        # TODO(阶段二)：若该 checkpoint 实测含自定义对象需 weights_only=False，应离线重导出纯权重，不要静默退回 False。
+        checkpoint = torch.load(str(_ACTIVE_CKPT), map_location=device, weights_only=True)
         net = Hidden(hidden_config, device, noiser, None)
         utils.model_from_checkpoint(net, checkpoint)
         net.encoder_decoder.eval()
