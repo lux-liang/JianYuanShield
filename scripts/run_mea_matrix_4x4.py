@@ -11,6 +11,7 @@ Usage:
     JYS_LFW_DIR          LFW 图像目录，默认 /data1/luxliang/.../lfw_full_upload/unknown
     JYS_MODEL_SOURCE_ROOT 模型/运行根目录，默认 /data1/luxliang/.../vpsg_competition_candidates
 """
+from __future__ import annotations  # py3.8 兼容：list[...] 等 PEP585 注解延迟求值
 import argparse, json, os, sys, time
 import numpy as np
 from pathlib import Path
