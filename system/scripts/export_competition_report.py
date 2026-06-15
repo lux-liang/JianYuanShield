@@ -39,7 +39,9 @@ def main() -> None:
     attack_smoke = read(ROOT / "system/reports/attack_library_smoke/report.json")
     lidmark_training = read(ROOT / "system/reports/lidmark_training/readiness.json")
     kadnet_integration = read(ROOT / "system/reports/kadnet_integration/audit.json")
-    kadnet_lfw = read(Path("/data1/luxliang/work/vpsg_competition_candidates/runs/kadnet_lfw_eval_full/summary.json"))
+    # 路径从 ROOT 派生，支持 JYS_MODEL_SOURCE_ROOT 环境变量覆盖（避免硬编码 /data1）
+    _model_source_root = Path(os.getenv("JYS_MODEL_SOURCE_ROOT", ROOT / "runs"))
+    kadnet_lfw = read(_model_source_root / "kadnet_lfw_eval_full/summary.json")
     multi_embedding = read(ROOT / "system/reports/multi_embedding_matrix/plan.json")
     evidence_audit = evidence_audit_payload()
     evidence_gate = {
@@ -70,9 +72,28 @@ def main() -> None:
             "statement": "The model families and the unified platform are research outputs of the same team and are used with advisor approval.",
         },
         "forensic_conclusion": {
-            "mainline": "LIDMark 3-seed 99.97% (CI 99.94-100%) and KAD-Net ≥99.5% across all attacks (LFW 13,233) are the strongest real-checkpoint baselines. SepMark decoder_RF 91.2% is solid; WaveGuard JPEG STE fine-tuned to 100% at Q=50.",
-            "contrast": "HiDDeN 300-epoch CelebA+noise checkpoint: clean 99.1% / resize 97.4% / noise 68.3%; JPEG weak (domain gap from differentiable-proxy training). Included in MEA matrix, excluded from JPEG-robustness claims.",
-            "boundary": "LIDMark: 3-seed real checkpoint, LFW 1,536 imgs, 99.97%. KAD-Net: self-trained 100ep, LFW 13,233 imgs, jpeg50=99.5%/clean=99.96%/all attacks ≥99.5%. WaveGuard: JPEG STE 7ep fine-tuned, LFW 512 imgs, Q50/Q70 100%. SepMark: decoder_RF 91.2%, LFW 13,233 imgs. HiDDeN: 300ep, LFW 13,233 imgs, clean/resize ≥97%.",
+            # 真实数值（来自远端真实 artifact，见 _remote_evidence_brief.md）
+            # LIDMark：99.93% 为 landmark 定位成功率，非 ID 比特精度；bit_acc=null，评测进行中
+            # KAD-Net：512 图（非 13,233），温和攻击 ≈100%，几何 partial（crop 68.9%/rotate 43.7%）
+            # WaveGuard：detector Q=50 89% / tracer Q=50 52%（溯源随机水平）/ Q=70 99.7%
+            "mainline": (
+                "LIDMark landmark定位成功率99.93%（ID比特精度评测进行中）；"
+                "KAD-Net 512图温和攻击≈100%（几何partial：crop 68.9%/rotate 43.7%）；"
+                "SepMark decoder_RF 91.2%（LFW 13,233图，预训练checkpoint）；"
+                "WaveGuard JPEG STE 7ep微调：detector Q=50 89%/tracer Q=50 52%/Q=70 99.7%。"
+            ),
+            "contrast": (
+                "HiDDeN 300-epoch checkpoint：clean 99.1% / resize 97.4% / noise 68.3%；"
+                "JPEG success≈0%（训练代理与真实编码器域差）。"
+                "纳入MEA矩阵作为局限案例对照，不作JPEG鲁棒性有效声明。"
+            ),
+            "boundary": (
+                "LIDMark：3-seed，LFW 512图×3（同一批重复），landmark成功率99.93%，ID比特精度待测。"
+                "KAD-Net：自训练100ep，LFW 512图，温和攻击bit_acc≈100%，几何partial未达标（EP50 crop 68.9%/rotate 43.7%）。"
+                "WaveGuard：JPEG STE 7ep微调，LFW 512图，detector Q=50 89%/tracer Q=50 52%（约随机）/clean 100%/Q=70 99.7%。"
+                "SepMark：预训练checkpoint（decoder_RF），LFW 13,233图，JPEG Q=50 88.1%~91.2%。"
+                "HiDDeN：300ep，clean 99.1%/resize 97.4%，JPEG≈0%，状态：局限案例。"
+            ),
             "defense_ready": True,
         },
         "review_items": [
@@ -111,9 +132,11 @@ def main() -> None:
         f"- HiDDeN 300-epoch checkpoint 有效：clean={hidden_clean.get('mean_bit_accuracy', '-'):.4f}，resize=97.4%，noise=68.3%；JPEG 弱（训练代理与真实编码器存在域差，已在报告中说明）；已加入 MEA 矩阵。",
         "- LIDMark 已完成 3-seed × 100 epoch 正式训练 (CelebA-HQ 29,995张), LFW 512张评测 99.8-100% 成功率。",
         (
-            "- WaveGuard 已完成 13,233 张 LFW 全量真实 checkpoint benchmark。"
+            # 注：即使 waveguard_full_complete 为 True，WaveGuard 真实样本量为 512 图（非13,233）
+            # 13,233 仅属于 SepMark；WaveGuard 全量评测如实际完成需更新此处
+            f"- WaveGuard 全量评测已完成（{waveguard_small_count} 张），tracer Q=50 52%/detector Q=50 89%/Q=70 99.7%。"
             if waveguard_full_complete
-            else f"- WaveGuard 已完成 {waveguard_small_count} 张小规模 benchmark，全量评测尚未完成。"
+            else f"- WaveGuard 已完成 {waveguard_small_count} 张小规模 benchmark（detector Q=50 89%/tracer Q=50 52%/Q=70 99.7%），全量评测尚未完成。"
         ),
         "",
         "## 真实评测状态",

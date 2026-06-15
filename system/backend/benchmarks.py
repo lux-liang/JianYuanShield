@@ -258,7 +258,7 @@ def modules_payload() -> list[dict[str, Any]]:
         {
             "name": "内容保护",
             "function": "使用主动水印/主动取证模型生成可验证保护信号。",
-            "model_status": "LIDMark 3-seed 99.97%, KAD-Net 100%, WaveGuard JPEG STE 100%, SepMark 91.2% — all real checkpoints",
+            "model_status": "LIDMark landmark定位成功率99.93%（ID比特精度：评测进行中）；KAD-Net clean/jpeg/noise/resize≈100%（512图，温和攻击，几何partial）；WaveGuard JPEG detector Q=50 89%/tracer Q=50 52%（溯源待改进）/Q=70 99.7%；SepMark decoder_RF 91.2%（13,233图）",
             "result": "real" if hidden else "pending",
             "sample": asset_if_exists("real_hidden_benchmark/grid.png"),
             "metrics": "BER, bit accuracy, PSNR, SSIM",
@@ -276,7 +276,7 @@ def modules_payload() -> list[dict[str, Any]]:
         {
             "name": "MEA 多重嵌入攻击",
             "function": "评测多种主动水印 baseline 在攻击下的鲁棒性。",
-            "model_status": "4×4 MEA matrix complete (128/cell): KAD-Net, SepMark, WaveGuard, LIDMark — all real checkpoints",
+            "model_status": "5×5 MEA矩阵已完成（128图/格）：KAD-Net/SepMark/WaveGuard/LIDMark/HiDDeN；诚实红队诊断——对角线多数为FAIL/MARGINAL，揭示多水印共存下后嵌入破坏先嵌入溯源的现象",
             "result": "real" if sepmark or hidden else "pending",
             "sample": asset_if_exists("sepmark_lfw_benchmark/grid.png") or asset_if_exists("aggregate_real_benchmarks/hidden_attack_degradation.png"),
             "metrics": "method comparison by attack type",
@@ -285,7 +285,7 @@ def modules_payload() -> list[dict[str, Any]]:
         {
             "name": "取证恢复",
             "function": "从攻击后图像恢复消息/身份信号并输出取证指标。",
-            "model_status": "SepMark decoder_RF 91.2%, LIDMark 3-seed 99.97%, KAD-Net 100%, WaveGuard 100%",
+            "model_status": "SepMark decoder_RF 91.2%（13,233图）；LIDMark landmark定位成功率99.93%（ID比特精度：评测进行中）；KAD-Net 512图温和攻击≈100%/几何partial（crop 68.9%/rotate 43.7%）；WaveGuard detector Q=50 89%/tracer Q=50 52%/Q=70 99.7%",
             "result": "real",
             "sample": asset_if_exists("sepmark_lfw_benchmark/grid.png"),
             "metrics": "decoded bit accuracy, LIDMark ID BER, landmark AED",
