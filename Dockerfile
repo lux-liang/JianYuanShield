@@ -1,4 +1,4 @@
-FROM pytorch/pytorch:2.1.2-cuda12.1-cudnn8-runtime
+FROM pytorch/pytorch:2.4.1-cuda12.1-cudnn9-runtime
 
 WORKDIR /app
 
@@ -7,12 +7,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1-mesa-glx libglib2.0-0 libsm6 libxext6 libxrender-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Python dependencies
+# Python dependencies（所有版本由 requirements.txt 钉死，确保可复现）
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt \
     && pip install --no-cache-dir \
-       thop PyWavelets pytorch_wavelets einops kornia lpips easydict \
-       face_alignment scikit-learn scipy
+       PyWavelets kornia lpips easydict
 
 # Copy project source (weights are mounted at runtime, not baked in)
 COPY system/ ./system/
@@ -35,6 +34,9 @@ EXPOSE 8026 8027
 
 ENV PYTHONPATH=/app
 ENV JYS_DATA_ROOT=/app/data
+# JYS_MODEL_SOURCE_ROOT 指向外部权重/代码挂载点（docker-compose.yml 通过 volume 提供）
+# 默认值 /app/model_source 可被 docker-compose.yml 中的环境变量覆盖
+ENV JYS_MODEL_SOURCE_ROOT=/app/model_source
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \

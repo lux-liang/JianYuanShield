@@ -1,10 +1,21 @@
-fastapi>=0.136
-uvicorn>=0.49
-opencv-python>=4.13
-numpy>=2.4
-pillow>=12.1
-scikit-image>=0.26
-matplotlib>=3.10
-torch>=2.12
-torchvision>=0.27
-cryptography>=46
+# 鉴源盾推理运行时依赖
+# 所有版本均已钉死（==），确保可复现；与 Dockerfile 中的 pytorch/pytorch:2.4.1 基础镜像对齐。
+# 注意：einops / pytorch_wavelets / face_alignment / thop 等推理辅助包在 Dockerfile
+# 中单独 pip install，此处列出以便本地裸环境也能一键安装。
+fastapi==0.115.12
+uvicorn==0.34.3
+opencv-python==4.11.0.86
+numpy==1.26.4
+pillow==10.4.0
+scikit-image==0.24.0
+matplotlib==3.9.4
+torch==2.4.1
+torchvision==0.19.1
+cryptography==43.0.3
+einops==0.8.1
+pytorch_wavelets==1.3.0
+face_alignment==1.4.1
+thop==0.1.1.post2209072238
+scikit-learn==1.5.2
+scipy==1.14.1
+slowapi==0.1.9
