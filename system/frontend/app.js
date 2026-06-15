@@ -938,6 +938,16 @@ document.getElementById("batchForm")?.addEventListener("submit", async (event) =
   }
 });
 
+/* ═══ PWA Service Worker 注册 ═══ */
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js").catch((err) => {
+      /* 注册失败不影响主流程（纯增强） */
+      console.warn("[JYS SW] register failed:", err);
+    });
+  });
+}
+
 document.getElementById("meaForm")?.addEventListener("submit", async (event) => {
   event.preventDefault();
   const btn = document.getElementById("meaBtn");
