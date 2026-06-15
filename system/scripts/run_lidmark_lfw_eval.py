@@ -1,4 +1,5 @@
 from __future__ import annotations
+import hashlib
 import os
 
 import argparse
@@ -21,6 +22,15 @@ if str(PROJECT_DIR) not in sys.path:
 
 from system.evaluation.run_metadata import build_run_metadata  # noqa: E402
 from system.evaluation.runtime import MODEL_SOURCE_ROOT, PROJECT_ROOT  # noqa: E402
+
+
+BASE_SEED = 20260603
+
+
+def _derived_seed(base_seed: int, image_id: str, attack_id: str) -> int:
+    """与 system/evaluation/attacks.py:derived_seed 完全对齐：每图独立 seed。"""
+    payload = f"{base_seed}:{image_id}:{attack_id}".encode("utf-8")
+    return int.from_bytes(hashlib.sha256(payload).digest()[:8], "big") % (2 ** 32)
 
 
 ROOT = PROJECT_ROOT
@@ -51,7 +61,8 @@ def uint8_to_tensor(arr: np.ndarray, device: torch.device) -> torch.Tensor:
     return (TF.to_tensor(arr).to(device) * 2 - 1).unsqueeze(0)
 
 
-def apply_attack(encoded: torch.Tensor, attack: str, device: torch.device) -> torch.Tensor:
+def apply_attack(encoded: torch.Tensor, attack: str, device: torch.device,
+                 image_id: str = "") -> torch.Tensor:
     if attack == "clean":
         return encoded
     arr = tensor_to_uint8(encoded)
@@ -65,7 +76,9 @@ def apply_attack(encoded: torch.Tensor, attack: str, device: torch.device) -> to
         arr = cv2.resize(arr, (w // 2, h // 2), interpolation=cv2.INTER_AREA)
         arr = cv2.resize(arr, (w, h), interpolation=cv2.INTER_LINEAR)
     elif attack == "noise":
-        rng = np.random.default_rng(20260603)
+        # P2-7：每图独立 seed，由 (BASE_SEED, image_id, "noise") 派生，与 attacks.py:derived_seed 对齐
+        seed = _derived_seed(BASE_SEED, image_id, "noise")
+        rng = np.random.default_rng(seed)
         arr = np.clip(arr.astype(np.float32) + rng.normal(0, 3.0, arr.shape), 0, 255).astype(np.uint8)
     else:
         raise ValueError(attack)
@@ -160,7 +173,7 @@ def main() -> None:
             gt_id = wm[:, 136:] > 0
             for attack in attacks:
                 try:
-                    attacked = apply_attack(encoded, attack, device)
+                    attacked = apply_attack(encoded, attack, device, image_id=str(idx))
                     pred_landmark, pred_id_logits = model.decoder(attacked)
                     _lm_raw = torch.sqrt(torch.sum((pred_landmark.view(-1, 68, 2) - gt_landmark.view(-1, 68, 2)) ** 2, dim=2))
                     _lm_raw = _lm_raw[torch.isfinite(_lm_raw)]

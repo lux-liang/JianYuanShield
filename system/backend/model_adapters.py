@@ -6,11 +6,14 @@ import threading
 from pathlib import Path
 from typing import Any
 
+import logging
 import cv2
 import numpy as np
 import torch
 from PIL import Image
 from torchvision import transforms
+
+_logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 MODEL_SOURCE_ROOT = Path(os.environ.get("JYS_MODEL_SOURCE_ROOT",
@@ -454,6 +457,7 @@ class LIDMarkAdapter:
                .permute(2, 0, 1).unsqueeze(0).to(self.device))
         # LIDMark: detect real face landmarks (68×2=136 dims), random 16-bit ID
         wm_np = np.zeros(self.wm_length, dtype=np.float32)
+        _landmark_fallback = False
         try:
             if not hasattr(self, "_fa"):
                 import face_alignment as _fa
@@ -463,8 +467,22 @@ class LIDMarkAdapter:
                 # Normalize to [0,1] by dividing by IMG_SIZE (matches training)
                 lm_norm = lms[0].flatten()[:136] / self.IMG_SIZE
                 wm_np[:136] = lm_norm.astype(np.float32)
-        except Exception:
-            pass  # fallback: zeros for landmark dims
+            else:
+                # P2-11：face_alignment 未检测到人脸，记录 warning，不静默返回零向量当真值
+                _landmark_fallback = True
+                _logger.warning(
+                    "LIDMark face_alignment: no landmarks detected for image shape=%s; "
+                    "landmark dims zeroed (landmark_fallback=True in metadata)",
+                    arr.shape,
+                )
+        except Exception as _exc:
+            # P2-11：face_alignment 异常改为 log warning，不静默吞掉
+            _landmark_fallback = True
+            _logger.warning(
+                "LIDMark face_alignment failed: %s; landmark dims zeroed "
+                "(landmark_fallback=True in metadata)",
+                _exc,
+            )
         # ID bits must be {-1.0, 1.0} — training .npy stores {-1,1}, not {0,1}
         rng = np.random.default_rng(42)
         wm_np[136:] = rng.choice(np.array([-1.0, 1.0], dtype=np.float32), size=self.wm_length - 136)
@@ -490,7 +508,7 @@ class LIDMarkAdapter:
         from skimage.metrics import peak_signal_noise_ratio, structural_similarity
         psnr = float(peak_signal_noise_ratio(original_u8, encoded_u8, data_range=255))
         ssim = float(structural_similarity(original_u8, encoded_u8, channel_axis=2, data_range=255))
-        return {
+        result: dict[str, Any] = {
             "model": "LIDMark",
             "checkpoint": "real",
             "attack": attack,
@@ -508,6 +526,10 @@ class LIDMarkAdapter:
                 "diff": _heatmap(encoded_u8, attacked_arr),
             },
         }
+        if _landmark_fallback:
+            # P2-11：明确标注 landmark 定位失败，不把零向量当真值静默返回
+            result["metadata"] = {"landmark_fallback": True}
+        return result
 
 
 

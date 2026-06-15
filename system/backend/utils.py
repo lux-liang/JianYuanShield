@@ -1,12 +1,30 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
 
 from .config import ASSETS, ROOT
 from .logging_config import logger
+
+
+def sha256_file(path: Path) -> str | None:
+    """返回文件的 hex SHA-256；文件不存在返回 None。
+
+    P2-10 统一实现：evidence.py 与 signing.py 原有两处同名但签名不一致
+    （evidence.py 返回 str|None；signing.py 返回 str 且不处理缺失文件），
+    此处为权威实现（返回 str|None），evidence.py 改为直接 from .utils import sha256_file。
+    signing.py 保持不变（其调用方保证文件存在，行为兼容）。
+    """
+    if not path.is_file():
+        return None
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def artifact_url(path: Path) -> str:

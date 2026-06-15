@@ -1,23 +1,12 @@
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
 from typing import Any
 
 from .artifacts import artifacts_status_payload
 from .config import REPORTS, ROOT
 from .signing import verify_evidence_bundle
-from .utils import load_json
-
-
-def sha256_file(path: Path) -> str | None:
-    if not path.is_file():
-        return None
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+from .utils import load_json, sha256_file  # P2-10：sha256_file 统一实现移至 utils.py
 
 
 def evidence_file(path: Path) -> dict[str, Any]:
