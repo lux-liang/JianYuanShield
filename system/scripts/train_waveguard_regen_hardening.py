@@ -35,8 +35,11 @@ def parse_args():
     p.add_argument("--base-ckpt", type=Path, default=PROJECT_DIR / "system/reports/waveguard_allatk_ste_ft/model_state_jpegste_ft.pth")
     p.add_argument("--ae1", type=Path, default=PROJECT_DIR / "system/reports/face_autoencoder/checkpoints/best.pt")
     p.add_argument("--ae2", type=Path, default=PROJECT_DIR / "system/reports/face_autoencoder_heldout/checkpoints/best.pt")
+    p.add_argument("--ae3", type=Path, default=PROJECT_DIR / "system/reports/face_autoencoder_heldout3/checkpoints/best.pt",
+                   help="held-out AE(训练不用,仅验收泛化)")
     p.add_argument("--ae1-latent", type=int, default=128)
     p.add_argument("--ae2-latent", type=int, default=192)
+    p.add_argument("--ae3-latent", type=int, default=160)
     p.add_argument("--celeba-root", type=Path, default=DEFAULT_CELEBA)
     p.add_argument("--lfw-root", type=Path, default=DEFAULT_LFW)
     p.add_argument("--epochs", type=int, default=6)
@@ -44,7 +47,7 @@ def parse_args():
     p.add_argument("--batch-size", type=int, default=16)
     p.add_argument("--bench-images", type=int, default=600)
     p.add_argument("--lr", type=float, default=1e-4)
-    p.add_argument("--fidelity-w", type=float, default=12.0)
+    p.add_argument("--fidelity-w", type=float, default=35.0, help="强保真度锚定防 PSNR 崩塌")
     p.add_argument("--device", default="cuda:4")
     p.add_argument("--seed", type=int, default=20260616)
     p.add_argument("--out", type=Path, default=PROJECT_DIR / "system/reports/waveguard_regen_hardened")
@@ -94,9 +97,13 @@ def main():
         ae.load_state_dict(sd, strict=True); ae.eval()
         for p_ in ae.parameters(): p_.requires_grad_(False)
         return ae
-    ae1 = load_ae(args.ae1, args.ae1_latent); print(f"[init] AE#1 {args.ae1.name}")
-    ae2 = load_ae(args.ae2, args.ae2_latent) if args.ae2.exists() else None
-    print(f"[init] AE#2(held-out) {'loaded ' + args.ae2.name if ae2 else 'NOT FOUND — held-out bench skipped'}")
+    # 训练用 AE 集成(ae1+ae2),提升对"再生成"这一攻击族的泛化;ae3 完全留作 held-out 验收
+    ae1 = load_ae(args.ae1, args.ae1_latent); print(f"[init] train-AE#1 {args.ae1.name}")
+    ae_train = [ae1]
+    if args.ae2.exists():
+        ae_train.append(load_ae(args.ae2, args.ae2_latent)); print(f"[init] train-AE#2 {args.ae2.name}")
+    ae_held = load_ae(args.ae3, args.ae3_latent) if args.ae3.exists() else None
+    print(f"[init] held-out AE#3 {'loaded ' + args.ae3.name if ae_held else 'NOT FOUND — held-out bench skipped'}")
 
     for m in (a.encoder, a.decoder_t, a.decoder_d):
         m.eval()  # 冻结 BN 统计(B=16 也用 eval 保稳)，权重可训练
@@ -157,7 +164,8 @@ def main():
             atks = [POOL[int(rng.integers(len(POOL)))] for _ in range(B)]
             deg_rgb = []
             regen_idx = [i for i, x in enumerate(atks) if x == "regen"]
-            regen_out = ae_regen_rgb([wm_rgb[i] for i in regen_idx], ae1) if regen_idx else []
+            ae_pick = ae_train[int(rng.integers(len(ae_train)))]  # 集成:每批随机选一个训练AE
+            regen_out = ae_regen_rgb([wm_rgb[i] for i in regen_idx], ae_pick) if regen_idx else []
             ri = 0
             for i in range(B):
                 if atks[i] == "regen": deg_rgb.append(regen_out[ri]); ri += 1
@@ -187,7 +195,9 @@ def main():
         base_state = ft  # no base; compare ft to itself (degenerate)
 
     def bench(state, label):
-        restore(state); res = {"clean": [], "jpeg50": [], "regen_ae1": [], "regen_ae2": []}; psnrs = []
+        restore(state); psnrs = []
+        keys = ["clean", "jpeg50", "regen_train_ae1"] + (["regen_heldout_ae3"] if ae_held is not None else [])
+        res = {k: [] for k in keys}
         rb = np.random.default_rng(args.seed + 7)
         for bs in range(0, len(bench_paths), B):
             chunk = bench_paths[bs:bs + B]; rgb_list = [to256(p) for p in chunk]
@@ -196,8 +206,8 @@ def main():
             wm_rgb = yuv2rgb(wm)
             for p_, r_ in zip(rgb_list, wm_rgb): psnrs.append(float(peak_signal_noise_ratio(p_, r_, data_range=255)))
             variants = {"clean": wm_rgb, "jpeg50": [sig_degrade(x, "jpeg", np.random.default_rng(0)) for x in wm_rgb],
-                        "regen_ae1": ae_regen_rgb(wm_rgb, ae1)}
-            if ae2 is not None: variants["regen_ae2"] = ae_regen_rgb(wm_rgb, ae2)
+                        "regen_train_ae1": ae_regen_rgb(wm_rgb, ae1)}
+            if ae_held is not None: variants["regen_heldout_ae3"] = ae_regen_rgb(wm_rgb, ae_held)
             for k, vrgb in variants.items():
                 with torch.no_grad():
                     yv = rgb2yuv(vrgb); _, hp = a.DTCWT.images_U_dtcwt_with_low(yv[:, [1]])
@@ -219,10 +229,12 @@ def main():
         for k, v in ft[sub].items(): full[f"{sub}.{k}"] = v.cpu()
     torch.save(full, args.out / "model_state_regen_hardened.pth")
     report = {"schema": "waveguard-regen-hardening.v1", "generated_at": int(time.time()), "project": "鉴源盾", "method": "WaveGuard",
-              "approach": "adversarial regeneration hardening: self-trained AE regeneration in STE training pool; encoder+decoders joint",
-              "guardrail": "训练只用 AE#1; 验收含 held-out AE#2(latent=192,不同架构)检验真泛化非记忆单一AE",
+              "approach": "adversarial regeneration hardening: AE集成(ae1+ae2)再生成入STE训练池; 强保真度锚定防PSNR崩塌; encoder+decoders joint",
+              "guardrail": "训练用 AE集成(ae1 latent128 + ae2 latent192); 验收 held-out AE#3(latent160,训练完全未见)检验真泛化非记忆;并报 PSNR 防画质崩塌",
               "train_images": len(train_paths), "epochs": args.epochs, "bench_images": len(bench_paths),
-              "ae1": str(args.ae1), "ae2_heldout": str(args.ae2) if ae2 else None, "device": str(dev), "seed": args.seed,
+              "fidelity_w": args.fidelity_w,
+              "ae_train": [str(args.ae1), str(args.ae2)], "ae_heldout": str(args.ae3) if ae_held else None,
+              "device": str(dev), "seed": args.seed,
               "base": b_base, "regen_hardened": b_ft}
     (args.out / "summary.json").write_text(json.dumps(report, indent=2, ensure_ascii=False))
     print(json.dumps({"base": b_base, "regen_hardened": b_ft}, indent=2, ensure_ascii=False))
