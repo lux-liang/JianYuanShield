@@ -110,6 +110,19 @@ def main():
             return np.clip(rgb_u8.astype(np.float32) + r.normal(0, 3.0, rgb_u8.shape), 0, 255).astype(np.uint8)
         if attack == "blur":
             return cv2.GaussianBlur(rgb_u8, (5, 5), 1.2)
+        if attack == "crop":  # crop_center_0.8 → resize back
+            h, w = rgb_u8.shape[:2]; ch, cw = int(h * 0.8), int(w * 0.8); y0, x0 = (h - ch) // 2, (w - cw) // 2
+            return cv2.resize(rgb_u8[y0:y0 + ch, x0:x0 + cw], (w, h), interpolation=cv2.INTER_LINEAR)
+        if attack == "rotate":  # rotate 5°
+            h, w = rgb_u8.shape[:2]; Mr = cv2.getRotationMatrix2D((w / 2, h / 2), 5.0, 1.0)
+            return cv2.warpAffine(rgb_u8, Mr, (w, h), flags=cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT_101)
+        if attack == "webp":  # held-out(不在训练池)
+            ok, buf = cv2.imencode(".webp", cv2.cvtColor(rgb_u8, cv2.COLOR_RGB2BGR), [cv2.IMWRITE_WEBP_QUALITY, 50])
+            return cv2.cvtColor(cv2.imdecode(buf, cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
+        if attack == "bright":  # held-out
+            return np.clip(rgb_u8.astype(np.float32) * 0.85, 0, 255).astype(np.uint8)
+        if attack == "contrast":  # held-out
+            return np.clip((rgb_u8.astype(np.float32) - 127.5) * 1.2 + 127.5, 0, 255).astype(np.uint8)
         return rgb_u8
 
     def ste_noise(wm_yuv, attacks, r):
@@ -132,8 +145,9 @@ def main():
     assert train_paths, f"no celeba under {args.celeba_root}"
     print(f"[data] train={len(train_paths)}")
     mse = torch.nn.MSELoss()
-    ATK_POOL = (["clean"] * 5 + ["jpeg35", "jpeg40", "jpeg45", "jpeg50", "jpeg55", "jpeg60"] * 2
-                + ["resize"] * 2 + ["noise"] * 2 + ["blur"])
+    # 训练池: clean/jpeg/resize/noise/blur + 几何(crop/rotate)。webp/bright/contrast 故意留作 held-out 泛化检验。
+    ATK_POOL = (["clean"] * 4 + ["jpeg35", "jpeg40", "jpeg45", "jpeg50", "jpeg55", "jpeg60"] * 2
+                + ["resize"] * 2 + ["noise"] * 2 + ["blur"] + ["crop"] * 3 + ["rotate"] * 3)
 
     # train-mode BN (真实 batch → 稳定统计量), 全部权重可训练
     for m in (a.encoder, a.decoder_t, a.decoder_d):
@@ -168,7 +182,9 @@ def main():
     from skimage.metrics import peak_signal_noise_ratio, structural_similarity
     bench_paths = sorted(p for p in args.lfw_root.rglob("*")
                          if p.suffix.lower() in {".jpg", ".jpeg", ".png"})[:args.bench_images]
-    attacks_b = ["clean", "jpeg50", "jpeg70", "jpeg90", "resize", "noise"]
+    # 评测含训练过的(jpeg/crop/rotate)与 held-out 未训练的(webp/bright/contrast)以检验泛化
+    attacks_b = ["clean", "jpeg50", "jpeg70", "jpeg90", "resize", "noise", "crop", "rotate",
+                 "webp", "bright", "contrast"]
 
     def load(state):
         for n in ("encoder", "decoder_t", "decoder_d"):
