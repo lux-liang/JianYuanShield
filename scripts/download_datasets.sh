@@ -12,7 +12,7 @@
 #   依赖: pip install kaggle gdown "huggingface_hub[cli]" insightface onnxruntime
 #         (下载机用 CPU 版 onnxruntime 即可;box 端跑推理时再装 onnxruntime-gpu)
 #   Kaggle: 在 kaggle.com/settings 生成 API token → ~/.kaggle/kaggle.json (chmod 600)
-#   HF:     huggingface-cli login (DF40/部分镜像需要)
+#   HF:     hf auth login (DF40/部分镜像需要)
 set -euo pipefail
 PYBIN="$(command -v python3 || command -v python || true)"
 [ -z "$PYBIN" ] && { echo "需要 python3(建议先 source venv)"; exit 1; }
@@ -35,7 +35,7 @@ dl_ffhq() {    # 可选：高清/多族群干净人脸源(无审批)
   echo "== FFHQ 128px 缩略图 (~1.95GB) =="
   git clone https://github.com/NVlabs/ffhq-dataset "$OUT/ffhq-repo" 2>/dev/null || true
   ( cd "$OUT/ffhq-repo" && "$PYBIN" download_ffhq.py --thumbs ) || \
-  huggingface-cli download --repo-type dataset marcosv/ffhq-dataset --local-dir "$OUT/ffhq"
+  hf download --repo-type dataset marcosv/ffhq-dataset --local-dir "$OUT/ffhq"
 }
 
 dl_celebdf() { # 必须：Kaggle 非官方镜像(只需 Kaggle 账号,绕过官方表单) ~14GB
