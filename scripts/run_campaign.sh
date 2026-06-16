@@ -28,7 +28,7 @@ echo "[$(date +%H:%M:%S)] CAMPAIGN START" >> "$LOG/_campaign.log"
 # ── GPU3: 自训练AE(40ep) → 再生成攻击闭环×5 模型 ─────────────────────────────
 ( run 3 ae_train python system/scripts/train_face_autoencoder.py --epochs 40 --batch-size 64 --out system/reports/face_autoencoder
   for m in kadnet waveguard hidden sepmark lidmark; do
-    run 3 regen_$m python $RG --model $m --ae-checkpoint "$AE" --image-root $DS/Real --num-images 1000
+    run 3 regen_$m python $RG --model $m --ae-checkpoint "$AE" --image-root $DS/Real --num-images 1000 --out system/reports/regeneration_attack/$m
   done
 ) &
 
