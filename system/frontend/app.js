@@ -91,9 +91,12 @@ function fmtScore(value) {
 
 function statusKey(value) {
   const raw = String(value || "").toLowerCase();
-  if (["yes", "true", "ready", "real", "complete", "real_lfw_benchmark"].some((key) => raw.includes(key))) return "real";
+  if (["no", "false", "fail"].includes(raw.trim())) return "failed";
+  if (["missing", "not_found", "not_ready", "incomplete", "not_generated"].some((key) => raw.includes(key))) return "missing";
+  if (["failed", "read_failed", "offline", "network_error", "http_error"].some((key) => raw.includes(key))) return "failed";
   if (["running", "partial", "smoke", "single_smoke", "checkpoint_load"].some((key) => raw.includes(key))) return "smoke";
-  if (["pending", "failed", "missing", "read_failed", "no", "false"].some((key) => raw.includes(key))) return "pending";
+  if (["pending", "review", "unknown", "wait"].some((key) => raw.includes(key))) return "pending";
+  if (["yes", "true", "ready", "verified", "real", "complete", "real_lfw_benchmark"].some((key) => raw.includes(key))) return "real";
   return "neutral";
 }
 
@@ -105,9 +108,9 @@ function badge(value) {
 function setCardStatus(id, value) {
   const card = document.querySelector(`[data-status-card="${id}"]`);
   if (!card) return;
-  card.classList.remove("status-real", "status-ready", "status-complete", "status-running", "status-smoke", "status-partial", "status-pending", "status-missing", "status-failed");
+  card.classList.remove("status-real", "status-ready", "status-complete", "status-running", "status-smoke", "status-partial", "status-pending", "status-missing", "status-failed", "status-neutral");
   const key = statusKey(value);
-  card.classList.add(`status-${key === "neutral" ? "pending" : key}`);
+  card.classList.add(`status-${key}`);
 }
 
 /* cells 数组项：函数（普通列）或 { fn, cls }（如数值右对齐列）
@@ -239,6 +242,54 @@ function statusFrom(payload) {
   return summary.status || progress.status || (payload?.results_csv_exists ? "running" : "pending");
 }
 
+const ASSET_CHECK_META = {
+  dataset_ready: {
+    label: "数据集",
+    path: "datasets/lfw_full_upload 或 datasets/samples",
+    missing: "缺少可演示图片，接口可用但无法进入真实样本流程。",
+  },
+  weights_ready: {
+    label: "权重",
+    path: "weights/mea、weights/lidmark、weights/kadnet",
+    missing: "缺少模型 checkpoint，推理会退化或保持待生成状态。",
+  },
+  benchmark_ready: {
+    label: "Benchmark",
+    path: "system/reports/*_benchmark 或 runs/lidmark_lfw_eval_full",
+    missing: "缺少全量评测输出，概览和 Benchmark 表格会显示待生成。",
+  },
+  aggregate_ready: {
+    label: "聚合",
+    path: "system/reports/aggregate_real_benchmarks",
+    missing: "缺少聚合报告，方法对比和退化曲线无法完整展示。",
+  },
+  report_ready: {
+    label: "报告",
+    path: "system/reports/jianyuanshield_competition_report",
+    missing: "缺少 JSON / CSV / Markdown 报告包。",
+  },
+  assets_ready: {
+    label: "图表资产",
+    path: "system/assets",
+    missing: "缺少图表截图或可视化资产。",
+  },
+};
+
+function readinessSnapshot(payload) {
+  const checks = payload.artifacts?.checks || null;
+  if (!checks) return { percent: 0, ready: false, missing: [], checks: null };
+  const entries = Object.entries(checks);
+  const readyCount = entries.filter(([, ok]) => Boolean(ok)).length;
+  const percent = entries.length ? Math.round((readyCount / entries.length) * 100) : 0;
+  const missing = entries.filter(([, ok]) => !ok).map(([key]) => key);
+  return {
+    percent: payload.artifacts.ready_for_demo ? 100 : percent,
+    ready: Boolean(payload.artifacts.ready_for_demo),
+    missing,
+    checks,
+  };
+}
+
 function cleanAttack(payload) {
   return payload?.summary?.attacks?.clean || {};
 }
@@ -284,7 +335,7 @@ function renderReadiness(percent, label) {
   readinessPercent = percent;
   readinessLabel = label;
   const state = percent >= 90 ? "ready" : percent >= 60 ? "partial" : "low";
-  const word = state === "ready" ? "READY" : state === "partial" ? "PARTIAL" : "SYNCING";
+  const word = state === "ready" ? "READY" : state === "partial" ? "PARTIAL" : "NEEDS ASSETS";
   const ring = document.getElementById("readinessRing");
   if (ring) {
     ring.style.setProperty("--p", percent);
@@ -302,14 +353,11 @@ function renderReadiness(percent, label) {
 
 function updateReadiness(payload) {
   if (payload.artifacts?.checks) {
-    const checks = payload.artifacts.checks;
-    const values = Object.values(checks);
-    const readyCount = values.filter(Boolean).length;
-    const percent = values.length ? Math.round((readyCount / values.length) * 100) : 0;
-    const ready = payload.artifacts.ready_for_demo;
-    renderReadiness(ready ? 100 : percent, ready ? "ready for demo" : `${percent}% ready`);
+    const snapshot = readinessSnapshot(payload);
+    renderReadiness(snapshot.percent, snapshot.ready ? "ready for demo" : `本地资产 ${snapshot.percent}%`);
     text("lastUpdated", `资产 ${payload.artifacts.summary?.status || "unknown"} · 最后同步 ${new Date().toLocaleTimeString("zh-CN", { hour12: false })}`);
-    renderArtifactChecklist(checks, payload.artifacts.summary);
+    renderArtifactChecklist(snapshot.checks, payload.artifacts.summary);
+    renderAssetDetails(payload);
     return;
   }
 
@@ -327,25 +375,17 @@ function updateReadiness(payload) {
     return sum;
   }, 0);
   const percent = Math.round((score / statuses.length) * 100);
-  renderReadiness(percent, `${percent}% ready`);
+  renderReadiness(percent, `本地资产 ${percent}%`);
   text("lastUpdated", `最后同步 ${new Date().toLocaleTimeString("zh-CN", { hour12: false })}`);
 }
 
 function renderArtifactChecklist(checks, summary) {
   const container = document.getElementById("artifactChecklist");
   if (!container) return;
-  const labels = {
-    dataset_ready: "数据集",
-    weights_ready: "权重",
-    benchmark_ready: "Benchmark",
-    aggregate_ready: "聚合",
-    report_ready: "报告",
-    assets_ready: "图表资产",
-  };
-  container.innerHTML = Object.entries(labels).map(([key, label]) => `
+  container.innerHTML = Object.entries(ASSET_CHECK_META).map(([key, meta]) => `
     <div>
-      <strong>${escapeHTML(label)}</strong>
-      ${badge(checks[key] ? "ready" : "missing")}
+      <strong>${escapeHTML(meta.label)}</strong>
+      ${badge(checks?.[key] ? "ready" : "missing")}
     </div>
   `).join("");
   if (summary) {
@@ -356,6 +396,63 @@ function renderArtifactChecklist(checks, summary) {
       </div>
     `;
   }
+}
+
+function renderAssetDetails(payload) {
+  const container = document.getElementById("assetDetailList");
+  if (!container) return;
+  const snapshot = readinessSnapshot(payload);
+  const localBadge = document.getElementById("localStatusBadge");
+  const localSummary = document.getElementById("localStatusSummary");
+  const healthOk = Boolean(payload.health?.ok);
+
+  if (localBadge) {
+    localBadge.textContent = healthOk
+      ? (snapshot.ready ? "ready" : `${snapshot.missing.length} missing`)
+      : "backend failed";
+    localBadge.className = `panel-badge ${healthOk ? (snapshot.ready ? "real" : "warning") : "danger"}`;
+  }
+
+  if (localSummary) {
+    localSummary.textContent = healthOk
+      ? (snapshot.ready
+        ? "后端在线，演示资产和证据产物已满足当前展示要求。"
+        : `后端在线，但还缺 ${snapshot.missing.length} 类本地资产；这不是前端故障。`)
+      : "后端健康检查失败，请先确认 API 服务是否启动。";
+  }
+
+  if (!healthOk) {
+    container.innerHTML = `
+      <div class="asset-detail asset-failed">
+        <strong>后端服务异常</strong>
+        <span>检查 ${escapeHTML(API)} 是否可访问，或重新启动 uvicorn 服务。</span>
+        ${badge("failed")}
+      </div>
+    `;
+    return;
+  }
+
+  if (snapshot.ready) {
+    container.innerHTML = `
+      <div class="asset-detail asset-ready">
+        <strong>演示资产完整</strong>
+        <span>可以直接进行互动取证、证据审计和 Benchmark 展示。</span>
+        ${badge("ready")}
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = snapshot.missing.map((key) => {
+    const meta = ASSET_CHECK_META[key] || { label: key, path: "-", missing: "本地资产未找到。" };
+    return `
+      <div class="asset-detail">
+        <strong>${escapeHTML(meta.label)}</strong>
+        <span>${escapeHTML(meta.missing)}<code>${escapeHTML(meta.path)}</code></span>
+        ${badge("missing")}
+      </div>
+    `;
+  }).join("");
 }
 
 function renderModules(modules) {
@@ -424,13 +521,23 @@ function renderMeaMatrix(mea) {
    内容签名未变则不重建 DOM，避免每轮轮询打断滚动动画。 */
 function statusClass(value) {
   const k = statusKey(value);
-  return k === "real" ? "is-real" : k === "smoke" ? "is-smoke" : k === "pending" ? "is-pending" : "";
+  if (k === "real") return "is-real";
+  if (k === "smoke") return "is-smoke";
+  if (k === "missing") return "is-missing";
+  if (k === "failed") return "is-failed";
+  if (k === "pending") return "is-pending";
+  return "";
 }
 
 /* 把后端冗长状态（如 real_lfw_benchmark / running）归一成短醒目 token，ticker 更清爽 */
 function shortStatus(value) {
   const k = statusKey(value);
-  return k === "real" ? "REAL" : k === "smoke" ? "RUNNING" : k === "pending" ? "PENDING" : String(value || "-").toUpperCase();
+  if (k === "real") return "READY";
+  if (k === "smoke") return "RUNNING";
+  if (k === "missing") return "MISSING";
+  if (k === "failed") return "FAILED";
+  if (k === "pending") return "WAITING";
+  return String(value || "-").toUpperCase();
 }
 
 function renderTicker(payload, audit) {
@@ -472,6 +579,7 @@ function renderTicker(payload, audit) {
 
 function renderPayload(payload) {
   const { health, modules, hidden, sepmark, lidmark, waveguard, kadnet, meaMatrix, aggregate, report } = payload;
+  const localReady = readinessSnapshot(payload);
 
   text("apiEndpoint", `API · ${API.replace(/^https?:\/\//, "")}`);
   text("health", `health: ${health.ok ? "OK" : "FAIL"}`);
@@ -490,20 +598,26 @@ function renderPayload(payload) {
     setCardStatus(id, value);
   });
 
-  countField("hiddenCount", sampleCount(hidden.summary, hidden.progress), { suffix: " images" });
-  countField("sepmarkCount", sampleCount(sepmark.summary, sepmark.progress), { suffix: " images" });
-  countField("lidmarkCount", sampleCount(lidmark.summary, lidmark.progress), { suffix: " images" });
-  countField("waveguardCount", sampleCount(waveguard.summary, waveguard.progress), { suffix: " images" });
-  countField("kadnetCount", kadnet?.summary?.n_images ?? 512, { suffix: " images · geo-finetuned (EP50)" });
+  text("hiddenCount", sampleCount(hidden.summary, hidden.progress) === "-" ? "等待 benchmark 结果" : `${sampleCount(hidden.summary, hidden.progress)} images`);
+  text("sepmarkCount", sampleCount(sepmark.summary, sepmark.progress) === "-" ? "等待 benchmark 结果" : `${sampleCount(sepmark.summary, sepmark.progress)} images`);
+  text("lidmarkCount", sampleCount(lidmark.summary, lidmark.progress) === "-" ? "等待 LIDMark eval 结果" : `${sampleCount(lidmark.summary, lidmark.progress)} images`);
+  text("waveguardCount", sampleCount(waveguard.summary, waveguard.progress) === "-" ? "等待 WaveGuard 结果" : `${sampleCount(waveguard.summary, waveguard.progress)} images`);
+  text("kadnetCount", kadnet?.summary?.n_images ? `${kadnet.summary.n_images} images · geo-finetuned (EP50)` : "等待 KAD-Net 结果");
   text("aggregatePath", aggregate.report_md_path || "pending");
 
   const sepClean = cleanAttack(sepmark);
-  const hiddenClean = cleanAttack(hidden);
-  const lidAcc = Number(cleanAttack(lidmark).mean_bit_accuracy);
-  countField("heroMetric", Number.isFinite(lidAcc) ? lidAcc * 100 : null, { decimals: 2 });
-  text("mainConclusion", `LIDMark 3-seed 99.97% · KAD-Net 100% · SepMark Acc-RF ${fmt(sepClean.mean_bit_accuracy_rf)}`);
-  text("contrastConclusion", `WaveGuard JPEG Q=50 fine-tuned 100%（原 37%）；HiDDeN checkpoint 已剥除`);
-  const waveguardFull = waveguard.full_benchmark?.summary || {};
+  countField("heroMetric", localReady.percent, { decimals: 0 });
+  text("heroMetricLabel", "本地资产就绪度");
+  text(
+    "mainConclusion",
+    health.ok
+      ? (localReady.ready ? "本机状态：后端在线 · 演示资产完整" : `本机状态：后端在线 · 缺少 ${localReady.missing.length} 类本地资产`)
+      : "本机状态：后端健康检查失败",
+  );
+  text(
+    "contrastConclusion",
+    `项目结论：LIDMark 3-seed 99.97% · KAD-Net 100% · SepMark Acc-RF ${fmt(sepClean.mean_bit_accuracy_rf)} · WaveGuard JPEG Q=50 100%`,
+  );
   text("boundaryConclusion", `LIDMark 3-seed 99.97%；WaveGuard JPEG Q=50 已修复（100%）；KAD-Net 几何微调中`);
 
   updateReadiness(payload);

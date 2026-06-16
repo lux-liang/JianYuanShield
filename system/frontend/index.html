@@ -133,13 +133,18 @@
               <div class="hero-copy">
                 <div class="hero-figure">
                   <div class="hero-figure-val"><span id="heroMetric">--</span><i>%</i></div>
-                  <span class="hero-figure-label" id="heroMetricLabel">LIDMARK · 3-SEED CLEAN BIT-ACC</span>
+                  <span class="hero-figure-label" id="heroMetricLabel">本地资产就绪度</span>
                 </div>
-                <h3 id="mainConclusion">SepMark clean Acc-C - / Acc-RF -</h3>
-                <p id="contrastConclusion">HiDDeN clean Acc -，作为真实弱对照</p>
+                <h3 id="mainConclusion">正在检查后端服务和本地资产</h3>
+                <p id="contrastConclusion">项目评测结论与本机资产状态分开展示，避免把缺文件误判为模型效果异常。</p>
+                <div class="hero-actions" aria-label="常用操作">
+                  <a class="primary-action" href="#/forensics">上传图片取证</a>
+                  <a class="secondary-action" href="#/audit">查看证据审计</a>
+                  <a class="secondary-action" href="#/benchmark">查看 Benchmark</a>
+                </div>
               </div>
               <div class="boundary-box">
-                <span>边界声明</span>
+                <span>项目评测结论</span>
                 <strong id="boundaryConclusion">LIDMark 3-seed 正式训练 99.97%；WaveGuard JPEG Q=50 已修复（100%）；KAD-Net 几何增强微调中</strong>
               </div>
             </div>
@@ -176,6 +181,17 @@
               <strong id="reportStatus">-</strong>
               <small>JSON / CSV / Markdown</small>
             </div>
+          </section>
+
+          <section class="panel asset-status-panel">
+            <div class="panel-head">
+              <div>
+                <h3>本地运行状态</h3>
+                <span id="localStatusSummary">正在同步资产状态</span>
+              </div>
+              <span id="localStatusBadge" class="panel-badge muted">checking</span>
+            </div>
+            <div class="asset-detail-list" id="assetDetailList"></div>
           </section>
 
         <section class="panel" style="margin-bottom:1.5rem">
