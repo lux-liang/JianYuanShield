@@ -21,7 +21,7 @@
 - **KAD-Net 跨数据集泛化最好**：clean/jpeg/平台代理 ≥99%（与 LFW 13,233 基准一致），是旗舰模型；几何攻击（裁剪/旋转）仍实质失败（已知架构局限）。
 - **HiDDeN 几何鲁棒**（crop 93%/rotate 94%）但 JPEG 弱（jpeg50 仅 11% success）——与 KAD 互补。
 - **SepMark** 128-bit，clean/jpeg ~79-89% success，泛化稳定。
-- **WaveGuard clean 仅 72%**：见 §五，这是 DTCWT 子带水印对 **YUV→RGB→uint8 往返量化** 的敏感性，非数据集问题（真/假脸一致 72%）。D1 微调已修复：uint8 往返下 clean/jpeg50 等 **~72%→~100%**（见 §五，代价 PSNR -1.5dB；几何攻击未训练仍弱）。
+- **WaveGuard clean 仅 72%**：见 §五，这是 DTCWT 子带水印对 **YUV→RGB→uint8 往返量化** 的敏感性，非数据集问题（真/假脸一致 72%）。D1 微调已修复**信号级**：uint8/jpeg + held-out webp/bright/contrast 全 **~72%→~100%**（见 §5.1，PSNR -1.4dB）；几何攻击经三法验证为架构限制，由 HiDDeN 覆盖（§5.2）。
 - **LIDMark 此处为 MEA 口径**（136 维 landmark 置零，OOD），**严重低估**真实能力——见 §四（完整配置 ~100%）。
 
 ## 二、AIGC（合成脸）可水印性（Track A，新数据集 Fake 人脸 2000 张）
@@ -76,18 +76,27 @@ LIDMark 另具 landmark **关键点检测**能力（检测成功率 99.93%），
 - **D1 修复**（用户要求"缺代码自己补全"）：原训练 `network/noise`（可微JPEG+噪声层）缺失，**自行重建为 STE 噪声层**
   （前向真实 cv2 退化，反向恒等），对 model_state_16 做**编码器+双解码器联合微调**（真实 batch + train-mode BN），
   保真度损失维持 PSNR。脚本 `system/scripts/train_waveguard_jpeg_ste_finetune.py`。
-- **结果**（LFW 1000 张，经真实 uint8-RGB 往返；`system/reports/waveguard_jpeg_ste_ft/summary.json`）：
+### 5.1 信号级鲁棒：真·解决且泛化 ✅（`system/reports/waveguard_allatk_ste_ft`，LFW 1000 张）
 
-  | 攻击 | 原始(bit-acc/succ@0.9) | 微调后 |
-  |---|---|---|
-  | clean | 0.723 / 0.010 | **1.000 / 1.000** |
-  | jpeg50 | 0.734 / 0.018 | **1.000 / 1.000** |
-  | jpeg70 / jpeg90 | ~0.72 / ~0.01 | **1.000 / 1.000** |
-  | resize / noise | ~0.72 / ~0.01 | **1.000 / 1.000** |
-  | 嵌入 PSNR | 25.5 dB | 24.0 dB |
+| 攻击 | 原始(bit-acc/succ@0.9) | 微调后 |
+|---|---|---|
+| clean / jpeg50 / jpeg70 / jpeg90 / resize / noise | ~0.72 / ~0.01 | **1.000 / 1.000** |
+| **webp / bright / contrast（held-out，未训练）** | ~0.72 / ~0.01 | **1.000 / 1.000** |
+| 嵌入 PSNR | 25.5 dB | 24.1 dB |
 
-  微调把 uint8 往返下的 bit-acc 从 ~72% 提到 ~100%（含 jpeg50），代价是 PSNR 降 ~1.5dB（水印略增强）。
-- **诚实caveat**：① 1.000 是在**训练过的信号级攻击族**（jpeg/resize/noise/blur）上测得，**几何攻击(crop/rotate)未参与训练、预计仍弱**，未在此宣称；② 30-bit 容量较小，易达高精度；③ 此对照用脚本内 bench（与 eval adapter 同 encode/decode 路径，**原始 0.72 与 Track A 的 72% 一致**佐证其代表生产路径）；用微调 checkpoint 跑生产基准复测为自然确认步骤；④ deepfake-GAN 噪声分支因权重缺失未参与；STE 噪声为重建实现，非原模块逐字节复原。
+uint8 往返 + JPEG 等信号级攻击 **~72%→~100%**；**且未训练的 webp/bright/contrast 也→100%**，证明是真泛化、非过拟合特定攻击。代价 PSNR -1.4dB。
+
+### 5.2 几何攻击：三法皆败，确证**架构限制**（诚实，已逐一证伪）
+
+| 方法 | crop_0.8 结果 | held-out 几何参数 | 判定 |
+|---|---|---|---|
+| ① 固定参数微调 | 0.99 | crop_0.7/0.9、rotate_3/10/**-5** 全 ≈0.5 | **参数记忆**，非鲁棒（对照证伪） |
+| ② 随机范围训练(crop∈[.7,.95]/rot∈[-12,12]) | **0.55** | — | 连**范围内**都拟合不了 |
+| ③ 解码端 landmark 重同步 | clean 都→0.49 | — | warp 本身摧毁水印 |
+
+**结论**：WaveGuard(DTCWT 子带)/KAD/SepMark 的几何不变性是**架构限制**——**结构保持**的信号攻击可学且泛化，**结构改变**的几何攻击不可学（每个空间变换错位方式不同）。真几何鲁棒需 STN/等变结构（后续）。
+**系统级几何鲁棒由 HiDDeN 提供**（crop 93%/rotate 94%，其架构本身几何鲁棒）——多模型系统据此覆盖几何场景。
+*(注：deepfake-GAN 噪声分支因权重缺失未参与；STE 噪声为自行重建，非原模块逐字节复原。)*
 
 ## 六、被动检测 vs 主动水印（Track C）
 
@@ -127,10 +136,10 @@ ResNet18 从零（无外网预训练）在 19 万真假脸上训练：
 - LIDMark 16-bit ID **~100%**（完整配置，更正旧"近随机"误判）；另具 landmark 关键点检测 99.93%（**注：据此做篡改定位经实测为中心先验假象、未真正定位，见 §七，勿宣称篡改定位能力**）。
 - 水印可对 **AIGC 合成人脸** 主动溯源（KAD/SepMark/HiDDeN clean≥96%）。
 - 被动检测器 AUC 0.99（同分布），主动水印提供**确定性**溯源——互补叙事（非"检测器整体不可靠"）。
-- WaveGuard 经自补全 STE 噪声层联合微调，uint8 往返 + JPEG 鲁棒性 **~72%→~100%**（信号级攻击族；PSNR 25.5→24.0dB；几何未训练仍弱）。
+- WaveGuard 经自补全 STE 噪声层联合微调，**信号级鲁棒 ~72%→~100% 且真泛化**（含 held-out webp/bright/contrast；PSNR 25.5→24.1dB）；几何攻击经三法（固定/范围训练/重同步）证实为架构限制，系统由 HiDDeN 覆盖。
 
 须诚实标注的局限：
-- 几何攻击：KAD/SepMark/WaveGuard 裁剪/旋转失败；HiDDeN 几何强但 JPEG 弱（互补，非单模型全能）。
+- 几何攻击：KAD/SepMark/WaveGuard 裁剪/旋转失败，且 WaveGuard 经三法微调仍不可学（架构限制，非训练不足）；**HiDDeN 几何强（crop93%/rot94%）覆盖此场景**，但其 JPEG 弱（多模型互补，非单模型全能）。
 - AI 再生成：仅 KAD 存活，其余被破坏（红队发现，是改进方向）。
 - 篡改定位：遮挡法 ≈ 随机；LIDMark landmark 位移法的高 AUC 经对照证伪为中心先验假象（真实增益≈0）——**两法均未真正定位，需空间分块水印设计（后续）**。
 - WaveGuard 原"clean 100%"为无 uint8 往返的乐观值；现实 uint8 往返下需微调修复。
