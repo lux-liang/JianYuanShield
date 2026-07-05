@@ -1,0 +1,68 @@
+/* 单页立方体：4 面横向 3D 立方体 + 浮动玻璃底栏 */
+.cube-stage {
+  position: fixed; left: 0; right: 0; top: 0;
+  bottom: calc(150rpx + env(safe-area-inset-bottom));
+  perspective: 1600rpx; overflow: hidden;
+}
+.cube4 {
+  position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+  transform-style: preserve-3d;
+  transition: transform .3s cubic-bezier(.66, 0, .2, 1);
+}
+.cube-face {
+  position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+  backface-visibility: hidden; overflow: hidden;
+}
+.cf0 { transform: rotateY(0deg) translateZ(375rpx); }
+.cf1 { transform: rotateY(90deg) translateZ(375rpx); }
+.cf2 { transform: rotateY(180deg) translateZ(375rpx); }
+.cf3 { transform: rotateY(270deg) translateZ(375rpx); }
+
+.face-scroll { width: 100%; height: 100%; }
+.face-pad { padding: 24rpx 32rpx 60rpx; box-sizing: border-box; min-height: 100%; }
+
+/* 浮动玻璃底栏 */
+.cube-nav {
+  position: fixed; left: 24rpx; right: 24rpx; bottom: calc(22rpx + env(safe-area-inset-bottom));
+  height: 112rpx; display: flex; align-items: center;
+  background: rgba(255, 255, 255, .94); border: 1rpx solid var(--line);
+  border-radius: 30rpx; box-shadow: 0 14rpx 44rpx rgba(11, 42, 69, .16);
+  z-index: 50;
+}
+.cn-item {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7rpx;
+  color: var(--ink-3); transition: transform .18s;
+}
+.cn-item image { width: 46rpx; height: 46rpx; }
+.cn-item text { font-size: 20rpx; letter-spacing: 1rpx; }
+.cn-item { position: relative; margin: 10rpx 8rpx; border-radius: 22rpx; }
+.cn-item.on {
+  color: var(--primary); transform: scale(1.1) translateY(-2rpx);
+  background: rgba(3, 105, 161, .08);
+  border: 1rpx solid rgba(3, 105, 161, .28);
+  box-shadow: inset 0 1rpx 0 rgba(255, 255, 255, .7), 0 6rpx 16rpx rgba(3, 105, 161, .15);
+}
+
+/* 导航栏中央偏上的立方体映射指示器（与主立方体同步旋转） */
+.navcube { position: absolute; left: 50%; top: -34rpx; margin-left: -28rpx; width: 56rpx; height: 56rpx; perspective: 240rpx; z-index: 60; }
+.ncube { width: 56rpx; height: 56rpx; position: relative; transform-style: preserve-3d; transition: transform .3s cubic-bezier(.66, 0, .2, 1); }
+.ncf { position: absolute; left: 0; top: 0; width: 56rpx; height: 56rpx; border-radius: 14rpx; backface-visibility: hidden; border: 1rpx solid rgba(3,105,161,.35); background: rgba(255,255,255,.45); box-shadow: 0 4rpx 12rpx rgba(3,105,161,.18), inset 0 1rpx 0 rgba(255,255,255,.8); display: flex; align-items: center; justify-content: center; }
+.ncf image { width: 32rpx; height: 32rpx; }
+.nf0 { transform: rotateY(0deg) translateZ(28rpx); }
+.nf1 { transform: rotateY(90deg) translateZ(28rpx); }
+.nf2 { transform: rotateY(180deg) translateZ(28rpx); }
+.nf3 { transform: rotateY(270deg) translateZ(28rpx); }
+
+/* ── 首次强制登录浮层 ── */
+.onboard { position: fixed; inset: 0; z-index: 9000; display: flex; align-items: center; justify-content: center; background: linear-gradient(160deg, #eef4fb, #f6faff 50%, #e8eef8); }
+.ob-card { width: 600rpx; max-width: 84%; background: #fff; border: 1rpx solid var(--line); border-radius: 32rpx; padding: 54rpx 44rpx; box-shadow: 0 30rpx 80rpx rgba(11,42,69,.16); text-align: center; }
+.ob-logo { width: 138rpx; height: 138rpx; }
+.ob-title { font-size: 46rpx; font-weight: 800; color: var(--ink); letter-spacing: 4rpx; margin-top: 8rpx; }
+.ob-sub { font-size: 22rpx; color: var(--ink-2); margin-top: 8rpx; }
+.ob-row { display: flex; flex-direction: column; align-items: center; gap: 12rpx; margin: 38rpx 0 22rpx; }
+.ob-avatar { width: 150rpx; height: 150rpx; padding: 0; border-radius: 50%; overflow: hidden; border: 2rpx solid var(--line-2); background: var(--surface); line-height: normal; }
+.ob-avatar::after { border: none; }
+.ob-avatar image { width: 150rpx; height: 150rpx; }
+.ob-hint { font-size: 21rpx; color: var(--ink-3); }
+.ob-input { width: 100%; box-sizing: border-box; height: 88rpx; border: 1rpx solid var(--line-2); border-radius: 18rpx; padding: 0 24rpx; font-size: 28rpx; color: var(--ink); background: var(--surface); margin-bottom: 28rpx; }
+.ob-btn { width: 100%; }

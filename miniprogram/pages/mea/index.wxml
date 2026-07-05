@@ -1,0 +1,49 @@
+<view class="screen">
+  <view class="brand">
+    <view class="brand-mark"><text class="ic">⚔</text></view>
+    <view>
+      <view class="brand-title">MEA 横评</view>
+      <view class="brand-sub">Cross-Model Comparison</view>
+    </view>
+  </view>
+
+  <view class="card">
+    <text class="exhibit">Exhibit 13 · Side by Side</text>
+    <view class="card-title">同一图片 · 多模型抗攻击对比</view>
+    <view class="card-desc">相同攻击下，SepMark 与 WaveGuard 的水印存活率横向对比。</view>
+
+    <view class="field">
+      <view class="field-label">1 · 选择图片</view>
+      <view class="pick" bindtap="chooseImage">
+        <image wx:if="{{imgPath}}" src="{{imgPath}}" mode="aspectFill"></image>
+        <block wx:else><text class="plus">＋</text><text class="hint">点击从相册 / 拍照选择</text></block>
+      </view>
+    </view>
+
+    <view class="field">
+      <view class="field-label">2 · 攻击</view>
+      <view class="seg">
+        <view wx:for="{{attacks}}" wx:key="v" class="seg-item {{attack===item.v?'active':''}}" data-v="{{item.v}}" bindtap="onSelectAttack">{{item.t}}</view>
+      </view>
+    </view>
+
+    <button class="btn primary" loading="{{loading}}" disabled="{{loading}}" bindtap="run">对比评测</button>
+    <view wx:if="{{error}}" class="status err">错误：{{error}}</view>
+  </view>
+
+  <view wx:if="{{cards.length}}" class="figs">
+    <view class="card" wx:for="{{cards}}" wx:key="model" style="margin:0">
+      <view class="card-title" style="display:flex;align-items:center;gap:10rpx">{{item.model}}
+        <text class="badge {{item.verdict.cls}}">{{item.verdict.t}}</text>
+      </view>
+      <view wx:for="{{item.imgs}}" wx:for-item="im" wx:key="k" class="fig" style="margin-top:12rpx">
+        <image src="{{im.src}}" mode="aspectFill"></image>
+        <view class="cap">{{im.label}}</view>
+      </view>
+      <view class="metrics" style="margin-top:12rpx">
+        <view class="metric"><view class="mv {{item.accClass}}">{{item.acc}}</view><view class="mk">Bit Acc</view></view>
+        <view class="metric"><view class="mv ok">{{item.psnr}}</view><view class="mk">PSNR</view></view>
+      </view>
+    </view>
+  </view>
+</view>

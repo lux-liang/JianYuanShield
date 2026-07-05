@@ -1,0 +1,37 @@
+<view class="splash {{hiding ? 'out' : ''}}" bindtap="skip">
+  <!-- 曲面屏（球体内壁感）：散布的人脸，浮动 + 噪声↔清晰 morph -->
+  <view class="dome-wrap">
+    <view class="dome">
+      <view wx:for="{{tiles}}" wx:key="i" class="dtile" style="transform: translate(-50%,-50%) translate({{item.x}}rpx,{{item.y}}rpx) rotate({{item.rot}}deg) scale({{item.s}}); animation-delay: {{item.d}}s">
+        <image src="{{item.src}}" mode="aspectFill"></image>
+      </view>
+    </view>
+  </view>
+
+  <view class="bigflash"></view>
+
+  <view class="stage">
+    <view class="fall">
+      <view class="cube">
+        <view class="face f1"><image src="/assets/faces/face-1.jpg" mode="aspectFill"></image></view>
+        <view class="face f2"><image src="/assets/faces/face-2.jpg" mode="aspectFill"></image></view>
+        <view class="face f3"><image src="/assets/faces/face-3.jpg" mode="aspectFill"></image></view>
+        <view class="face f4"><image src="/assets/faces/face-4.jpg" mode="aspectFill"></image></view>
+        <view class="face f5"><image src="/assets/faces/face-5.jpg" mode="aspectFill"></image></view>
+        <view class="face f6"><image src="/assets/faces/face-6.jpg" mode="aspectFill"></image></view>
+      </view>
+    </view>
+
+    <view class="flash"></view>
+    <view class="shards">
+      <view wx:for="{{shards}}" wx:key="i" class="shard" style="--tx:{{item.tx}}rpx;--ty:{{item.ty}}rpx;--rot:{{item.rot}}deg"></view>
+    </view>
+
+    <view class="shield"><image src="/assets/logo-light.png"></image></view>
+
+    <view class="s-title"><text class="sc sc1">寻</text><text class="sc sc2">源</text><text class="sc sc3">路</text></view>
+    <view class="s-sub">主动水印 · 击碎深度伪造</view>
+  </view>
+
+  <view class="skip-hint">点击跳过</view>
+</view>

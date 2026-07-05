@@ -1,0 +1,253 @@
+<splash wx:if="{{showSplash}}" bind:done="onSplashDone"></splash>
+
+<view wx:if="{{needLogin}}" class="onboard">
+  <view class="ob-card">
+    <image class="ob-logo" src="/assets/logo-light.png" mode="aspectFit"></image>
+    <view class="ob-title">寻源路</view>
+    <view class="ob-sub">主动水印 · 深度伪造溯源取证</view>
+    <view class="ob-row">
+      <button class="ob-avatar" open-type="chooseAvatar" bindchooseavatar="onObAvatar">
+        <image src="{{tmpAvatar || '/assets/logo-light.png'}}" mode="aspectFit"></image>
+      </button>
+      <view class="ob-hint">点击设置头像</view>
+    </view>
+    <input class="ob-input" type="nickname" placeholder="请输入昵称" value="{{tmpNick}}" bindinput="onObNick" bindblur="onObNick"></input>
+    <button class="btn primary ob-btn" bindtap="obSubmit">进入寻源路</button>
+  </view>
+</view>
+
+<view class="cube-stage" bindtap="onTap">
+  <view class="cube4" style="transform: translateZ(-375rpx) rotateY({{rot}}deg)">
+
+    <!-- 面 0 · 取证 -->
+    <view class="cube-face cf0">
+      <scroll-view scroll-y scroll-with-animation scroll-into-view="{{scrollTo}}" class="face-scroll">
+        <view class="face-pad">
+          <view class="hero">
+            <image class="hero-eye" src="/assets/eye.png" mode="aspectFit"></image>
+            <view class="hero-head">
+              <view class="hero-logo"><image src="/assets/logo-light.png" mode="aspectFit"></image></view>
+              <view style="flex:1"><view class="hero-title">寻源路</view><view class="hero-sub">击碎深度伪造 · 主动溯源取证</view></view>
+              <view class="health-dot {{health}}"><view class="dot"></view><text>{{health==='ok'?'在线':health==='bad'?'离线':'…'}}</text></view>
+            </view>
+            <view class="feature-row">
+              <view class="feat"><view class="fi"><image src="/assets/tab-forensics-on.png"></image></view><text class="ft">主动水印</text></view>
+              <view class="feat"><view class="fi"><image src="/assets/ic-mea.png"></image></view><text class="ft">攻击模拟</text></view>
+              <view class="feat"><view class="fi"><image src="/assets/ic-history.png"></image></view><text class="ft">溯源回溯</text></view>
+              <view class="feat"><view class="fi"><image src="/assets/tab-evidence-on.png"></image></view><text class="ft">证据链</text></view>
+            </view>
+          </view>
+
+          <view class="seg" style="margin-bottom:20rpx">
+            <view class="seg-item" bindtap="goMea">⚔ MEA 横评</view>
+            <view class="seg-item" bindtap="goCompliance">▦ 平台合规批量</view>
+          </view>
+
+          <view class="card">
+            <text class="exhibit">Exhibit 01 · Live Forensics</text>
+            <view class="card-title">创作者保护 · 主动取证</view>
+            <view class="card-desc">上传图片 → 嵌入水印 → 模拟攻击 → 提取溯源 → 合规结论 + 证据哈希</view>
+            <view class="stepper">
+              <block wx:for="{{steps}}" wx:key="*this">
+                <view class="step {{index < step ? 'on' : ''}}"><view class="num">{{index+1}}</view><view class="lbl">{{item}}</view></view>
+                <view wx:if="{{index < steps.length-1}}" class="step-line"></view>
+              </block>
+            </view>
+            <view class="field">
+              <view class="field-label">1 · 选择图片</view>
+              <view class="pick" bindtap="chooseImage">
+                <image wx:if="{{imgPath}}" src="{{imgPath}}" mode="aspectFit"></image>
+                <block wx:else><text class="plus">＋</text><text class="hint">点击从相册 / 拍照选择</text></block>
+                <view wx:if="{{loading}}" class="gen-fx">
+                  <view class="gen-grain"></view>
+                  <view class="gen-shatter"></view>
+                  <view class="gen-sweep"></view>
+                  <view class="gen-label">取证生成中…</view>
+                </view>
+              </view>
+              <view style="margin-top:12rpx"><text class="badge info" bindtap="useSample">或：用内置样本</text></view>
+            </view>
+            <view class="field">
+              <view class="field-label">2 · 检测模型</view>
+              <view class="seg"><view wx:for="{{models}}" wx:key="*this" class="seg-item {{model===item?'active':''}}" data-v="{{item}}" bindtap="onSelectModel">{{item}}</view></view>
+            </view>
+            <view class="field">
+              <view class="field-label">3 · 攻击链（模拟传播）</view>
+              <view class="seg"><view wx:for="{{attacks}}" wx:key="v" class="seg-item {{attack===item.v?'active':''}}" data-v="{{item.v}}" bindtap="onSelectAttack">{{item.t}}</view></view>
+            </view>
+            <button class="btn primary" disabled="{{loading}}" bindtap="runInfer">{{loading ? '取证中…' : '一键取证'}}</button>
+            <view wx:if="{{error}}" class="status err">错误：{{error}}</view>
+          </view>
+
+          <view wx:if="{{result}}" class="card" id="resultCard">
+            <text class="exhibit">Exhibit 02 · Result</text>
+            <view class="card-title">取证结果 <text class="badge {{verdict.cls}}" style="margin-left:8rpx">{{verdict.text}}</text></view>
+            <view class="figs">
+              <view class="fig" wx:for="{{imgs}}" wx:key="key"><image src="{{item.src}}" mode="aspectFill"></image><view class="cap">{{item.label}}</view></view>
+            </view>
+            <view class="metrics">
+              <view class="metric"><view class="mv {{accClass}}">{{accText}}</view><view class="mk">Bit Accuracy</view></view>
+              <view class="metric"><view class="mv ok">{{psnrText}}</view><view class="mk">PSNR</view></view>
+            </view>
+            <view class="row"><text class="k">推理模式</text><text class="badge {{modeClass}}">{{modeText}}</text></view>
+            <view class="row"><text class="k">合规依据</text><text class="badge info">《AI 标识办法》第五条</text></view>
+            <view class="row"><text class="k">任务 ID</text><text class="k">{{taskId}}</text></view>
+            <view class="status" bindtap="toggleEvidence">{{showEvidence?'▾ 收起':'▸ 展开'}} 司法证据 JSON（SHA-256）</view>
+            <view wx:if="{{showEvidence}}" class="fold"><text class="code">{{evidenceText}}</text></view>
+            <view style="display:flex;gap:16rpx;margin-top:16rpx">
+              <view class="btn ghost" style="flex:1" bindtap="reset">再测一张</view>
+              <view class="btn ghost" style="flex:1" bindtap="generatePoster">生成海报</view>
+            </view>
+            <view wx:if="{{posterPath}}" style="margin-top:16rpx">
+              <image src="{{posterPath}}" mode="widthFix" style="width:100%;border-radius:12rpx"></image>
+              <view style="display:flex;gap:16rpx;margin-top:12rpx">
+                <view class="btn primary" style="flex:1" bindtap="savePoster">保存到相册</view>
+                <button class="btn ghost" style="flex:1" open-type="share">转发好友</button>
+              </view>
+            </view>
+            <view class="note">演示链路：交互式系统演示，正式结论以完整 benchmark 报告为准。</view>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- 面 1 · 证据 -->
+    <view class="cube-face cf1">
+      <scroll-view scroll-y class="face-scroll">
+        <view class="face-pad">
+          <view class="brand">
+            <view class="brand-mark"><image src="/assets/logo-light.png" mode="aspectFit"></image></view>
+            <view><view class="brand-title">证据审计</view><view class="brand-sub">Evidence Audit</view></view>
+          </view>
+          <view class="card">
+            <text class="exhibit">Exhibit 31 · Evidence Chain</text>
+            <view class="card-title">密码学证据链 <text class="badge {{sigOk?'ok':'warn'}}" style="margin-left:8rpx">{{sigText}}</text></view>
+            <view class="row"><text class="k">公钥指纹</text><text class="k">{{fp || '—'}}</text></view>
+            <view class="row"><text class="k">审计阻断</text><text class="badge {{blocking===0?'ok':'risk'}}">{{blocking}} 项</text></view>
+            <view wx:if="{{auditErr}}" class="status err">错误：{{auditErr}}</view>
+          </view>
+
+          <view class="card">
+            <text class="exhibit">Exhibit 12 · Batch Compliance</text>
+            <view class="card-title">平台合规批量检测</view>
+            <view class="card-desc">批量检测隐式水印合规状态（《AI 标识办法》第五条）。</view>
+            <view class="pick" style="height:200rpx;margin-top:16rpx" bindtap="cChoose">
+              <text class="plus" style="font-size:52rpx">＋</text>
+              <text class="hint">{{cFiles.length ? '已选 '+cFiles.length+' 张，点此重选' : '从相册多选图片'}}</text>
+            </view>
+            <view wx:if="{{cFiles.length}}" class="hist-grid" style="margin-top:16rpx">
+              <view wx:for="{{cFiles}}" wx:key="*this" class="fig" style="width:calc(33.3% - 11rpx)"><image src="{{item}}" mode="aspectFill" style="height:160rpx"></image></view>
+            </view>
+            <view class="field" style="margin-top:16rpx">
+              <view class="seg">
+                <view class="seg-item {{cModel==='SepMark'?'active':''}}" data-v="SepMark" bindtap="cSelModel">SepMark</view>
+                <view class="seg-item {{cModel==='WaveGuard'?'active':''}}" data-v="WaveGuard" bindtap="cSelModel">WaveGuard</view>
+              </view>
+            </view>
+            <button class="btn primary" disabled="{{cLoading}}" bindtap="cRun">{{cLoading?'检测中…':'批量检测'}}</button>
+            <view wx:if="{{cSum}}" class="metrics" style="margin-top:18rpx">
+              <view class="metric"><view class="mv ok">{{cSum.rate}}</view><view class="mk">合规率</view></view>
+              <view class="metric"><view class="mv muted">{{cSum.total}}</view><view class="mk">总数</view></view>
+            </view>
+            <view wx:if="{{cSum}}" class="row"><text class="badge ok">合规 {{cSum.compliant}}</text><text class="badge warn">降级 {{cSum.degraded}}</text><text class="badge risk">无标识 {{cSum.no_wm}}</text></view>
+            <view wx:if="{{cRows.length}}" class="hist-grid" style="margin-top:12rpx">
+              <view wx:for="{{cRows}}" wx:key="src" class="hist-item" style="width:calc(33.3% - 11rpx)">
+                <image src="{{item.src}}" mode="aspectFill" style="height:150rpx"></image>
+                <view class="hist-meta"><view class="l1"><text class="badge {{item.cls}}">{{item.label}}</text></view><view class="l2">{{item.accText}}</view></view>
+              </view>
+            </view>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- 面 2 · 我的 -->
+    <view class="cube-face cf2">
+      <scroll-view scroll-y class="face-scroll">
+        <view class="face-pad">
+          <view class="profile-hero">
+            <button class="avatar avatar-btn" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar"><image src="{{user.avatar || '/assets/logo-light.png'}}" mode="aspectFit"></image></button>
+            <view style="flex:1">
+              <input wx:if="{{editing}}" class="profile-name" type="nickname" placeholder="填写昵称" value="{{user.nick}}" bindblur="onNick" bindconfirm="onNick" focus="{{true}}"></input>
+              <view wx:else class="profile-name" bindtap="startEdit">{{user.nick || '寻源路用户'}} <text style="font-size:22rpx;color:var(--ink-3)">✎</text></view>
+              <view class="profile-sub">本地检测记录 {{list.length}} 条</view>
+            </view>
+          </view>
+          <view class="card">
+            <text class="exhibit">History · 检测历史</text>
+            <view class="card-title">我测过的图片</view>
+            <view class="card-desc">检测记录与缩略图仅保存在本机，不上传。</view>
+            <view wx:if="{{list.length}}" class="hist-grid" style="margin-top:20rpx">
+              <view wx:for="{{list}}" wx:key="t" class="hist-item">
+                <image wx:if="{{item.thumb}}" src="{{item.thumb}}" mode="aspectFill"></image>
+                <view class="hist-meta">
+                  <view class="l1"><text>{{item.model}}</text><text class="badge {{item.verdictCls}}">{{item.verdictText}}</text></view>
+                  <view class="l2">{{item.attack}} · 准确率 {{item.accText}}</view>
+                  <view class="l2">{{item.timeText}}</view>
+                </view>
+              </view>
+            </view>
+            <view wx:else class="empty">还没有检测记录，去「取证」测一张吧</view>
+            <view wx:if="{{list.length}}" class="btn ghost" bindtap="clearHistory" style="margin-top:22rpx">清空历史</view>
+          </view>
+          <view class="card">
+            <text class="exhibit">More · 更多</text>
+            <view class="list-item" bindtap="goMea"><image class="li-ic" src="/assets/ic-mea.png"></image><text class="li-tx">MEA 多模型横评</text><text class="li-ar">›</text></view>
+            <view class="list-item" bindtap="goCompliance"><image class="li-ic" src="/assets/ic-compliance.png"></image><text class="li-tx">平台合规批量检测</text><text class="li-ar">›</text></view>
+            <view class="list-item" data-i="3" bindtap="switchFace"><image class="li-ic" src="/assets/tab-about-on.png"></image><text class="li-tx">关于寻源路</text><text class="li-ar">›</text></view>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- 面 3 · 关于 -->
+    <view class="cube-face cf3">
+      <scroll-view scroll-y class="face-scroll">
+        <view class="face-pad">
+          <view class="brand">
+            <view class="brand-mark"><image src="/assets/logo-light.png" mode="aspectFit"></image></view>
+            <view><view class="brand-title">寻源路</view><view class="brand-sub">About</view></view>
+          </view>
+          <view style="text-align:center;margin:6rpx 0 26rpx"><image src="/assets/logo-light.png" mode="aspectFit" style="width:220rpx;height:220rpx"></image></view>
+          <view class="card">
+            <text class="exhibit">Positioning</text>
+            <view class="card-title">让每一张图片都有可验证的来源</view>
+            <view class="card-desc">基于多模型协同水印的 AIGC / 深度伪造图像主动标识与溯源技术演示：发布时主动嵌入身份水印，在换脸 / 压缩传播后仍可解码原创者标识，并以密码学证据链支持查验。用于学术研究与竞赛作品演示。</view>
+          </view>
+          <view class="card">
+            <text class="exhibit">《AI 内容标识办法》对应能力</text>
+            <view wx:for="{{regs}}" wx:key="c" class="row"><text class="badge info">{{item.c}}</text><text class="k" style="flex:1;text-align:right">{{item.d}}</text></view>
+          </view>
+          <view class="card">
+            <text class="exhibit">四模型协同水印</text>
+            <view wx:for="{{wmModels}}" wx:key="n" style="margin:14rpx 0">
+              <view style="display:flex;align-items:center;gap:10rpx"><text class="card-title" style="margin:0">{{item.n}}</text><text wx:if="{{item.t}}" class="badge ok">{{item.t}}</text></view>
+              <view class="card-desc">{{item.d}}</view>
+            </view>
+          </view>
+          <view class="note">新疆大学 VPSG 实验室 · 全国大学生信息安全竞赛作品赛 · 技术演示作品</view>
+        </view>
+      </scroll-view>
+    </view>
+
+  </view>
+</view>
+
+<!-- 底部立方体导航 -->
+<view class="cube-nav">
+  <view class="navcube">
+    <view class="ncube" style="transform: translateZ(-28rpx) rotateY({{rot}}deg)">
+      <view class="ncf nf0"><image src="/assets/tab-forensics-on.png"></image></view>
+      <view class="ncf nf1"><image src="/assets/tab-evidence-on.png"></image></view>
+      <view class="ncf nf2"><image src="/assets/tab-profile-on.png"></image></view>
+      <view class="ncf nf3"><image src="/assets/tab-about-on.png"></image></view>
+    </view>
+  </view>
+  <view wx:for="{{navs}}" wx:key="k" class="cn-item {{rotIdx===index?'on':''}}" data-i="{{index}}" bindtap="switchFace">
+    <image src="{{rotIdx===index?item.on:item.ic}}"></image>
+    <text>{{item.k}}</text>
+  </view>
+</view>
+
+<tapfx id="tapfx"></tapfx>
+<canvas type="2d" id="posterCanvas" style="position:fixed;left:-2000px;top:0;width:300px;height:460px"></canvas>

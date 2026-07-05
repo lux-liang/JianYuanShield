@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "寻源路",
+  "usingComponents": {
+    "splash": "/components/splash/index",
+    "tapfx": "/components/tapfx/index"
+  }
+}
