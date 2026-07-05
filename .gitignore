@@ -34,6 +34,21 @@ tmux.log
 .idea/
 .vscode/
 
+# Android client
+android/.gradle/
+android/.kotlin/
+android/**/build/
+android/local.properties
+android/*.iml
+android/.idea/
+android/captures/
+android/.externalNativeBuild/
+android/.cxx/
+android/*.apk
+android/*.aab
+android/*.keystore
+!android/debug.keystore
+
 
 # Secrets and runtime state
 .env

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Base theme is intentionally minimal: the entire UI is Jetpack Compose and
+      colors are driven by ui/theme/Theme.kt. This XML theme only provides a
+      sensible splash/window background before Compose takes over.
+    -->
+    <style name="Theme.JianYuanShield" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/ic_launcher_background</item>
+        <item name="android:statusBarColor">@color/status_bar_scrim</item>
+        <item name="android:navigationBarColor">@android:color/white</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>
