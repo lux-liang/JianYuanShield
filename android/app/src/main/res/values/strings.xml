@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">鉴源盾</string>
+    <string name="app_name_en">JianYuanShield</string>
+    <string name="app_slogan">让每一张图片都有可验证的来源</string>
+
+    <!-- Bottom navigation -->
+    <string name="nav_home">首页</string>
+    <string name="nav_trace">溯源</string>
+    <string name="nav_compliance">合规</string>
+    <string name="nav_evidence">证据</string>
+    <string name="nav_me">我的</string>
+
+    <!-- Common -->
+    <string name="action_retry">重试</string>
+    <string name="action_run">开始检测</string>
+    <string name="state_loading">正在请求后端…</string>
+    <string name="state_empty">暂无数据</string>
+</resources>

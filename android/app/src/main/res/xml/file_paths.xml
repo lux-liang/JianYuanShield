@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Temp files for camera capture, shared via FileProvider. -->
+    <cache-path
+        name="captures"
+        path="captures/" />
+    <external-cache-path
+        name="external_captures"
+        path="captures/" />
+    <!-- 分享凭证图片用,经 FileProvider 临时授权。 -->
+    <cache-path
+        name="shares"
+        path="shares/" />
+</paths>

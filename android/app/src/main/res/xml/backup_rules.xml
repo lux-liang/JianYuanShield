@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <include
+        domain="sharedpref"
+        path="." />
+    <!-- DataStore Preferences (backend Base URL) lives under files/datastore/. -->
+    <include
+        domain="file"
+        path="datastore/" />
+</full-backup-content>

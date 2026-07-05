@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand security blue, inspired by national public-security / anti-fraud apps. -->
+    <color name="brand_blue">#1457B8</color>
+    <color name="ic_launcher_background">#0B4DA2</color>
+    <color name="status_bar_scrim">#0A3D82</color>
+</resources>
