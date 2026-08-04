@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.vpsg.jianyuanshield.data.UiState
+import com.vpsg.jianyuanshield.BuildConfig
 import com.vpsg.jianyuanshield.ui.components.GradientTopBar
 import com.vpsg.jianyuanshield.ui.components.SecondaryButton
 import com.vpsg.jianyuanshield.ui.components.SectionCard
@@ -81,14 +82,16 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             SectionCard {
-                SectionHeader("可信服务节点", subtitle = "连接后可启用完整取证、合规核验与证据签名能力")
+                SectionHeader("服务节点", subtitle = "连接成功仅表示节点可达；实际能力以后端声明门禁为准")
                 Spacer(Modifier.height(14.dp))
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
                     singleLine = true,
                     label = { Text("服务节点 URL") },
-                    placeholder = { Text("http://10.0.2.2:8026") },
+                    placeholder = {
+                        Text(if (BuildConfig.DEBUG) "http://10.0.2.2:8026" else "https://api.example.com")
+                    },
                     leadingIcon = { Icon(Icons.Rounded.Dns, contentDescription = null) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                     shape = RoundedCornerShape(14.dp),
@@ -102,7 +105,11 @@ fun SettingsScreen(
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "本地调试环境可使用 10.0.2.2,真机预览请填写同一局域网服务地址。",
+                    if (BuildConfig.DEBUG) {
+                        "Debug 仅允许 10.0.2.2 模拟器宿主地址使用明文 HTTP；其他节点请使用 HTTPS。"
+                    } else {
+                        "正式包禁止明文 HTTP；请配置已授权的 HTTPS 服务节点。"
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = com.vpsg.jianyuanshield.ui.theme.InkFaint,
                 )
@@ -133,7 +140,7 @@ fun SettingsScreen(
             SectionCard {
                 SectionHeader(
                     "演示环境",
-                    subtitle = if (demoMode) "已启用 · 使用本地模拟数据预览完整流程" else "未连接服务节点时使用本地模拟数据预览完整流程",
+                    subtitle = if (demoMode) "已显式启用 · 模拟结果不可发布或生成凭证" else "已关闭 · 服务失败会明确报错，不自动回退模拟数据",
                     trailing = {
                         Switch(checked = demoMode, onCheckedChange = viewModel::setDemoMode)
                     },
@@ -141,12 +148,12 @@ fun SettingsScreen(
             }
 
             SectionCard {
-                SectionHeader("模型服务", subtitle = if (demoMode) "本地演示 · 全部就绪" else "连接节点后启用")
+                SectionHeader("能力提示", subtitle = "节点连通不等于盲检、合规或证据能力已就绪")
                 Spacer(Modifier.height(6.dp))
-                ServiceStatusRow("溯源模型", demoMode)
-                ServiceStatusRow("合规模型", demoMode)
-                ServiceStatusRow("证据签名", demoMode)
-                ServiceStatusRow("报告生成", demoMode)
+                ServiceStatusRow("本地流程演示", demoMode)
+                ServiceStatusRow("既有图片盲检", false)
+                ServiceStatusRow("正式证据签名", false)
+                ServiceStatusRow("可发布声明", false)
             }
 
             SectionCard(contentPadding = PaddingValues(0.dp)) {
@@ -201,4 +208,3 @@ private fun ConnectionStatus(ping: UiState<*>) {
         }
     }
 }
-

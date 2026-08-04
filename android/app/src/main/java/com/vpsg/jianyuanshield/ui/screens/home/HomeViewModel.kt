@@ -43,7 +43,7 @@ class HomeViewModel(private val repository: ShieldRepository) : ViewModel() {
     private suspend fun fetch(): HomeData = coroutineScope {
         val base = async { runCatching { repository.baseUrl.first() }.getOrDefault("") }
         val health = async { runCatching { repository.health() }.getOrNull() }
-        val models = async { runCatching { repository.modelsStatus() }.getOrElse { emptyMap() } }
+        val models = async { runCatching { repository.modelsStatus().models }.getOrElse { emptyMap() } }
         val modules = async { runCatching { repository.modules() }.getOrElse { emptyList() } }
         HomeData(base.await(), health.await(), models.await(), modules.await())
     }

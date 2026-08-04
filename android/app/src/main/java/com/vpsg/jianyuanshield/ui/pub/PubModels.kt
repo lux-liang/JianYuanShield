@@ -30,14 +30,14 @@ data class LearnArticle(
 fun VerdictKind.label(): String = when (this) {
     VerdictKind.Real -> "通过核验"
     VerdictKind.Ai -> "水印降级"
-    VerdictKind.Tampered -> "未能确认"
+    VerdictKind.Tampered -> "验证未通过"
 }
 
-/** 右下角百分比小字,如 "可信 97%" / "降级 88%" / "未确认 91%"。 */
+/** 右下角百分比小字,始终描述水印恢复/完整度，不解释为图片真假概率。 */
 fun VerdictKind.percentLabel(percent: Int): String = when (this) {
-    VerdictKind.Real -> "可信 $percent%"
-    VerdictKind.Ai -> "降级 $percent%"
-    VerdictKind.Tampered -> "未确认 $percent%"
+    VerdictKind.Real -> "恢复 $percent%"
+    VerdictKind.Ai -> "完整度 $percent%"
+    VerdictKind.Tampered -> "完整度 $percent%"
 }
 
 /** 集中存放打样样例数据。 */

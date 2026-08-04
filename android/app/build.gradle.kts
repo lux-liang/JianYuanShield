@@ -19,17 +19,17 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
 
-        // 默认后端地址。真机请改成你的【公网服务器】地址(形如 http://1.2.3.4:8026 或
-        // https://your-domain),或在 App 内「我的 → 服务器设置」里改。
-        // 10.0.2.2 只对 Android 模拟器有效(= 宿主机 localhost),真机连不上。
-        // TODO: 用户提供公网地址后,把下面这行替换成正式地址。
-        buildConfigField("String", "DEFAULT_API_BASE", "\"http://10.0.2.2:8026\"")
+        // Release 继承这个保留 .invalid 域名：在没有配置正式 HTTPS 服务前
+        // 必然连接失败，避免将图片误传到未授权的明文/占位地址。
+        buildConfigField("String", "DEFAULT_API_BASE", "\"https://jianyuanshield.invalid/\"")
     }
 
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
             isDebuggable = true
+            // 仅 debug 包默认连接 Android 模拟器宿主机。
+            buildConfigField("String", "DEFAULT_API_BASE", "\"http://10.0.2.2:8026\"")
         }
         release {
             isMinifyEnabled = true
@@ -85,6 +85,9 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
     implementation(libs.kotlinx.serialization.json)
+    // Ed25519 creator proof. The 32-byte signing key is encrypted by an
+    // Android Keystore AES-GCM key before local persistence.
+    implementation("com.google.crypto.tink:tink:1.7.0")
 
     // Image loading
     implementation(libs.coil.compose)

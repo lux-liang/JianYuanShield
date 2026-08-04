@@ -3,8 +3,8 @@
     <include
         domain="sharedpref"
         path="." />
-    <!-- DataStore Preferences (backend Base URL) lives under files/datastore/. -->
-    <include
-        domain="file"
-        path="datastore/" />
+    <exclude
+        domain="sharedpref"
+        path="jys_creator_identity_secure.xml" />
+    <!-- No file-domain include: DataStore (including runtime API token) is excluded. -->
 </full-backup-content>

@@ -1,0 +1,162 @@
+name: ${JYS_COMPOSE_PROJECT_NAME:?Set JYS_COMPOSE_PROJECT_NAME to a unique competition deployment id}
+
+services:
+  api:
+    image: ${JYS_RELEASE_IMAGE:?Set JYS_RELEASE_IMAGE to the verified offline sha256 image ID}
+    pull_policy: never
+    expose:
+      - "8026"
+    volumes:
+      - type: bind
+        source: ${JYS_WEIGHT_HOST:?Set JYS_WEIGHT_HOST to the verified bundle weights directory}
+        target: /app/weights
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${JYS_MODEL_SOURCE_HOST:?Set JYS_MODEL_SOURCE_HOST to the verified bundle model-sources directory}
+        target: /app/model-sources
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${JYS_DATA_HOST:?Set JYS_DATA_HOST to the verified bundle data directory}
+        target: /app/data
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${JYS_REPORT_HOST:?Set JYS_REPORT_HOST to the verified bundle reports directory}
+        target: /app/runtime/reports
+        read_only: true
+        bind:
+          create_host_path: false
+      - jys-competition-assets:/app/runtime/assets
+      - jys-competition-state:/app/runtime/state
+      - jys-competition-audit-anchor:/app/runtime/audit-anchor
+    secrets:
+      - jys_api_key
+      - jys_provenance_secret
+      - jys_evidence_private_key
+    environment:
+      JYS_MODE: production
+      JYS_ENABLE_DEMO: "false"
+      JYS_REQUIRE_API_KEY: "true"
+      JYS_API_KEY_FILE: /run/secrets/jys_api_key
+      JYS_PROVENANCE_SECRET_FILE: /run/secrets/jys_provenance_secret
+      JYS_EVIDENCE_PRIVATE_KEY: /run/secrets/jys_evidence_private_key
+      JYS_EVIDENCE_PUBLIC_KEY_FINGERPRINT: ${JYS_EVIDENCE_PUBLIC_KEY_FINGERPRINT:?Set the release-core signer fingerprint}
+      JYS_PROVENANCE_DB: /app/runtime/state/provenance.sqlite3
+      JYS_AUDIT_ANCHOR: /app/runtime/audit-anchor/provenance-audit-anchor.json
+      JYS_CORS_ORIGINS: ${JYS_CORS_ORIGINS:-https://127.0.0.1:8027}
+      JYS_CORS_ALLOW_CREDENTIALS: "false"
+      JYS_INFER_DEVICE: cuda:0
+      JYS_WARMUP_MODELS: "true"
+      JYS_RATE_LIMIT_REQUESTS: ${JYS_RATE_LIMIT_REQUESTS:-120}
+      JYS_RATE_LIMIT_WINDOW_SECONDS: ${JYS_RATE_LIMIT_WINDOW_SECONDS:-60}
+      JYS_MAX_RATE_LIMIT_CLIENTS: ${JYS_MAX_RATE_LIMIT_CLIENTS:-10000}
+      JYS_MAX_CONCURRENT_INFERENCE: ${JYS_MAX_CONCURRENT_INFERENCE:-1}
+      JYS_MAX_QUEUED_INFERENCE: ${JYS_MAX_QUEUED_INFERENCE:-4}
+      JYS_MIN_FREE_DISK_BYTES: ${JYS_MIN_FREE_DISK_BYTES:-536870912}
+      JYS_ARTIFACT_WRITE_RESERVE_BYTES: ${JYS_ARTIFACT_WRITE_RESERVE_BYTES:-134217728}
+      JYS_SEPMARK_CHECKPOINT: ${JYS_SEPMARK_CHECKPOINT:-/app/weights/mea/SepMark/results/FullFineTuningWithOnlyMessage/models/EC_108.pth}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    cpus: ${JYS_API_CPUS:-8.0}
+    mem_limit: ${JYS_API_MEMORY:-24g}
+    shm_size: ${JYS_API_SHM_SIZE:-4g}
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=2147483648,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 512
+    ulimits:
+      nofile:
+        soft: 8192
+        hard: 16384
+    logging:
+      driver: json-file
+      options:
+        max-file: "3"
+        max-size: 10m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8026/api/health', timeout=5)"]
+      interval: 15s
+      timeout: 8s
+      retries: 8
+      start_period: 120s
+    networks:
+      - backend
+
+  gateway:
+    image: ${JYS_RELEASE_IMAGE:?Set JYS_RELEASE_IMAGE to the verified offline sha256 image ID}
+    pull_policy: never
+    command: ["python", "-m", "system.gateway", "--host", "0.0.0.0", "--port", "8027"]
+    ports:
+      - "${JYS_BIND_ADDRESS:-127.0.0.1}:${JYS_FRONTEND_PORT:-8027}:8027"
+    depends_on:
+      api:
+        condition: service_healthy
+    secrets:
+      - jys_api_key
+    environment:
+      JYS_GATEWAY_UPSTREAM: http://api:8026
+      JYS_GATEWAY_API_KEY_FILE: /run/secrets/jys_api_key
+      JYS_GATEWAY_REQUIRE_API_KEY: "true"
+      JYS_GATEWAY_STATIC_ROOT: /app/system/frontend
+      JYS_GATEWAY_MAX_BODY_BYTES: ${JYS_GATEWAY_MAX_BODY_BYTES:-100663296}
+      JYS_GATEWAY_TIMEOUT_SECONDS: ${JYS_GATEWAY_TIMEOUT_SECONDS:-180}
+    cpus: ${JYS_GATEWAY_CPUS:-1.0}
+    mem_limit: ${JYS_GATEWAY_MEMORY:-512m}
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=67108864,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 96
+    logging:
+      driver: json-file
+      options:
+        max-file: "3"
+        max-size: 10m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8027/api/health', timeout=5)"]
+      interval: 15s
+      timeout: 8s
+      retries: 4
+      start_period: 15s
+    networks:
+      - backend
+      - edge
+
+networks:
+  backend:
+    internal: true
+  edge:
+
+secrets:
+  jys_api_key:
+    file: ${JYS_API_KEY_SECRET_FILE:?Set JYS_API_KEY_SECRET_FILE}
+  jys_provenance_secret:
+    file: ${JYS_PROVENANCE_SECRET_FILE:?Set JYS_PROVENANCE_SECRET_FILE}
+  jys_evidence_private_key:
+    file: ${JYS_EVIDENCE_PRIVATE_KEY_FILE:?Set JYS_EVIDENCE_PRIVATE_KEY_FILE}
+
+volumes:
+  jys-competition-assets:
+  jys-competition-state:
+  jys-competition-audit-anchor:

@@ -22,8 +22,12 @@ object NetworkModule {
         isLenient = true
     }
 
-    fun createApi(hostInterceptor: HostSelectionInterceptor): ApiService {
+    fun createApi(
+        hostInterceptor: HostSelectionInterceptor,
+        authInterceptor: ApiAuthInterceptor,
+    ): ApiService {
         val logging = HttpLoggingInterceptor().apply {
+            redactHeader(ApiAuthInterceptor.API_KEY_HEADER)
             level = if (BuildConfig.DEBUG) {
                 HttpLoggingInterceptor.Level.BASIC
             } else {
@@ -33,7 +37,12 @@ object NetworkModule {
 
         val client = OkHttpClient.Builder()
             .addInterceptor(hostInterceptor)
+            .addInterceptor(authInterceptor)
             .addInterceptor(logging)
+            // API origins must not be allowed to redirect a runtime token to a
+            // different host. The configured service must return final URLs.
+            .followRedirects(false)
+            .followSslRedirects(false)
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(90, TimeUnit.SECONDS)
             .writeTimeout(90, TimeUnit.SECONDS)
@@ -41,7 +50,9 @@ object NetworkModule {
 
         val contentType = "application/json".toMediaType()
         return Retrofit.Builder()
-            .baseUrl("http://localhost/")
+            // The interceptor normally replaces this host. Keep the fallback HTTPS
+            // and non-routable so a missing/invalid runtime URL fails closed.
+            .baseUrl("https://jianyuanshield.invalid/")
             .client(client)
             .addConverterFactory(json.asConverterFactory(contentType))
             .build()

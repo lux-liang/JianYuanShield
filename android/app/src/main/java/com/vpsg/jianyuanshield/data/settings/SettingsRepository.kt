@@ -25,6 +25,7 @@ class SettingsRepository(private val context: Context) {
     private val keyBigFont = booleanPreferencesKey("big_font")
     private val keyUserName = stringPreferencesKey("user_name")
     private val keyAvatarPath = stringPreferencesKey("avatar_path")
+    private val keyApiToken = stringPreferencesKey("api_token")
 
     val baseUrl: Flow<String> = context.dataStore.data.map { prefs ->
         prefs[keyBaseUrl]?.takeIf { it.isNotBlank() } ?: BuildConfig.DEFAULT_API_BASE
@@ -35,7 +36,7 @@ class SettingsRepository(private val context: Context) {
         prefs[keyDemoMode] ?: false
     }
 
-    /** 用户是否已同意"图片会上传到鉴别服务器"(首次鉴别前一次性确认)。 */
+    /** 用户是否已同意图片上传到所配置的保护/评估服务器。 */
     val uploadConsent: Flow<Boolean> = context.dataStore.data.map { prefs ->
         prefs[keyUploadConsent] ?: false
     }
@@ -53,6 +54,11 @@ class SettingsRepository(private val context: Context) {
     /** 头像本地文件路径(可空,空则显示默认占位)。 */
     val avatarPath: Flow<String?> = context.dataStore.data.map { prefs ->
         prefs[keyAvatarPath]?.takeIf { it.isNotBlank() }
+    }
+
+    /** Runtime-injected short-lived token; no token is compiled into the app. */
+    val apiToken: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[keyApiToken]?.trim().orEmpty()
     }
 
     suspend fun setBaseUrl(url: String) {
@@ -77,6 +83,13 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setAvatarPath(path: String) {
         context.dataStore.edit { it[keyAvatarPath] = path }
+    }
+
+    suspend fun setApiToken(token: String) {
+        val clean = token.trim()
+        context.dataStore.edit { prefs ->
+            if (clean.isEmpty()) prefs.remove(keyApiToken) else prefs[keyApiToken] = clean
+        }
     }
 
     companion object {

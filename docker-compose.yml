@@ -1,37 +1,81 @@
-version: "3.9"
-
 services:
-  jianyuanshield:
+  api:
     build: .
-    image: jianyuanshield:latest
-    container_name: jianyuanshield
+    image: ${JYS_IMAGE_REF:-jianyuanshield:dev}
     ports:
-      - "8026:8026"   # FastAPI backend
-      - "8027:8027"   # Static frontend
+      - "127.0.0.1:${JYS_BACKEND_PORT:-8026}:8026"
     volumes:
-      # Model weights (host-side, not baked into image)
-      - ./weights:/app/weights:ro
-      # Runtime data: runs, reports, evidence
-      - ./runs:/app/runs
-      - ./system/reports:/app/system/reports
-      - ./system/assets:/app/system/assets
-      # LIDMark/KAD-Net training runs
-      - /data1/luxliang/work/vpsg_competition_candidates/runs:/app/data/runs:ro
+      - jys-reports:/app/runtime/reports
+      - jys-assets:/app/runtime/assets
+      - jys-data:/app/data
     environment:
-      - PYTHONPATH=/app
-      - JYS_DATA_ROOT=/app/data
-      - JYS_BACKEND_PORT=8026
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+      JYS_MODE: ${JYS_MODE:-demo}
+      JYS_ENABLE_DEMO: ${JYS_ENABLE_DEMO:-true}
+      JYS_REQUIRE_API_KEY: ${JYS_REQUIRE_API_KEY:-false}
+      JYS_API_KEY: ${JYS_API_KEY:-}
+      JYS_API_KEY_FILE: ${JYS_API_KEY_FILE:-}
+      JYS_EVIDENCE_PRIVATE_KEY: ${JYS_EVIDENCE_PRIVATE_KEY:-}
+      JYS_EVIDENCE_PUBLIC_KEY_FINGERPRINT: ${JYS_EVIDENCE_PUBLIC_KEY_FINGERPRINT:-}
+      JYS_PROVENANCE_SECRET: ${JYS_PROVENANCE_SECRET:-}
+      JYS_PROVENANCE_SECRET_FILE: ${JYS_PROVENANCE_SECRET_FILE:-}
+      JYS_SEPMARK_CHECKPOINT: ${JYS_SEPMARK_CHECKPOINT:-/app/weights/mea/SepMark/results/FullFineTuningWithOnlyMessage/models/EC_108.pth}
+      JYS_CORS_ORIGINS: ${JYS_CORS_ORIGINS:-http://127.0.0.1:8027,http://localhost:8027}
+      JYS_RATE_LIMIT_REQUESTS: ${JYS_RATE_LIMIT_REQUESTS:-120}
+      JYS_RATE_LIMIT_WINDOW_SECONDS: ${JYS_RATE_LIMIT_WINDOW_SECONDS:-60}
+      JYS_MAX_RATE_LIMIT_CLIENTS: ${JYS_MAX_RATE_LIMIT_CLIENTS:-10000}
+      JYS_MIN_FREE_DISK_BYTES: ${JYS_MIN_FREE_DISK_BYTES:-536870912}
+      JYS_ARTIFACT_WRITE_RESERVE_BYTES: ${JYS_ARTIFACT_WRITE_RESERVE_BYTES:-134217728}
     restart: unless-stopped
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp
+    pids_limit: 256
+    logging:
+      driver: json-file
+      options:
+        max-file: "3"
+        max-size: 10m
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8026/api/status"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8026/api/health', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 30s
+
+  web:
+    image: ${JYS_IMAGE_REF:-jianyuanshield:dev}
+    command: ["python", "-m", "system.gateway", "--host", "0.0.0.0", "--port", "8027"]
+    ports:
+      - "127.0.0.1:${JYS_FRONTEND_PORT:-8027}:8027"
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      JYS_GATEWAY_UPSTREAM: http://api:8026
+      JYS_GATEWAY_REQUIRE_API_KEY: "false"
+      JYS_GATEWAY_STATIC_ROOT: /app/system/frontend
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 64
+    restart: unless-stopped
+    init: true
+    logging:
+      driver: json-file
+      options:
+        max-file: "3"
+        max-size: 10m
+
+volumes:
+  jys-reports:
+  jys-assets:
+  jys-data:

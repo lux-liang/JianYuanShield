@@ -26,7 +26,7 @@ fun AboutScreen(onBack: () -> Unit) {
             .fillMaxSize()
             .verticalScroll(rememberScrollState()),
     ) {
-        GradientTopBar(title = "关于", subtitle = "应用信息 · 合规依据", onBack = onBack)
+        GradientTopBar(title = "关于", subtitle = "应用信息 · 能力边界", onBack = onBack)
 
         Column(
             modifier = Modifier.padding(16.dp),
@@ -38,27 +38,26 @@ fun AboutScreen(onBack: () -> Unit) {
                 KeyValueRow("应用", "鉴源盾 JianYuanShield")
                 KeyValueRow("版本", "v${BuildConfig.VERSION_NAME}")
                 KeyValueRow("实验室", "新疆大学 VPSG")
-                KeyValueRow("合规", "《人工智能生成合成内容标识办法》")
+                KeyValueRow("法规参考", "《人工智能生成合成内容标识办法》")
             }
 
             SectionCard {
                 SectionHeader("五端统一")
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    "Android 客户端与 Web / iOS / 小程序 / 鸿蒙五端共用同一可信服务后台，" +
-                        "保证溯源与取证结果在各端一致。",
+                    "Android 客户端与 Web / iOS / 小程序 / 鸿蒙端按同一 REST 契约访问后端；" +
+                        "实际能力和可发布性以后端状态及声明门禁为准。",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
             SectionCard {
-                SectionHeader("合规与资质")
+                SectionHeader("能力与依据")
                 Spacer(Modifier.height(8.dp))
-                KeyValueRow("合规依据", "《AI 标识办法》")
-                KeyValueRow("证据签名", "Ed25519")
-                KeyValueRow("数据处理", "本地推理 · 检材不出端")
-                KeyValueRow("备案号", "新ICP备2026XXXXXX号", mono = true)
+                KeyValueRow("法规参考", "《人工智能生成合成内容标识办法》")
+                KeyValueRow("证据状态", "以 /api/claims 与签名 artifact 为准")
+                KeyValueRow("数据处理", "图片上传至所配置服务；衍生产物按服务端 TTL 管理")
             }
 
             SectionCard {
@@ -66,7 +65,7 @@ fun AboutScreen(onBack: () -> Unit) {
                 Spacer(Modifier.height(8.dp))
                 KeyValueRow("溯源模型", "LIDMark 等 4 种")
                 KeyValueRow("哈希算法", "SHA-256", mono = true)
-                KeyValueRow("基准数据集", "LFW 13,233 张")
+                KeyValueRow("评测状态", "以 /api/claims 与签名 artifact 为准")
                 KeyValueRow("最低系统", "Android 8.0+")
             }
 
@@ -74,7 +73,7 @@ fun AboutScreen(onBack: () -> Unit) {
                 SectionHeader("支持与反馈")
                 Spacer(Modifier.height(8.dp))
                 KeyValueRow("主管实验室", "新疆大学 VPSG")
-                KeyValueRow("更新日志", "v1.0.0 · 2026-06")
+                KeyValueRow("当前版本", "v${BuildConfig.VERSION_NAME}")
                 Spacer(Modifier.height(6.dp))
                 Text(
                     "演示模式下使用本地模拟数据预览完整流程，不构成正式取证结论。",

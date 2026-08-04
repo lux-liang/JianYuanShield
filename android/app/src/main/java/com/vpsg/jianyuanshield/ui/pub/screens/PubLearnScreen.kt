@@ -69,10 +69,10 @@ fun PubLearnScreen(
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                 PubHero(contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 14.dp, bottom = 24.dp)) {
                     PubNavBar("用图安全课堂", onBack = onBack)
-                    Text("别再被假图骗了", color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(top = 20.dp))
+                    Text("认识合成图片风险", color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(top = 20.dp))
                     Row(Modifier.padding(top = 13.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Icon(PubIcons.shieldCheck, null, tint = Color(0xFFBDF1FF), modifier = Modifier.size(15.dp))
-                        Text("几分钟看完,一眼识破 AI 图、假截图、换脸照", color = Color.White.copy(alpha = 0.85f), fontSize = 12.sp)
+                        Text("了解 AI 图、假截图与换脸照的常见人工核查线索", color = Color.White.copy(alpha = 0.85f), fontSize = 12.sp)
                     }
                 }
 
@@ -135,7 +135,7 @@ fun PubLearnScreen(
                 }
 
                 Text(
-                    "学完记得动手试一试 · 上传一张图鉴别看看",
+                    "风险图片先核对原始发布渠道 · 本系统仅核验预登记来源凭证",
                     color = Pub.Ink3, fontSize = 11.5.sp, textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth().padding(top = 20.dp),
                 )

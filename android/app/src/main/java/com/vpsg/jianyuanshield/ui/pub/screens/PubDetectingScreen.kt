@@ -77,11 +77,12 @@ fun PubDetectingScreen(
 ) {
     val image by vm.image.collectAsState()
     val fileName by vm.fileName.collectAsState()
+    val demoMode by vm.demoMode.collectAsState()
 
     // P0-①: Animatable 驱动进度——先走到 70%,等真实结果返回再补满
     val prog = remember { Animatable(0f) }
     LaunchedEffect(Unit) {
-        // 进入即触发真实推理(幂等);失败会在 VM 内回退本地演示数据
+        // 进入即触发推理(幂等)。网络失败进入明确错误态，绝不自动生成模拟成功结果。
         if (vm.state.value is UiState.Idle) vm.run()
         prog.animateTo(0.7f, tween(1400, easing = JysMotion.easeStd))
         // 等待真实终态(成功或错误)
@@ -115,7 +116,11 @@ fun PubDetectingScreen(
         Column(Modifier.fillMaxSize()) {
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                 PubHero(contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 14.dp, bottom = 56.dp)) {
-                    PubNavBar("正在鉴别…", subtitle = "已上传到鉴别服务器,正在分析", onBack = onBack)
+                    PubNavBar(
+                        "正在验证主动水印…",
+                        subtitle = if (demoMode) "本地流程演示 · 不产生可发布结论" else "已上传到所配置服务器，正在运行验证",
+                        onBack = onBack,
+                    )
                 }
 
                 Column(Modifier.offset(y = (-44).dp)) {
@@ -131,7 +136,7 @@ fun PubDetectingScreen(
                             if (image != null) {
                                 AsyncImage(
                                     model = image,
-                                    contentDescription = "正在鉴别的图片",
+                                    contentDescription = "正在运行保护链路评估的图片",
                                     contentScale = ContentScale.Crop,
                                     modifier = Modifier.fillMaxSize(),
                                 )
@@ -187,7 +192,7 @@ fun PubDetectingScreen(
                     // 进度
                     Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 20.dp)) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
-                            Text("正在分析水印与鲁棒性", color = Pub.Ink, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f))
+                            Text("正在评估本次水印恢复与鲁棒性", color = Pub.Ink, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f))
                             Text("${(p * 100).toInt()}%", color = Pub.Blue, fontSize = 30.sp, fontWeight = FontWeight.ExtraBold)
                         }
                         Box(
@@ -208,7 +213,7 @@ fun PubDetectingScreen(
                         StepRow(step1, "读取并上传图像", stepSub(step1), divider = true)
                         StepRow(step2, "模型恢复来源水印", stepSub(step2), divider = true)
                         StepRow(step3, "评估鲁棒性与画质", stepSub(step3), divider = true)
-                        StepRow(step4, "综合判定结论", stepSub(step4), divider = false)
+                        StepRow(step4, "校验结果与声明门禁", stepSub(step4), divider = false)
                     }
 
                     // 安心提示
@@ -218,7 +223,12 @@ fun PubDetectingScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(PubIcons.shieldCheck, null, tint = Pub.Ok, modifier = Modifier.size(16.dp))
-                        Text("正在上传并分析,请稍候", color = Pub.Ink2, fontSize = 12.5.sp, modifier = Modifier.padding(start = 8.dp))
+                        Text(
+                            if (demoMode) "演示模式已显式开启，结果不可用于结论" else "正在上传并验证，请稍候",
+                            color = Pub.Ink2,
+                            fontSize = 12.5.sp,
+                            modifier = Modifier.padding(start = 8.dp),
+                        )
                     }
 
                     Spacer(Modifier.height(20.dp))

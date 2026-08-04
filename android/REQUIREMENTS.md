@@ -1,113 +1,82 @@
-# 构建与运行环境要求 · REQUIREMENTS
+# 构建与运行环境要求
 
-本文件列出鉴源盾 Android 客户端的开发/构建环境与依赖清单。
-**本仓库仅含源码与文档，不含任何已下载的依赖包或 SDK**；以下版本是“目标兼容版本”，实际下载在构建机联网时由 Gradle 完成。
+本目录包含 Android 源码、文本配置和可校验的 Gradle Wrapper；Android SDK 与
+第三方依赖缓存仍由构建机提供，不进入版本库。
 
----
+## 开发工具链
 
-## 一、开发工具链
-
-| 组件 | 版本 / 要求 | 说明 |
-|:---|:---|:---|
-| JDK | **17**（LTS） | AGP 8.5 要求 JDK 17；`sourceCompatibility = 17` |
-| Android Studio | **Koala 2024.1.1** 或更新 | 内置 AGP 8.5 支持；可一键 Sync/Run |
-| Android Gradle Plugin (AGP) | **8.5.2** | 见 `gradle/libs.versions.toml` |
-| Gradle | **8.7** | 见 `gradle/wrapper/gradle-wrapper.properties` |
-| Kotlin | **2.0.20** | 含 Compose Compiler Gradle 插件（K2） |
-| Android SDK Platform | **API 34**（compileSdk / targetSdk） | 需安装 `platforms;android-34` |
-| Min SDK | **API 26**（Android 8.0） | 覆盖绝大多数在网设备，支持自适应图标 |
-| Build Tools | 34.0.0（随 AGP 自动选择） | — |
-
-> 命令行构建前提：构建机需能访问 `google()` 与 `mavenCentral()`，并已安装上述 SDK Platform。
-> Wrapper 二进制（`gradle-wrapper.jar`）未随仓库提供，请用 Android Studio 打开，或执行 `gradle wrapper` 生成后再 `./gradlew` 构建。
-
----
-
-## 二、Gradle 依赖清单
-
-所有依赖通过版本目录 `gradle/libs.versions.toml` 统一管理。核心依赖如下：
-
-### Jetpack Compose / AndroidX
-| 依赖 | 版本 | 用途 |
-|:---|:---|:---|
-| `androidx.compose:compose-bom` | 2024.09.02 | Compose 物料清单（统一各 compose 库版本） |
-| `androidx.compose.material3:material3` | （由 BOM 提供，1.3.x） | Material 3 组件 |
-| `androidx.compose.material:material-icons-extended` | （BOM） | 图标集（Shield / Fingerprint 等） |
-| `androidx.activity:activity-compose` | 1.9.2 | `setContent`、PhotoPicker、TakePicture |
-| `androidx.navigation:navigation-compose` | 2.8.1 | 导航 |
-| `androidx.lifecycle:lifecycle-viewmodel-compose` | 2.8.6 | `viewModel()` |
-| `androidx.lifecycle:lifecycle-runtime-compose` | 2.8.6 | `collectAsStateWithLifecycle` |
-| `androidx.core:core-ktx` | 1.13.1 | KTX、`FileProvider`、`WindowCompat` |
-
-### 网络与序列化
-| 依赖 | 版本 | 用途 |
-|:---|:---|:---|
-| `com.squareup.retrofit2:retrofit` | 2.11.0 | REST 客户端 |
-| `com.jakewharton.retrofit:retrofit2-kotlinx-serialization-converter` | 1.0.0 | kotlinx 转换器 |
-| `com.squareup.okhttp3:okhttp` | 4.12.0 | HTTP 引擎、multipart |
-| `com.squareup.okhttp3:logging-interceptor` | 4.12.0 | Debug 日志 |
-| `org.jetbrains.kotlinx:kotlinx-serialization-json` | 1.7.1 | JSON 解析（含 `JsonObject`） |
-| `org.jetbrains.kotlinx:kotlinx-coroutines-android` | 1.8.1 | 协程 |
-
-### 图片与持久化
-| 依赖 | 版本 | 用途 |
-|:---|:---|:---|
-| `io.coil-kt:coil-compose` | 2.7.0 | 加载远程/本地图片 |
-| `androidx.datastore:datastore-preferences` | 1.1.1 | 保存后端 Base URL |
-
-### 视觉增强（曜石·极光设计语言）
-| 依赖 | 版本 | 用途 |
-|:---|:---|:---|
-| `dev.chrisbanes.haze:haze` | 1.6.8 | 悬浮 Dock 真实背景模糊（玻璃拟态） |
-| `dev.chrisbanes.haze:haze-materials` | 1.6.8 | iOS 风格磨砂材质预设（ultraThin 等） |
-| `androidx.graphics:graphics-shapes` | 1.0.1 | M3 Expressive 形状变形（首页盾牌光环） |
-
-> 可选增强（放入文件即生效，无需改代码）：品牌字体——将思源黑体/Noto Sans SC 四个字重
-> 放入 `app/src/main/assets/fonts/`，文件名 `brand_regular.otf / brand_medium.otf /
-> brand_bold.otf / brand_black.otf`，缺失时自动回退系统字体。
-
-### Gradle 插件
-| 插件 | 版本 |
+| 组件 | 当前要求 |
 |:---|:---|
-| `com.android.application` | 8.5.2 |
-| `org.jetbrains.kotlin.android` | 2.0.20 |
-| `org.jetbrains.kotlin.plugin.compose` | 2.0.20 |
-| `org.jetbrains.kotlin.plugin.serialization` | 2.0.20 |
+| JDK | 17 |
+| Android Studio | Koala 2024.1.1 或更新版本 |
+| Android Gradle Plugin | 8.5.2 |
+| Gradle | 8.7 |
+| Kotlin | 2.0.20 |
+| compileSdk / targetSdk | API 35 |
+| minSdk | API 26（Android 8.0） |
 
-### 测试（可选）
-| 依赖 | 版本 |
-|:---|:---|
-| `junit:junit` | 4.13.2 |
-| `androidx.test.ext:junit` | 1.2.1 |
-| `androidx.test.espresso:espresso-core` | 3.6.1 |
-| `androidx.compose.ui:ui-test-junit4` | （BOM） |
-
----
-
-## 三、运行期依赖（后端）
-
-| 依赖 | 要求 |
-|:---|:---|
-| 鉴源盾 FastAPI 后端 | 运行于可达地址（默认 `http://10.0.2.2:8026`），见 `../JianyuanShield` |
-| 网络权限 | `INTERNET`、`ACCESS_NETWORK_STATE`（已在 `AndroidManifest.xml` 声明） |
-| 明文 HTTP | 已通过 `network_security_config.xml` 放开（仅联调用，生产请用 HTTPS） |
-
-> 相机采集走 `ACTION_IMAGE_CAPTURE`（`TakePicture`），由系统相机应用完成，**无需 `CAMERA` 运行时权限**；
-> 相册选择使用 Android Photo Picker，同样无需存储权限。
-
----
-
-## 四、最小构建命令
+构建机需要安装 `platforms;android-35` 与 Build Tools 35.0.0，并能访问
+`google()` 与 `mavenCentral()`。仓库已固定 Gradle 8.7 Wrapper，直接执行：
 
 ```bash
-# 1) 生成 Gradle Wrapper（首次，需联网）
-gradle wrapper --gradle-version 8.7
-
-# 2) 编译 Debug APK
-./gradlew assembleDebug
-
-# 3) 安装到设备/模拟器
-./gradlew installDebug
+./gradlew :app:assembleDebug :app:testDebugUnitTest
 ```
 
-产物：`app/build/outputs/apk/debug/app-debug.apk`
+## 主要依赖
+
+版本以 `gradle/libs.versions.toml` 为准：
+
+| 类别 | 依赖/版本 |
+|:---|:---|
+| Compose | Compose BOM 2024.10.01、Material 3 |
+| AndroidX | Activity 1.9.2、Navigation 2.8.1、Lifecycle 2.8.6 |
+| 网络 | Retrofit 2.11.0、OkHttp 4.12.0 |
+| 序列化 | kotlinx.serialization 1.7.1 |
+| 协程 | kotlinx.coroutines 1.8.1 |
+| 图片 | Coil 2.7.0 |
+| 持久化 | DataStore 1.1.1 |
+| 视觉 | Haze 1.6.8、Graphics Shapes 1.0.1 |
+| 二维码 | ZXing Core 3.5.3 |
+| 创作者签名 | Google Tink 1.7.0 + Android Keystore AES-GCM 包装 |
+
+## 运行期后端要求
+
+客户端依赖可达的鉴源盾 FastAPI 后端，但不在端侧执行模型。
+
+| 项目 | 要求 |
+|:---|:---|
+| debug 默认地址 | `http://10.0.2.2:8026` |
+| debug 明文范围 | 仅 Android 模拟器宿主机 `10.0.2.2` |
+| release 默认地址 | `https://jianyuanshield.invalid/`（安全失败占位） |
+| release 网络 | 正式节点必须使用 HTTPS，禁止全部明文 HTTP |
+| 权限 | `INTERNET`、`ACCESS_NETWORK_STATE` |
+| API 鉴权 | 生产模式受保护路由要求 `X-API-Key` |
+| CORS | 默认仅 localhost/127.0.0.1:8027，不是 `*` |
+
+客户端在“服务器设置”中接受部署方签发的短期 Token，并由 OkHttp 运行时注入
+`X-API-Key`。Token 不回显、不进入 URL 或日志、不写入 APK/`BuildConfig`/版本库，
+且 DataStore 被排除在云备份与设备迁移之外。生产服务地址必须使用 HTTPS。
+
+## 当前 API 语义要求
+
+- `infer-single.v1` 始终 `claim_valid=false`；真实 checkpoint 执行也只代表
+  单样本 embed-attack-decode 评估，不是既有图片来源盲检。
+- `model-provenance-status.v1` 只有 `provenance_ready=true` 的模型可进入保护登记；
+  `preferred_model` 也必须再次通过该门禁。
+- `provenance-record.v2` 必须包含通过一次性挑战建立的创作者持钥证明；
+  `creator_identity_verified=true` 不等于自然人实名身份。
+- 移动端只把 `registered_blind_verification`、消息匹配、未撤销、checkpoint 一致、
+  注册校准、Ed25519 签名字段与 `claim_valid=true` 全部成立的结果展示为可发布技术记录。
+- 来源凭证 sidecar 必须通过服务端签名状态与 SHA-256 绑定；撤销必须由登记时同一
+  创作者密钥签署一次性意图，成功后客户端要求 `revoked=true` 且 `claim_valid=false`。
+- `compliance-batch.v2` 当前
+  `capability_available=false`、`assessed=0`，统计字段为 nullable；
+  UI 不得将 `null` 显示成 0% 或“无水印”。
+- `/api/artifacts/status` 与 `/api/artifacts/{path}` 受鉴权且衍生产物有 TTL。
+- 声明可发布性以 `/api/claims`、`/api/evidence/audit` 和签名 artifact 为准。
+- 网络错误不得自动回退成模拟成功；本地演示只能由用户显式开启。
+
+## 设备能力说明
+
+相机采集使用系统 `ACTION_IMAGE_CAPTURE` / `TakePicture`，无需应用自行申请
+`CAMERA` 运行时权限；相册使用 Android Photo Picker，无需传统存储权限。

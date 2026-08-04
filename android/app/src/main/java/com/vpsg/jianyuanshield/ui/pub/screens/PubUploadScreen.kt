@@ -119,7 +119,7 @@ fun PubUploadScreen(
         Column(Modifier.fillMaxSize()) {
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                 PubHero(contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 14.dp, bottom = 64.dp)) {
-                    PubNavBar("鉴别图片", subtitle = "挑一张图,几秒看清真假", onBack = onBack)
+                    PubNavBar("主动水印链路评估", subtitle = "为本次评估新嵌入水印，再运行攻击与恢复", onBack = onBack)
                     ConnPill(probe, Modifier.padding(top = 14.dp), onClick = onOpenServer)
                 }
 
@@ -148,27 +148,27 @@ fun PubUploadScreen(
                         }
                     }
 
-                    SectionHeader("可以帮你鉴别什么")
+                    SectionHeader("本次会验证什么")
 
                     // P1-⑤ FeatureRow stagger
                     Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
                         AnimatedVisibility(visibleFeature0, enter = enterStd(0)) {
-                            FeatureRow(PubIcons.shieldCheck, 0, "溯源水印核验", "读出图片里藏着的来源标记")
+                            FeatureRow(PubIcons.shieldCheck, 0, "本次水印恢复", "仅恢复本流程新嵌入的消息")
                         }
                         AnimatedVisibility(visibleFeature1, enter = enterStd(0)) {
-                            FeatureRow(PubIcons.bolt, 2, "抗攻击鲁棒性", "压缩、裁剪、换脸后水印还在不在")
+                            FeatureRow(PubIcons.bolt, 2, "抗攻击鲁棒性", "验证压缩、裁剪等处理后的恢复能力")
                         }
                         AnimatedVisibility(visibleFeature2, enter = enterStd(0)) {
                             FeatureRow(PubIcons.image, 3, "图像质量评估", "嵌入水印后画质有没有损失")
                         }
                         AnimatedVisibility(visibleFeature3, enter = enterStd(0)) {
-                            FeatureRow(PubIcons.verified, 1, "合规标识检测", "是否携带《AI 标识办法》隐式标识")
+                            FeatureRow(PubIcons.verified, 1, "合规标识评估", "评估本流程嵌入的隐式标识")
                         }
                     }
 
                     PrivacyTip(Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp))
 
-                    PrimaryCta("选择图片,开始鉴别", Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp), icon = PubIcons.upload) {
+                    PrimaryCta("选择图片,开始保护链路评估", Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp), icon = PubIcons.upload) {
                         galleryLauncher.launch("image/*")
                     }
 
@@ -191,10 +191,18 @@ private fun ConnPill(probe: ConnProbe, modifier: Modifier = Modifier, onClick: (
         }
         is ConnProbe.Ok -> {
             dot = Color(0xFF7BE5B0)
-            text = if (probe.mode == "real_checkpoint") "已连接服务器 · 真实模型" else "已连接服务器 · 演示模拟"
+            text = when (probe.mode) {
+                "local_demo" -> "本地演示已显式开启 · 未测试服务器"
+                "real_checkpoint" -> if (probe.provenanceReadyModels.isEmpty()) {
+                    "已连接服务器 · 无来源就绪模型"
+                } else {
+                    "已连接服务器 · 来源就绪 ${probe.provenanceReadyModels.joinToString()}"
+                }
+                else -> "已连接服务器 · 服务器仅返回流程模拟"
+            }
         }
         is ConnProbe.Fail -> {
-            dot = Color(0xFFFFB4A8); text = "未连接服务器 · 点此设置(连不上会用本地演示)"
+            dot = Color(0xFFFFB4A8); text = "未连接服务器 · 点此设置（不会自动生成模拟结果）"
         }
     }
     Row(
@@ -241,7 +249,7 @@ private fun FeatureRow(icon: ImageVector, palette: Int, title: String, desc: Str
     }
 }
 
-/** 绿底隐私提示(上传 / 确认页复用)。真连后端时图片会上传到鉴别服务器,文案如实说明。 */
+/** 绿底隐私提示(上传 / 确认页复用)。真连后端时图片会上传到评估服务器。 */
 @Composable
 fun PrivacyTip(modifier: Modifier = Modifier) {
     val shape = RoundedCornerShape(14.dp)
@@ -256,8 +264,8 @@ fun PrivacyTip(modifier: Modifier = Modifier) {
         Icon(PubIcons.shieldCheck, null, tint = Pub.Ok, modifier = Modifier.size(22.dp))
         Text(
             buildAnnotatedString {
-                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("图片仅用于本次鉴别") }
-                append(",会安全上传到鉴别服务器分析,结果返回后即可放心。")
+                withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append("图片仅用于本次主动水印验证") }
+                append(",会上传到所配置服务器运行嵌入、攻击与恢复流程；结果不等同于通用真假鉴定。")
             },
             color = Color(0xFF0E7A50), fontSize = 12.sp, lineHeight = 18.sp,
         )

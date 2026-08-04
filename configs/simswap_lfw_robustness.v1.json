@@ -1,0 +1,65 @@
+{
+  "schema_version": "simswap-lfw-robustness-protocol.v1",
+  "protocol_id": "jys-simswap-lfw-identity-disjoint-v1",
+  "seed": 20260603,
+  "watermark_models": [
+    "LIDMark",
+    "KAD-Net",
+    "SepMark",
+    "WaveGuard"
+  ],
+  "pairing": {
+    "algorithm": "content-addressed-distinct-identity-halves.v1",
+    "identity_derivation": "dataset_parent_or_lfw_filename_suffix.v2",
+    "identity_reuse": false,
+    "calibration_holdout_identity_disjoint": true
+  },
+  "message_registration": {
+    "algorithm": "SHAKE256(simswap-registered-message.v1, seed, model, pair_id)",
+    "score": "decoded bit accuracy",
+    "acceptance_rule": "score >= calibration_threshold"
+  },
+  "controls": [
+    "registered_positive",
+    "unwatermarked_negative",
+    "wrong_message_negative",
+    "cross_record_negative"
+  ],
+  "threshold_calibration": {
+    "split": "calibration",
+    "objective": "lexicographic_minimax_far_frr.v1",
+    "evaluation_split": "holdout"
+  },
+  "confidence_intervals": {
+    "method": "Wilson score",
+    "confidence": 0.95,
+    "z": 1.959963984540054
+  },
+  "identity_proof": {
+    "embedding": "official SimSwap ArcFace checkpoint",
+    "similarity": "cosine",
+    "migration_rule": "cos(output, source) > cos(output, target)"
+  },
+  "quality": {
+    "metrics": [
+      "PSNR",
+      "SSIM"
+    ],
+    "primary_comparison": "swapped_clean versus swapped_watermarked"
+  },
+  "simswap": {
+    "repository": "https://github.com/neuralchen/SimSwap",
+    "commit": "bd7b7686a17f41dd11cfcd5d82f7e4c5eb94b780",
+    "tree": "20f6a41da5de682dcf3237398ef9376371c4002f",
+    "tracked_files_sha256": "26db6e77be8962a7fafec791af0b7e618d88a432df3c5fbf13a9ffe9516b4c4c",
+    "release_archives": {
+      "arcface_checkpoint.tar": "52ea5ce4902017b77a2bb811dd9a82f57dee3883e06c18a42d288437263c7a20",
+      "checkpoints.zip": "0593544d9401d6bf28247932466b54e98a79139e328e3ab3ec1c541c5efc6ee8",
+      "people/latest_net_G.pth": "24caf144e9aabd5acd1127b06f13ed3528240adb9e747d77a94ac3f33e672330"
+    },
+    "checkpoint_loading": {
+      "generator": "torch.load(weights_only=True) after exact SHA-256 verification",
+      "arcface": "torch.load(weights_only=False) only after exact official SHA-256 allowlist verification"
+    }
+  }
+}

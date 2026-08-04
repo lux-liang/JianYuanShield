@@ -3,7 +3,7 @@ package com.vpsg.jianyuanshield.ui.pub
 import androidx.compose.ui.graphics.vector.ImageVector
 
 /**
- * 鉴源盾 · 公众版"真实结果"视图模型。
+ * 鉴源盾 · 公众版结果视图模型。
  *
  * 把后端 [com.vpsg.jianyuanshield.data.remote.dto.InferResult](溯源水印 / 攻击鲁棒性 /
  * 合规判定)映射成结果页 / 报告页 / 凭证页可直接渲染的字段。映射逻辑见 [PubResultMapper]。
@@ -73,17 +73,45 @@ data class PubResultUi(
     val attack: String,
     /** real_checkpoint / demo_simulation。 */
     val mode: String,
-    /** 网络失败已回退本地演示数据。 */
-    val offline: Boolean,
-    /** 回退原因(网络错误信息),可空。 */
-    val offlineHint: String? = null,
+    /** registered_blind_verification 才属于跨请求登记核验。 */
+    val resultProvenance: String,
+    /** 后端声明门禁；只有 true 才允许发布结论。 */
+    val claimValid: Boolean,
+    /** 用户显式开启了本地演示模式。网络失败绝不会自动置为 true。 */
+    val localDemo: Boolean,
     val taskId: String,
-)
+) {
+    private val trustState: ResultTrustState
+        get() = evaluateResultTrust(
+            claimValid = claimValid,
+            mode = mode,
+            localDemo = localDemo,
+            resultProvenance = resultProvenance,
+        )
+
+    /** 非真实 checkpoint 输出均视为模拟，采取保守策略。 */
+    val isSimulation: Boolean
+        get() = trustState.isSimulation
+
+    /** 生成、保存、分享来源核验凭证的唯一客户端门禁。 */
+    val canIssueCertificate: Boolean
+        get() = trustState.canIssueCertificate
+
+    val evidenceStatusLabel: String
+        get() = trustState.statusLabel
+
+    val evidenceStatusDetail: String
+        get() = trustState.statusDetail
+}
 
 /** 服务器连接探测结果。 */
 sealed interface ConnProbe {
     data object Idle : ConnProbe
     data object Checking : ConnProbe
-    data class Ok(val mode: String, val version: String?) : ConnProbe
+    data class Ok(
+        val mode: String,
+        val version: String?,
+        val provenanceReadyModels: List<String> = emptyList(),
+    ) : ConnProbe
     data class Fail(val message: String) : ConnProbe
 }

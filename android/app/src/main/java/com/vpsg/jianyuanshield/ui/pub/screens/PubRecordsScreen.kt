@@ -90,10 +90,10 @@ fun PubRecordsScreen(
                 item {
                     PubHero(contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 14.dp, bottom = 24.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            PubNavBar("鉴别记录", subtitle = "每一次验真都为你存档", onBack = onBack, modifier = Modifier.weight(1f))
+                            PubNavBar("链路评估记录", subtitle = "仅存档通过客户端声明门禁的结果", onBack = onBack, modifier = Modifier.weight(1f))
                             Column(horizontalAlignment = Alignment.End) {
                                 Text("$total", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.ExtraBold)
-                                Text("累计鉴别", color = Color.White.copy(alpha = 0.75f), fontSize = 10.5.sp, modifier = Modifier.padding(top = 4.dp))
+                                Text("累计核验", color = Color.White.copy(alpha = 0.75f), fontSize = 10.5.sp, modifier = Modifier.padding(top = 4.dp))
                             }
                         }
                     }
@@ -107,7 +107,7 @@ fun PubRecordsScreen(
                         FilterChip("全部", "$total", on = selectedFilter == 0, dot = null) { selectedFilter = 0 }
                         FilterChip("通过核验", "$real", on = selectedFilter == 1, dot = Pub.Ok) { selectedFilter = 1 }
                         FilterChip("水印降级", "$ai", on = selectedFilter == 2, dot = Pub.Warn) { selectedFilter = 2 }
-                        FilterChip("未确认", "$tampered", on = selectedFilter == 3, dot = Pub.Hi) { selectedFilter = 3 }
+                        FilterChip("验证未通过", "$tampered", on = selectedFilter == 3, dot = Pub.Hi) { selectedFilter = 3 }
                     }
                 }
 
@@ -142,8 +142,8 @@ private fun EmptyRecords() {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(PubIcons.history, null, tint = Pub.Ink3, modifier = Modifier.size(44.dp))
-        Text("还没有鉴别记录", color = Pub.Ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 12.dp))
-        Text("去「鉴别」上传一张图,结果会自动存到这里", color = Pub.Ink3, fontSize = 12.sp, modifier = Modifier.padding(top = 5.dp))
+        Text("还没有链路评估记录", color = Pub.Ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 12.dp))
+        Text("来源登记与核验请前往「登记核验」", color = Pub.Ink3, fontSize = 12.sp, modifier = Modifier.padding(top = 5.dp))
     }
 }
 

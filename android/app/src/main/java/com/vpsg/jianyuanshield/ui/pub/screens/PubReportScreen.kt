@@ -61,6 +61,7 @@ import com.vpsg.jianyuanshield.ui.pub.PubNavBar
 import com.vpsg.jianyuanshield.ui.pub.PubTab
 import com.vpsg.jianyuanshield.ui.pub.PubTabBar
 import com.vpsg.jianyuanshield.ui.pub.RingProgress
+import com.vpsg.jianyuanshield.ui.pub.ResultProvenanceBanner
 import com.vpsg.jianyuanshield.ui.pub.SectionHeader
 
 @Composable
@@ -126,6 +127,10 @@ private fun ReportContent(
                 }
 
                 Column(Modifier.offset(y = (-46).dp)) {
+                    ResultProvenanceBanner(
+                        ui,
+                        Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+                    )
                     AnimatedVisibility(visibleConclusion, enter = enterReveal()) {
                         Row(
                             Modifier.padding(horizontal = 16.dp).fillMaxWidth()
@@ -175,7 +180,7 @@ private fun ReportContent(
                         )
                     }
 
-                    SectionHeader("这次鉴别的信息")
+                    SectionHeader("这次核验的信息")
                     PubCard(Modifier.padding(horizontal = 16.dp), contentPadding = PaddingValues(horizontal = 18.dp)) {
                         ui.metaInfo.forEachIndexed { i, (k, v) ->
                             InfoKv(metaIcon(i), k, v, divider = i < ui.metaInfo.lastIndex)
@@ -198,7 +203,32 @@ private fun ReportContent(
                         }
                     }
 
-                    PrimaryCta("保存这份凭证", Modifier.padding(start = 16.dp, end = 16.dp, top = 18.dp), icon = PubIcons.save, onClick = onSaveCertificate)
+                    if (ui.canIssueCertificate) {
+                        PrimaryCta(
+                            "生成来源核验凭证",
+                            Modifier.padding(start = 16.dp, end = 16.dp, top = 18.dp),
+                            icon = PubIcons.save,
+                            onClick = onSaveCertificate,
+                        )
+                    } else {
+                        Row(
+                            Modifier.padding(start = 16.dp, end = 16.dp, top = 18.dp).fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp)).background(Pub.WarnB)
+                                .border(1.dp, Color(0xFFF4E2BE), RoundedCornerShape(14.dp))
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Icon(PubIcons.warning, null, tint = Pub.Warn, modifier = Modifier.size(18.dp))
+                            Text(
+                                "声明门禁未通过，已禁止生成、保存和分享来源核验凭证。",
+                                color = Pub.WarnD,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                lineHeight = 18.sp,
+                            )
+                        }
+                    }
 
                     Row(Modifier.padding(start = 22.dp, end = 22.dp, top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Icon(PubIcons.info, null, tint = Pub.Ink3, modifier = Modifier.size(14.dp).padding(top = 1.dp))

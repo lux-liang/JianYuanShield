@@ -1,0 +1,78 @@
+{
+  "schema_version": "common-intersection-protocol.v1",
+  "protocol_id": "lfw-four-model-common-intersection-s20260603",
+  "reference_model": "LIDMark",
+  "expected_common_images": 1324,
+  "expected_identity_clusters": 574,
+  "attack_ids": [
+    "clean",
+    "jpeg50",
+    "jpeg70",
+    "jpeg90",
+    "resize_0.5x",
+    "gaussian_noise_sigma_3",
+    "crop_center_0.8",
+    "rotate_5",
+    "gaussian_blur_5",
+    "brightness_0.85",
+    "contrast_1.2",
+    "webp50",
+    "platform_wechat_v1",
+    "platform_douyin_v1",
+    "deepfake_proxy_v1"
+  ],
+  "models": {
+    "LIDMark": {
+      "summary": "reports/lidmark_lfw_identity_test_epoch20_protocol_v1/summary.json",
+      "results": "reports/lidmark_lfw_identity_test_epoch20_protocol_v1/raw_results.csv",
+      "image_field": "image_id",
+      "attack_field": "attack_type",
+      "identity_field": "identity",
+      "bit_accuracy_field": "bit_accuracy",
+      "success_field": "success",
+      "error_field": "error"
+    },
+    "KAD-Net": {
+      "summary": "reports/kadnet_lfw_benchmark/summary.json",
+      "results": "reports/kadnet_lfw_benchmark/results.csv",
+      "image_field": "image_id",
+      "attack_field": "attack_type",
+      "bit_accuracy_field": "bit_accuracy",
+      "success_field": "success",
+      "error_field": "error"
+    },
+    "SepMark": {
+      "summary": "reports/sepmark_lfw_benchmark/summary.json",
+      "results": "reports/sepmark_lfw_benchmark/results.csv",
+      "image_field": "image_id",
+      "attack_field": "attack_type",
+      "bit_accuracy_field": "bit_accuracy_c",
+      "success_field": "success",
+      "error_field": "error"
+    },
+    "WaveGuard": {
+      "summary": "reports/waveguard_lfw_benchmark/summary.json",
+      "results": "reports/waveguard_lfw_benchmark/results.csv",
+      "image_field": "image_id",
+      "attack_field": "attack_type",
+      "bit_accuracy_field": "bit_accuracy_tracer",
+      "success_field": "success",
+      "error_field": "error"
+    }
+  },
+  "attack_config_field": "attack_config_sha256",
+  "statistics": {
+    "point_estimand": "image_weighted_rate_on_fixed_common_intersection",
+    "uncertainty_unit": "lfw_identity_cluster",
+    "method": "deterministic_identity_cluster_bootstrap_percentile",
+    "confidence_level": 0.95,
+    "bootstrap_repetitions": 4096,
+    "seed": 20260603,
+    "multiplicity": "per_metric_descriptive_intervals_not_simultaneous"
+  },
+  "comparison_policy": {
+    "cross_model_metric": "protocol_threshold_success",
+    "raw_bit_accuracy_direct_ranking": false,
+    "reason": "message lengths, decoder semantics, and thresholds differ by model"
+  }
+}

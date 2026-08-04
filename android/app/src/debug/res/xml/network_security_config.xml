@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  调试构建专用:允许任意明文 HTTP,方便用局域网 / 公网 http 地址在真机上联调。
-  这个文件只在 debug 构建生效,不会进入 release(release 用 src/main 的严格配置)。
--->
+<!-- Debug 仅允许 Android 模拟器宿主机 10.0.2.2 使用明文 HTTP。 -->
 <network-security-config>
-    <base-config cleartextTrafficPermitted="true">
+    <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
     </base-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
 </network-security-config>

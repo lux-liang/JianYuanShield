@@ -1,0 +1,554 @@
+{
+  "schema_version": "claims-manifest.v1",
+  "generated_from": "repository declarations and content-addressed runtime evidence",
+  "policy": {
+    "publishable_statuses": [
+      "implemented",
+      "verified",
+      "publishable"
+    ],
+    "expected_ready_for_claims": false,
+    "performance_claim_id": "performance_results",
+    "publishable_requires": [
+      "metric semantics",
+      "checkpoint SHA-256",
+      "dataset manifest",
+      "sample count",
+      "positive/negative threshold calibration",
+      "protocol version",
+      "machine-readable evidence artifact"
+    ],
+    "forbidden_without_external_evidence": [
+      "performance superlatives",
+      "judicial admissibility",
+      "real Deepfake robustness",
+      "industry-first claims"
+    ],
+    "submission_documents": [
+      "README.md",
+      "README_COMPETITION.md",
+      "docs/API_CONTRACT.md",
+      "docs/DEFENSE_SCRIPT_3MIN.md",
+      "docs/EVALUATION_PROTOCOL.md",
+      "docs/EXPERIMENT_EXECUTION.md",
+      "docs/INNOVATION_POINTS.md",
+      "docs/JUDGE_QA.md",
+      "docs/LIMITATIONS.md",
+      "docs/TECHNICAL_REPORT.md",
+      "docs/THREAT_MODEL.md"
+    ],
+    "required_document_markers": {
+      "README.md": [
+        "claims_manifest.v1.json",
+        "动态 evidence-set 门禁",
+        "deepfake_proxy_v1"
+      ],
+      "README_COMPETITION.md": [
+        "ready_for_claims",
+        "review required",
+        "不能表述为既成事实"
+      ],
+      "docs/API_CONTRACT.md": [
+        "claim_valid=false",
+        "/api/claims",
+        "capability_unavailable"
+      ],
+      "docs/DEFENSE_SCRIPT_3MIN.md": [
+        "ready_for_claims",
+        "Deepfake proxy",
+        "完整性签名"
+      ],
+      "docs/EVALUATION_PROTOCOL.md": [
+        "claims_manifest.v1.json",
+        "逐图原始记录",
+        "不能"
+      ],
+      "docs/EXPERIMENT_EXECUTION.md": [
+        "H100 2/7",
+        "JYS_RUNTIME_ROOT",
+        "逐图原始记录",
+        "claim_valid"
+      ],
+      "docs/INNOVATION_POINTS.md": [
+        "claims_manifest.v1.json",
+        "fail-closed"
+      ],
+      "docs/JUDGE_QA.md": [
+        "claim_valid=false",
+        "capability_unavailable",
+        "完整性签名记录"
+      ],
+      "docs/LIMITATIONS.md": [
+        "动态计算",
+        "capability_unavailable"
+      ],
+      "docs/TECHNICAL_REPORT.md": [
+        "/api/claims",
+        "claims_manifest.v1.json",
+        "不发布模型准确率"
+      ],
+      "docs/THREAT_MODEL.md": [
+        "攻击者能力",
+        "剩余风险",
+        "验证方式"
+      ]
+    },
+    "forbidden_document_patterns": [
+      {
+        "id": "legacy_performance_numbers",
+        "pattern": "(?:99\\.9[78]|99\\.8|91\\.2|87\\.7|49\\.6|50\\.4|37\\.3)\\s*%|13[,.]?233|1[,.]?536|2[,.]?048",
+        "reason": "Historical performance numbers are blocked until repository evidence is publishable."
+      },
+      {
+        "id": "unsupported_superlatives",
+        "pattern": "全球首个|填补空白|完整符合|完全符合|司法级证据链|等价区块链|CVPR\\s*2026|KBS\\s*2025",
+        "reason": "Absolute novelty, legal-effect and venue claims require external evidence."
+      },
+      {
+        "id": "stale_claim_gate_state",
+        "pattern": "ready_for_(?:claims|demo)\\s*[:=]\\s*(?:yes|true)",
+        "reason": "Documentation must not hard-code a positive runtime gate state."
+      },
+      {
+        "id": "unsupported_checkpoint_diagnosis",
+        "pattern": "HiDDeN[^\\n]{0,40}(?:checkpoint[^\\n]{0,20})?(?:根本损坏|确认损坏|训练发散)",
+        "reason": "Root-cause diagnosis is not publishable without a tracked diagnostic bundle."
+      }
+    ]
+  },
+  "claims": [
+    {
+      "claim_id": "active_provenance_lifecycle",
+      "statement": "The platform implements creator-referenced protection records and cross-request watermark verification.",
+      "claim_type": "system_capability",
+      "status": "implemented",
+      "requested_for_submission": true,
+      "evidence": [
+        "system/backend/provenance.py",
+        "tests/test_provenance.py"
+      ],
+      "limitations": [
+        "Blind verification is bound to the hash-registered KAD-Net checkpoint and its holdout calibration artifact.",
+        "Creator references are requester-declared application identifiers, not verified civil identities.",
+        "The signed record proves byte integrity and signing-key control; tenant ownership, authenticated-session binding and natural-person identity require deployment identity and object-authorization integration."
+      ]
+    },
+    {
+      "claim_id": "mea_red_team_protocol",
+      "statement": "MEA formalizes sequential watermark embedding as a red-team compatibility test and records a complete 4x4 real-checkpoint matrix with 4096 auditable evaluations.",
+      "claim_type": "protocol_innovation",
+      "status": "verified",
+      "requested_for_submission": true,
+      "evidence": [
+        "configs/evaluation_protocol.v1.json",
+        "scripts/run_mea_matrix_4x4.py",
+        "system/evaluation/adapters/multi_embedding.py",
+        "tests/test_multi_embedding.py",
+        "tests/test_mea_matrix_4x4.py",
+        "reports/mea-4x4-protocol-v1-s20260603-n256/dataset_manifest.json",
+        "reports/mea-4x4-protocol-v1-s20260603-n256/run_config.json",
+        "reports/mea-4x4-protocol-v1-s20260603-n256/raw_results.csv",
+        "reports/mea-4x4-protocol-v1-s20260603-n256/progress.json",
+        "reports/mea-4x4-protocol-v1-s20260603-n256/summary.json",
+        "reports/evidence_signature/release-core/manifest.json",
+        "reports/evidence_signature/release-core/manifest.sig",
+        "reports/evidence_signature/release-core/public_key.pem"
+      ],
+      "gate": {
+        "type": "mea_matrix_evidence.v1",
+        "run_id": "mea-4x4-protocol-v1-s20260603-n256",
+        "directory_path": "reports/mea-4x4-protocol-v1-s20260603-n256"
+      },
+      "limitations": [
+        "Cross-model accuracy requires decoder- and capacity-aware interpretation."
+      ]
+    },
+    {
+      "claim_id": "collaboration_policy_engine",
+      "statement": "The platform converts the signed MEA interaction matrix into a reproducible risk-aware model ranking, Pareto analysis, compatibility plan, and fail-closed deployment recommendation.",
+      "claim_type": "system_innovation",
+      "status": "verified",
+      "requested_for_submission": true,
+      "evidence": [
+        "configs/collaboration_policy.v2.json",
+        "system/backend/collaboration.py",
+        "system/backend/routes.py",
+        "system/backend/schemas.py",
+        "tests/test_collaboration_policy.py",
+        "reports/mea-4x4-protocol-v1-s20260603-n256/dataset_manifest.json",
+        "reports/mea-4x4-protocol-v1-s20260603-n256/run_config.json",
+        "reports/mea-4x4-protocol-v1-s20260603-n256/raw_results.csv",
+        "reports/mea-4x4-protocol-v1-s20260603-n256/progress.json",
+        "reports/mea-4x4-protocol-v1-s20260603-n256/summary.json",
+        "reports/evidence_signature/release-core/manifest.json",
+        "reports/evidence_signature/release-core/manifest.sig",
+        "reports/evidence_signature/release-core/public_key.pem"
+      ],
+      "gate": {
+        "type": "collaboration_policy_evidence.v2",
+        "policy_id": "mea-identity-cluster-deployment-s20260603"
+      },
+      "limitations": [
+        "The recommendation is scoped to the fixed LFW n256 MEA sample, the four registered checkpoints, and the secondary-embedding threat matrix encoded by the signed policy; it is not a cross-dataset generalization claim.",
+        "The official-SimSwap/LFW n256 result is governed by an independent deepfake evidence gate and is not combined with MEA scores through cross-scale weighting."
+      ]
+    },
+    {
+      "claim_id": "ed25519_integrity",
+      "statement": "The platform can sign canonical evidence records with Ed25519 and detect content tampering.",
+      "claim_type": "security_capability",
+      "status": "implemented",
+      "requested_for_submission": true,
+      "evidence": [
+        "system/backend/signing.py",
+        "tests/test_signing.py"
+      ],
+      "limitations": [
+        "This is an integrity signature, not by itself proof of judicial admissibility.",
+        "Trusted timestamping and an externally pinned public-key trust anchor require deployment integration."
+      ]
+    },
+    {
+      "claim_id": "deepfake_robustness_n64_smoke",
+      "statement": "On the fixed official-SimSwap/LFW n64 identity-disjoint protocol (16 calibration and 48 holdout pairs), holdout TAR/FAR are LIDMark 0.8750/0.25694444, KAD-Net 0.83333333/0.0000, SepMark 0.89583333/0.0000 and WaveGuard 0.3750/0.4375 under registered-positive, unwatermarked, wrong-message and cross-record controls.",
+      "claim_type": "scoped_real_face_swap_smoke",
+      "status": "superseded_smoke",
+      "requested_for_submission": false,
+      "evidence": [
+        "configs/simswap_lfw_robustness.v1.json",
+        "system/scripts/run_simswap_lfw_robustness.py",
+        "system/backend/simswap_evidence.py",
+        "tests/test_simswap_lfw_robustness.py",
+        "reports/simswap-lfw-robustness-n64-s20260603/pair_manifest.json",
+        "reports/simswap-lfw-robustness-n64-s20260603/message_registry.json",
+        "reports/simswap-lfw-robustness-n64-s20260603/run_config.json",
+        "reports/simswap-lfw-robustness-n64-s20260603/identity_embeddings.csv",
+        "reports/simswap-lfw-robustness-n64-s20260603/results.csv",
+        "reports/simswap-lfw-robustness-n64-s20260603/progress.json",
+        "reports/simswap-lfw-robustness-n64-s20260603/assets_manifest.json",
+        "reports/simswap-lfw-robustness-n64-s20260603/summary.json",
+        "weights/SimSwap/downloads/checkpoints.zip",
+        "weights/SimSwap/checkpoints/people/latest_net_G.pth",
+        "weights/SimSwap/downloads/arcface_checkpoint.tar",
+        "weights/lidmark/lfw-id-s20260603-128/checkpoint_epoch_20.pth",
+        "weights/KAD-Net/ST/128/models/EC_100.pth",
+        "weights/MEA/models/SepMark/results/FullFineTuningWithOnlyMessage/models/EC_108.pth",
+        "weights/MEA/models/WaveGuard/exp_highpass/2025.07.24-20.10.50/model_state_16.pth"
+      ],
+      "limitations": [
+        "This completed n64 run is retained as a scoped smoke result and is not the submission-level Deepfake claim."
+      ]
+    },
+    {
+      "claim_id": "deepfake_robustness",
+      "statement": "On the fixed official-SimSwap/LFW n256 identity-disjoint protocol (64 calibration, 192 holdout), holdout TARs were KAD-Net 0.99479167, SepMark 0.94791667, LIDMark 0.81250000 and WaveGuard 0.54687500. KAD-Net observed zero false accepts in each of three related 0/192 negative controls (single-control Wilson 95% FAR upper bound 0.01961515). Descriptive pooled FARs across those related controls were KAD-Net 0.00000000, SepMark 0.01215278, LIDMark 0.23611111 and WaveGuard 0.57465278. Within the pipeline-internal ArcFace migration subsets, registered-positive recovery was KAD-Net 160/161 and SepMark 151/161 when clean swap migrated, and KAD-Net 153/154 and SepMark 150/159 when both clean and watermarked swaps migrated.",
+      "claim_type": "real_face_swap_robustness",
+      "status": "verified",
+      "requested_for_submission": true,
+      "evidence": [
+        "configs/simswap_lfw_robustness.v1.json",
+        "system/scripts/run_simswap_lfw_robustness.py",
+        "system/backend/simswap_evidence.py",
+        "tests/test_simswap_lfw_robustness.py",
+        "tests/test_simswap_conditioned_migration.py",
+        "reports/simswap-lfw-robustness-n256-s20260603/pair_manifest.json",
+        "reports/simswap-lfw-robustness-n256-s20260603/message_registry.json",
+        "reports/simswap-lfw-robustness-n256-s20260603/run_config.json",
+        "reports/simswap-lfw-robustness-n256-s20260603/identity_embeddings.csv",
+        "reports/simswap-lfw-robustness-n256-s20260603/results.csv",
+        "reports/simswap-lfw-robustness-n256-s20260603/progress.json",
+        "reports/simswap-lfw-robustness-n256-s20260603/assets_manifest.json",
+        "reports/simswap-lfw-robustness-n256-s20260603/summary.json",
+        "weights/SimSwap/downloads/checkpoints.zip",
+        "weights/SimSwap/checkpoints/people/latest_net_G.pth",
+        "weights/SimSwap/downloads/arcface_checkpoint.tar",
+        "weights/lidmark/lfw-id-s20260603-128/checkpoint_epoch_20.pth",
+        "weights/KAD-Net/ST/128/models/EC_100.pth",
+        "weights/MEA/models/SepMark/results/FullFineTuningWithOnlyMessage/models/EC_108.pth",
+        "weights/MEA/models/WaveGuard/exp_highpass/2025.07.24-20.10.50/model_state_16.pth",
+        "reports/evidence_signature/release-core/manifest.json",
+        "reports/evidence_signature/release-core/manifest.sig",
+        "reports/evidence_signature/release-core/public_key.pem"
+      ],
+      "gate": {
+        "type": "simswap_lfw_evidence.v1",
+        "run_id": "simswap-lfw-robustness-n256-s20260603",
+        "directory_path": "reports/simswap-lfw-robustness-n256-s20260603",
+        "num_pairs": 256,
+        "calibration_pairs": 64,
+        "holdout_pairs": 192,
+        "holdout_metrics": {
+          "LIDMark": {
+            "tar": 0.8125,
+            "tar_wilson_95_low": 0.75136283,
+            "far": 0.23611111,
+            "far_wilson_95_high": 0.27247097
+          },
+          "KAD-Net": {
+            "tar": 0.99479167,
+            "tar_wilson_95_low": 0.9710925,
+            "far": 0.0,
+            "far_wilson_95_high": 0.00662502
+          },
+          "SepMark": {
+            "tar": 0.94791667,
+            "tar_wilson_95_low": 0.90679489,
+            "far": 0.01215278,
+            "far_wilson_95_high": 0.02487054
+          },
+          "WaveGuard": {
+            "tar": 0.546875,
+            "tar_wilson_95_low": 0.47623085,
+            "far": 0.57465278,
+            "far_wilson_95_high": 0.61440217
+          }
+        },
+        "far_by_negative_control": {
+          "LIDMark": {
+            "unwatermarked": {
+              "successes": 46,
+              "total": 192,
+              "estimate": 0.23958333,
+              "wilson_95_low": 0.18469443,
+              "wilson_95_high": 0.30468846
+            },
+            "wrong_message": {
+              "successes": 48,
+              "total": 192,
+              "estimate": 0.25,
+              "wilson_95_low": 0.19406065,
+              "wilson_95_high": 0.31574692
+            },
+            "cross_record": {
+              "successes": 42,
+              "total": 192,
+              "estimate": 0.21875,
+              "wilson_95_low": 0.16610636,
+              "wilson_95_high": 0.28242716
+            }
+          },
+          "KAD-Net": {
+            "unwatermarked": {
+              "successes": 0,
+              "total": 192,
+              "estimate": 0.0,
+              "wilson_95_low": 0.0,
+              "wilson_95_high": 0.01961515
+            },
+            "wrong_message": {
+              "successes": 0,
+              "total": 192,
+              "estimate": 0.0,
+              "wilson_95_low": 0.0,
+              "wilson_95_high": 0.01961515
+            },
+            "cross_record": {
+              "successes": 0,
+              "total": 192,
+              "estimate": 0.0,
+              "wilson_95_low": 0.0,
+              "wilson_95_high": 0.01961515
+            }
+          },
+          "SepMark": {
+            "unwatermarked": {
+              "successes": 0,
+              "total": 192,
+              "estimate": 0.0,
+              "wilson_95_low": 0.0,
+              "wilson_95_high": 0.01961515
+            },
+            "wrong_message": {
+              "successes": 2,
+              "total": 192,
+              "estimate": 0.01041667,
+              "wilson_95_low": 0.00286129,
+              "wilson_95_high": 0.03717854
+            },
+            "cross_record": {
+              "successes": 5,
+              "total": 192,
+              "estimate": 0.02604167,
+              "wilson_95_low": 0.01117361,
+              "wilson_95_high": 0.05950325
+            }
+          },
+          "WaveGuard": {
+            "unwatermarked": {
+              "successes": 117,
+              "total": 192,
+              "estimate": 0.609375,
+              "wilson_95_low": 0.53886487,
+              "wilson_95_high": 0.67559432
+            },
+            "wrong_message": {
+              "successes": 117,
+              "total": 192,
+              "estimate": 0.609375,
+              "wilson_95_low": 0.53886487,
+              "wilson_95_high": 0.67559432
+            },
+            "cross_record": {
+              "successes": 97,
+              "total": 192,
+              "estimate": 0.50520833,
+              "wilson_95_low": 0.43508285,
+              "wilson_95_high": 0.57512949
+            }
+          }
+        },
+        "identity_migration": {
+          "clean_swap_estimate": 0.83854167,
+          "clean_swap_wilson_95_low": 0.77994169
+        },
+        "identity_migration_evidence_scope": {
+          "schema_version": "simswap-identity-migration-evidence-scope.v1",
+          "scope": "pipeline_internal_identity_migration_evidence",
+          "method": "source_cosine_greater_than_target_cosine",
+          "arcface_checkpoint_path": "weights/SimSwap/downloads/arcface_checkpoint.tar",
+          "arcface_checkpoint_sha256": "52ea5ce4902017b77a2bb811dd9a82f57dee3883e06c18a42d288437263c7a20",
+          "same_arcface_checkpoint_used_for_generation_and_measurement": true,
+          "independent_identity_verifier": false
+        },
+        "registered_positive_conditioned_on_identity_migration": {
+          "LIDMark": {
+            "clean_swap_migrated": {
+              "successes": 128,
+              "total": 161,
+              "estimate": 0.79503106,
+              "wilson_95_low": 0.72614916,
+              "wilson_95_high": 0.85016217
+            },
+            "clean_and_watermarked_swap_migrated": {
+              "successes": 123,
+              "total": 150,
+              "estimate": 0.82,
+              "wilson_95_low": 0.75077672,
+              "wilson_95_high": 0.87324232
+            }
+          },
+          "KAD-Net": {
+            "clean_swap_migrated": {
+              "successes": 160,
+              "total": 161,
+              "estimate": 0.99378882,
+              "wilson_95_low": 0.96566044,
+              "wilson_95_high": 0.99890273
+            },
+            "clean_and_watermarked_swap_migrated": {
+              "successes": 153,
+              "total": 154,
+              "estimate": 0.99350649,
+              "wilson_95_low": 0.96413879,
+              "wilson_95_high": 0.99885282
+            }
+          },
+          "SepMark": {
+            "clean_swap_migrated": {
+              "successes": 151,
+              "total": 161,
+              "estimate": 0.9378882,
+              "wilson_95_low": 0.88945175,
+              "wilson_95_high": 0.96591559
+            },
+            "clean_and_watermarked_swap_migrated": {
+              "successes": 150,
+              "total": 159,
+              "estimate": 0.94339623,
+              "wilson_95_low": 0.89593484,
+              "wilson_95_high": 0.96993802
+            }
+          },
+          "WaveGuard": {
+            "clean_swap_migrated": {
+              "successes": 82,
+              "total": 161,
+              "estimate": 0.50931677,
+              "wilson_95_low": 0.43278442,
+              "wilson_95_high": 0.58541488
+            },
+            "clean_and_watermarked_swap_migrated": {
+              "successes": 78,
+              "total": 156,
+              "estimate": 0.5,
+              "wilson_95_low": 0.42248721,
+              "wilson_95_high": 0.57751279
+            }
+          }
+        }
+      },
+      "limitations": [
+        "The claim is scoped to the pinned official SimSwap release, the LFW n256 identity-disjoint split, the four registered checkpoints and this fixed calibration rule.",
+        "The three negative controls share each holdout pair. Their pooled 576-comparison FAR and Wilson interval are descriptive only, not an independent-trial confidence claim; inferential interpretation uses the separately pinned 192-pair Wilson interval for each control.",
+        "The same pinned ArcFace checkpoint supplies SimSwap source-identity conditioning and measures source-versus-target cosine migration. These subgroup results are pipeline-internal identity-migration evidence, not independent identity verification."
+      ]
+    },
+    {
+      "claim_id": "performance_results",
+      "statement": "The four canonical formal benchmarks are publishable only as one complete, strictly verified evidence set.",
+      "claim_type": "performance",
+      "status": "verified",
+      "requested_for_submission": true,
+      "gate": {
+        "type": "benchmark_evidence_set.v1",
+        "benchmarks": [
+          {
+            "benchmark_id": "lidmark",
+            "summary_path": "reports/lidmark_lfw_identity_test_epoch20_protocol_v1/summary.json",
+            "results_path": "reports/lidmark_lfw_identity_test_epoch20_protocol_v1/raw_results.csv"
+          },
+          {
+            "benchmark_id": "kadnet",
+            "summary_path": "reports/kadnet_lfw_benchmark/summary.json",
+            "results_path": "reports/kadnet_lfw_benchmark/results.csv"
+          },
+          {
+            "benchmark_id": "sepmark",
+            "summary_path": "reports/sepmark_lfw_benchmark/summary.json",
+            "results_path": "reports/sepmark_lfw_benchmark/results.csv"
+          },
+          {
+            "benchmark_id": "waveguard_full",
+            "summary_path": "reports/waveguard_lfw_benchmark/summary.json",
+            "results_path": "reports/waveguard_lfw_benchmark/results.csv"
+          }
+        ]
+      },
+      "evidence": [
+        "configs/evaluation_protocol.v1.json",
+        "system/backend/benchmark_evidence.py",
+        "system/backend/claims.py"
+      ],
+      "limitations": [
+        "LIDMark uses its frozen identity-disjoint test split; cross-method paired statistics are valid only for overlapping image IDs.",
+        "Each method currently contributes one frozen protocol run, so image-sampling intervals do not estimate between-seed variance.",
+        "Platform and localized-edit entries in protocol v1 remain deterministic proxies and are not interchangeable with the separately gated official-SimSwap/LFW n256 track."
+      ]
+    },
+    {
+      "claim_id": "kadnet_protocol_v1_n256",
+      "statement": "KAD-Net has a signed 256-image, 15-attack protocol-v1 evaluation bundle with complete raw-row coverage.",
+      "claim_type": "scoped_performance_evidence",
+      "status": "verified",
+      "requested_for_submission": false,
+      "gate": {
+        "type": "benchmark_evidence.v1",
+        "summary_path": "reports/kadnet-lfw-protocol-v1-n256-s20260603/summary.json",
+        "results_path": "reports/kadnet-lfw-protocol-v1-n256-s20260603/results.csv"
+      },
+      "evidence": [
+        "reports/kadnet-lfw-protocol-v1-n256-s20260603/summary.json",
+        "reports/kadnet-lfw-protocol-v1-n256-s20260603/results.csv",
+        "reports/kadnet-lfw-protocol-v1-n256-s20260603/dataset_manifest.json",
+        "reports/kadnet-lfw-protocol-v1-n256-s20260603/run_config.json",
+        "reports/evidence_signature/manifest.json",
+        "reports/evidence_signature/manifest.sig",
+        "reports/evidence_signature/public_key.pem"
+      ],
+      "limitations": [
+        "This scoped run contains 256 deterministically selected LFW images; the full-LFW run remains a separate artifact.",
+        "Platform and localized-edit entries in protocol v1 remain deterministic proxies and are not interchangeable with the separately gated official-SimSwap/LFW n256 track."
+      ]
+    }
+  ]
+}

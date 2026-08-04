@@ -13,21 +13,7 @@
     <link rel="manifest" href="./manifest.json" />
     <link rel="apple-touch-icon" href="./icons/icon-180.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
-    <!-- 在线时加载 IBM Plex；media=print+onload 异步化，离线/内网部署不阻塞首屏，自动回落系统字体栈 -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
-      rel="stylesheet"
-      media="print"
-      onload="this.media='all'"
-    />
-    <noscript>
-      <link
-        href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
-        rel="stylesheet"
-      />
-    </noscript>
+    <!-- 完全离线可用；字体使用系统栈，不向第三方域名发送请求。 -->
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
@@ -111,7 +97,7 @@
           </div>
           <div class="top-meta">
             <span class="clock" id="clock" aria-hidden="true">--:--:--</span>
-            <span class="clock-sub">LFW 13,233 · LIDMark / MEA / WaveGuard / KAD-Net</span>
+            <span class="clock-sub">PROVENANCE · MEA · CLAIM-AS-CODE · ED25519</span>
           </div>
         </header>
 
@@ -145,7 +131,7 @@
               </div>
               <div class="boundary-box">
                 <span>项目评测结论</span>
-                <strong id="boundaryConclusion">LIDMark 3-seed 正式训练 99.97%；WaveGuard JPEG Q=50 已修复（100%）；KAD-Net 几何增强微调中</strong>
+                <strong id="boundaryConclusion">正在同步机器可读声明门禁；缺少证据的性能数字不会展示。</strong>
               </div>
             </div>
           </section>
@@ -197,7 +183,7 @@
         <section class="panel" style="margin-bottom:1.5rem">
           <div class="panel-head">
             <div>
-              <h3>MEA 多重嵌入攻击矩阵（5×5，n=128/格）</h3>
+              <h3>MEA 多重嵌入攻击矩阵</h3>
               <span>行=先嵌入 Source | 列=后嵌入 Attacker</span>
             </div>
             <span id="meaMatrixBadge" class="panel-badge">loading</span>
@@ -205,17 +191,80 @@
           <div class="table-wrap">
             <table id="meaMatrixTable">
               <thead>
-                <tr>
+                <tr id="meaMatrixHead">
                   <th>Source ↓ / Attacker →</th>
-                  <th>SepMark</th><th>WaveGuard</th><th>LIDMark</th><th>KAD-Net</th><th>HiDDeN</th>
+                  <th>LIDMark</th><th>KAD-Net</th><th>SepMark</th><th>WaveGuard</th>
                 </tr>
               </thead>
               <tbody id="meaMatrixBody"></tbody>
             </table>
           </div>
           <p style="font-size:11px;opacity:.6;margin:.5rem 0 0">
-            ✅≥90% ⚠70-89% ❌&lt;70% · 对角线自攻击为设计预期
+            阈值来自统一协议；不同消息长度和 decoder 语义需分开解释。
           </p>
+        </section>
+
+        <section class="panel simswap-evidence-panel" style="margin-bottom:1.5rem">
+          <span class="exhibit">EXHIBIT 13 · REAL FACE-SWAP EVIDENCE</span>
+          <div class="panel-head">
+            <div>
+              <h3>真实换脸证据 · official SimSwap / LFW</h3>
+              <span>第三方换脸引擎评测；项目增量是身份隔离协议、四对照统计、实现哈希与签名验链</span>
+            </div>
+            <span id="simswapEvidenceBadge" class="panel-badge muted">waiting</span>
+          </div>
+          <div id="simswapEvidenceStatus" class="demo-status" aria-live="polite">等待固定 n256 证据</div>
+          <div class="simswap-coverage" aria-label="真实换脸证据覆盖">
+            <div><span>PAIR SPLIT</span><strong id="simswapPairCoverage">—</strong><small>total / calibration / holdout</small></div>
+            <div><span>MODEL ROWS</span><strong id="simswapResultCoverage">—</strong><small>observed / expected</small></div>
+            <div><span>ARCFACE EMBEDDINGS</span><strong id="simswapIdentityCoverage">—</strong><small>observed / expected</small></div>
+            <div><span>RELEASE GATE</span><strong id="simswapClaimState">—</strong><small>claim_valid + implementation + signer</small></div>
+          </div>
+          <div class="table-wrap simswap-table-wrap">
+            <table>
+              <thead><tr>
+                <th>第三方水印模型</th>
+                <th>TAR observed</th>
+                <th>TAR Wilson 95% LCB</th>
+                <th>FAR observed · 3 controls</th>
+                <th>每控制 FAR observed → Wilson 95% UCB</th>
+                <th>流程内身份迁移 Wilson 95% LCB</th>
+                <th>迁移条件下登记恢复 Wilson 95% LCB</th>
+              </tr></thead>
+              <tbody id="simswapEvidenceRows"><tr><td colspan="7">等待 release-core 证据验链</td></tr></tbody>
+            </table>
+          </div>
+          <div id="simswapGateDetails" class="simswap-gate-details"></div>
+        </section>
+
+        <section class="panel collaboration-panel" style="margin-bottom:1.5rem">
+          <span class="exhibit">EXHIBIT 14 · COLLABORATION POLICY</span>
+          <div class="panel-head">
+            <div>
+              <h3>证据驱动策略推荐器 · 单模型部署建议</h3>
+              <span>基于 256 图像 / 217 身份等权聚类 bootstrap、固定 96 项选择族、硬约束与可行域 Pareto；只输出部署建议，不自动执行双水印</span>
+            </div>
+            <span id="collaborationBadge" class="panel-badge muted">waiting</span>
+          </div>
+          <form id="collaborationForm" class="collaboration-form">
+            <fieldset>
+              <legend>二次嵌入威胁</legend>
+              <label><input type="checkbox" name="collaborationThreat" value="LIDMark" checked> LIDMark</label>
+              <label><input type="checkbox" name="collaborationThreat" value="KAD-Net" checked> KAD-Net</label>
+              <label><input type="checkbox" name="collaborationThreat" value="SepMark" checked> SepMark</label>
+              <label><input type="checkbox" name="collaborationThreat" value="WaveGuard" checked> WaveGuard</label>
+            </fieldset>
+            <label>决策偏好
+              <select id="collaborationProfile">
+                <option value="balanced">均衡 · risk 0.6 / quality 0.2 / min normalized margin LCB 0.45</option>
+                <option value="security">安全优先 · risk 0.9 / min normalized margin LCB 0.70（演示硬约束阻断）</option>
+                <option value="quality">质量优先 · quality 0.45 / min normalized margin LCB 0.45</option>
+              </select>
+            </label>
+            <button id="collaborationRun" class="primary-action" type="submit">生成证据绑定部署建议</button>
+          </form>
+          <div id="collaborationStatus" class="demo-status">等待选择威胁模型</div>
+          <div id="collaborationResult" class="collaboration-result"></div>
         </section>
 
           <section class="panel">
@@ -223,7 +272,7 @@
             <div class="panel-head">
               <div>
                 <h3>核心模块</h3>
-                <span>团队原创方法与对照基线 · 实时状态来自后端注册表</span>
+                <span>第三方底层模型与项目集成、协议创新、证据验链等系统增量 · 实时状态来自后端注册表</span>
               </div>
             </div>
             <div class="module-list" id="moduleList"></div>
@@ -245,7 +294,7 @@
             <div class="panel-head">
               <div>
                 <h3>取证场景</h3>
-                <span>真实 checkpoint 推理 · 《AI 标识办法》合规检测</span>
+                <span>执行模式、核验结果与声明可发布状态分开展示</span>
               </div>
               <div class="segmented" aria-label="scenario">
                 <button class="active" data-scenario="demo" type="button">内置演示链</button>
@@ -265,7 +314,7 @@
                   <option value="multi_embedding+jpeg_50+blur">二次嵌入 + JPEG50 + 模糊</option>
                   <option value="jpeg_50">JPEG50</option>
                   <option value="resize">缩放传播</option>
-                  <option value="">无攻击</option>
+                  <option value="clean">无攻击</option>
                 </select></label>
                 <button id="demoRunButton" class="primary-action" type="submit">运行演示</button>
               </form>
@@ -279,42 +328,48 @@
 
             <!-- 场景1: 创作者保护 -->
             <div id="scene-creator" class="scene-block" hidden>
-              <p class="scene-desc">上传原创图片 → 嵌入水印 → 模拟攻击 → 取证结果 + 司法证据哈希</p>
-              <form id="inferForm" class="demo-form">
-                <label>图片<input type="file" id="inferFile" accept="image/*" required></label>
-                <label>模型<select id="inferModel">
-                  <option value="SepMark">SepMark（推荐）</option>
+              <p class="scene-desc">保护：创作者引用 + 唯一消息 → 登记；核验：传播后图片 → 盲解码 → 匹配登记记录</p>
+              <form id="protectForm" class="demo-form">
+                <label>原创图片<input type="file" id="protectFile" accept="image/jpeg,image/png,image/webp" required></label>
+                <label>创作者引用<input type="text" id="creatorRef" maxlength="128" placeholder="creator-001" required></label>
+                <label>模型<select id="protectModel" disabled>
+                  <option value="LIDMark">LIDMark</option>
+                  <option value="SepMark">SepMark</option>
                   <option value="WaveGuard">WaveGuard</option>
+                  <option value="KAD-Net">KAD-Net</option>
                 </select></label>
-                <label>攻击<select id="inferAttack">
-                  <option value="clean">无攻击（clean）</option>
-                  <option value="jpeg50">JPEG 50（平台转码）</option>
-                  <option value="jpeg70">JPEG 70</option>
-                  <option value="resize">缩放传播</option>
-                  <option value="noise">高斯噪声</option>
-                  <option value="blur">模糊</option>
-                </select></label>
-                <button id="inferBtn" class="primary-action" type="submit">取证</button>
+                <button id="protectBtn" class="primary-action" type="submit" disabled>保护并登记</button>
               </form>
-              <div id="inferStatus" class="demo-status">等待上传</div>
-              <div id="inferImages" class="demo-artifacts"></div>
-              <div id="inferMetrics" class="infer-metrics"></div>
+              <div id="protectModelStatus" class="model-gate-status" aria-live="polite">正在核验模型登记、校准与签名状态</div>
+              <div id="protectStatus" class="demo-status" aria-live="polite">等待原创图片</div>
+              <div id="protectResult" class="demo-artifacts"></div>
               <details class="evidence-fold">
-                <summary>EVIDENCE JSON</summary>
-                <pre id="inferEvidence">{}</pre>
+                <summary>PROTECTION RECORD</summary>
+                <pre id="protectEvidence">{}</pre>
+              </details>
+              <form id="verifyForm" class="demo-form">
+                <label>传播后图片<input type="file" id="verifyFile" accept="image/jpeg,image/png,image/webp" required></label>
+                <label>内容 ID<input type="text" id="verifyContentId" minlength="32" maxlength="32" pattern="[a-f0-9]{32}" placeholder="保护后自动填入" required></label>
+                <button id="verifyBtn" class="primary-action" type="submit">盲解码核验</button>
+              </form>
+              <div id="verifyStatus" class="demo-status" aria-live="polite">等待传播后图片与内容 ID</div>
+              <div id="verifyResult" class="infer-metrics"></div>
+              <details class="evidence-fold">
+                <summary>VERIFICATION EVENT</summary>
+                <pre id="verifyEvidence">{}</pre>
               </details>
             </div>
 
             <!-- 场景2: 平台合规批量 -->
             <div id="scene-compliance" class="scene-block" hidden>
-              <p class="scene-desc">批量上传图片 → 检测隐式水印合规状态 → 对应《AI 标识办法》第 5 条</p>
+              <p class="scene-desc">盲检能力门禁：当前适配器不支持时返回“不可判定”，不生成合规率或无水印结论</p>
               <form id="batchForm" class="demo-form">
                 <label>批量图片（多选）<input type="file" id="batchFiles" accept="image/*" multiple required></label>
                 <label>检测模型<select id="batchModel">
                   <option value="SepMark">SepMark</option>
                   <option value="WaveGuard">WaveGuard</option>
                 </select></label>
-                <button id="batchBtn" class="primary-action" type="submit">批量检测</button>
+                <button id="batchBtn" class="primary-action" type="submit">检查盲检能力</button>
               </form>
               <div id="batchStatus" class="demo-status">等待上传</div>
               <div id="batchResults"></div>
@@ -322,7 +377,7 @@
 
             <!-- 场景3: MEA 横评 -->
             <div id="scene-mea" class="scene-block" hidden>
-              <p class="scene-desc">同一图片，SepMark vs WaveGuard，相同攻击 → 横向对比抗攻击性能</p>
+              <p class="scene-desc">同一图片，四模型使用相同攻击做工程横评；正式协同选择以验签 MEA 矩阵为准</p>
               <form id="meaForm" class="demo-form">
                 <label>图片<input type="file" id="meaFile" accept="image/*" required></label>
                 <label>攻击<select id="meaAttack">
@@ -351,7 +406,7 @@
               </div>
               <div class="segmented" aria-label="method filter">
                 <button class="active" data-filter="all" type="button">全部</button>
-                <button data-filter="real" type="button">真实</button>
+                <button data-filter="real" type="button">证据已验证</button>
                 <button data-filter="smoke" type="button">Smoke</button>
                 <button data-filter="pending" type="button">Pending</button>
               </div>
@@ -397,11 +452,11 @@
             </article>
 
             <article class="panel">
-              <span class="exhibit">EXHIBIT 23 · HIDDEN / LFW FULL</span>
+              <span class="exhibit">EXHIBIT 23 · HIDDEN / EVIDENCE STATUS</span>
               <div class="panel-head">
                 <div>
-                  <h3>HiDDeN LFW 全量 benchmark</h3>
-                  <span>official MEA checkpoint</span>
+                  <h3>HiDDeN benchmark evidence</h3>
+                  <span>仅在签名 artifact 可用时展示</span>
                 </div>
                 <span class="panel-badge muted">弱对照</span>
               </div>
@@ -417,18 +472,18 @@
             </article>
 
             <article class="panel">
-              <span class="exhibit">EXHIBIT 24 · WAVEGUARD / LFW FULL</span>
+              <span class="exhibit">EXHIBIT 24 · WAVEGUARD / EVIDENCE STATUS</span>
               <div class="panel-head">
                 <div>
                   <h3>WaveGuard baseline</h3>
-                  <span>detector / tracer 双通道 · full LFW benchmark</span>
+                  <span>tracer 主通道 / detector 辅通道，双通道分开报告</span>
                 </div>
                 <span class="panel-badge warning">baseline</span>
               </div>
               <div class="table-wrap">
                 <table>
                   <thead>
-                    <tr><th>attack</th><th class="num-col">BER-det</th><th class="num-col">Acc-det</th><th class="num-col">BER-tr</th><th class="num-col">Acc-tr</th><th class="num-col">Success</th></tr>
+                    <tr><th>attack</th><th class="num-col">BER-tr</th><th class="num-col">Acc-tr</th><th class="num-col">BER-det</th><th class="num-col">Acc-det</th><th class="num-col">Success</th></tr>
                   </thead>
                   <tbody id="waveguardRows"></tbody>
                 </table>
@@ -437,13 +492,13 @@
 
 
             <article class="panel">
-              <span class="exhibit">EXHIBIT 24B · KAD-NET / LFW FULL</span>
+              <span class="exhibit">EXHIBIT 24B · KAD-NET / EVIDENCE STATUS</span>
               <div class="panel-head">
                 <div>
-                  <h3>KAD-Net LFW benchmark</h3>
-                  <span>geo-finetuned · clean / jpeg / resize / noise / crop_center / rotate</span>
+                  <h3>KAD-Net benchmark evidence</h3>
+                  <span>等待 checkpoint、数据清单与逐图结果共同放行</span>
                 </div>
-                <span class="panel-badge">real</span>
+                <span class="panel-badge warning">review</span>
               </div>
               <div class="table-wrap">
                 <table>
@@ -494,10 +549,10 @@
               <span class="exhibit">EXHIBIT 32 · LIDMARK RAW</span>
               <div class="panel-head">
                 <div>
-                  <h3>LIDMark LFW eval</h3>
-                  <span>3-seed 正式训练 · LFW 1,536 张 · 99.97%</span>
+                  <h3>LIDMark evaluation evidence</h3>
+                  <span>性能主张由 claims gate 控制</span>
                 </div>
-                <span class="panel-badge">real</span>
+                <span class="panel-badge warning">review</span>
               </div>
               <details class="evidence-fold" open>
                 <summary>RAW EVIDENCE JSON</summary>
@@ -510,9 +565,9 @@
               <div class="panel-head">
                 <div>
                   <h3>WaveGuard baseline</h3>
-                  <span>JPEG STE 7ep 微调 · Q=50/70 tracer 100% · LFW full</span>
+                  <span>detector / tracer 指标分离；等待签名 artifact</span>
                 </div>
-                <span class="panel-badge">real</span>
+                <span class="panel-badge warning">review</span>
               </div>
               <details class="evidence-fold" open>
                 <summary>RAW EVIDENCE JSON</summary>
@@ -534,6 +589,7 @@
         </section>
       </main>
     </div>
+    <script src="./trust-contracts.js"></script>
     <script src="./app.js"></script>
   </body>
 </html>

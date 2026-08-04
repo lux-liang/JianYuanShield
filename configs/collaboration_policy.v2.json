@@ -1,0 +1,81 @@
+{
+  "schema_version": "collaboration-policy.v2",
+  "policy_id": "mea-identity-cluster-deployment-s20260603",
+  "model_order": [
+    "LIDMark",
+    "KAD-Net",
+    "SepMark",
+    "WaveGuard"
+  ],
+  "model_semantics": {
+    "LIDMark": {
+      "message_length": 16,
+      "primary_decoder": "FHD_id_head",
+      "success_threshold": 0.9
+    },
+    "KAD-Net": {
+      "message_length": 30,
+      "primary_decoder": "ST_Decoder_C",
+      "success_threshold": 0.9
+    },
+    "SepMark": {
+      "message_length": 128,
+      "primary_decoder": "decoder_C",
+      "success_threshold": 0.9
+    },
+    "WaveGuard": {
+      "message_length": 30,
+      "primary_decoder": "tracer",
+      "success_threshold": 0.9
+    }
+  },
+  "evidence": {
+    "summary_path": "reports/mea-4x4-protocol-v1-s20260603-n256/summary.json",
+    "summary_sha256": "953b4607133a97e2ad09180536ffd3ad819186aa1a28dd6f2d9152e86626e067",
+    "dataset_manifest_sha256": "29a0e3c2c14bfcc6b264216a326c7dda4b106c88455e71600ec76c9f6247fe09",
+    "raw_results_sha256": "ee4f6647f001063d9d2016c72736bbdeb56e7369baed0923cecfd091a248d9a5",
+    "run_config_sha256": "fd52ab82a1b2c4d85875e22f85a5ed728169f4a88ef30da800d85583d577429a",
+    "progress_sha256": "8fc2ac6158b8d18bd37fc40b7fe71fcf91127f665a7b2b7ff58b73e0508c4e72",
+    "protocol_sha256": "4e4de3a5677b39fa8f6d197cd013ac2a497ad3d15782259df77948278aa4694f",
+    "images_per_cell": 256,
+    "expected_cells": 16,
+    "expected_rows": 4096
+  },
+  "uncertainty": {
+    "method": "deterministic_identity_cluster_bootstrap_percentile",
+    "cluster_key": "lfw_filename_identity_prefix_v1",
+    "estimand": "equal_identity_weighted_mean_of_within_identity_image_means",
+    "normalized_margin_transform": "piecewise_linear_protocol_threshold_centered_at_0_5",
+    "rng": "numpy_pcg64_multinomial",
+    "seed": 20260603,
+    "resamples": 20000,
+    "quantile_method": "lower",
+    "confidence_level": 0.95,
+    "multiplicity_adjustment": "bonferroni_one_sided_fixed_full_selection_family",
+    "family_metrics": [
+      "source_protocol_normalized_margin",
+      "source_protocol_success",
+      "attacker_protocol_normalized_margin",
+      "attacker_protocol_success",
+      "second_vs_original_psnr",
+      "second_vs_original_ssim"
+    ],
+    "family_size": 96,
+    "expected_image_count": 256,
+    "expected_identity_count": 217,
+    "expected_repeated_identity_count": 24,
+    "expected_images_in_repeated_identities": 63,
+    "expected_max_cluster_size": 10
+  },
+  "scoring": {
+    "fidelity_psnr_floor_db": 20.0,
+    "fidelity_psnr_ceiling_db": 45.0,
+    "minimum_allowed_worst_case_protocol_normalized_margin": 0.45,
+    "minimum_source_protocol_success_rate_lcb": 0.5,
+    "minimum_post_attack_psnr_lcb_db": 20.0,
+    "minimum_post_attack_ssim_lcb": 0.6,
+    "default_risk_aversion": 0.6,
+    "default_fidelity_weight": 0.2,
+    "default_minimum_worst_case_protocol_normalized_margin": 0.45
+  }
+}

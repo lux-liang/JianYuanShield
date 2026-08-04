@@ -4,16 +4,18 @@
         <include
             domain="sharedpref"
             path="." />
-        <include
-            domain="file"
-            path="datastore/" />
+        <exclude
+            domain="sharedpref"
+            path="jys_creator_identity_secure.xml" />
+        <!-- No file-domain include: DataStore is excluded. -->
     </cloud-backup>
     <device-transfer>
         <include
             domain="sharedpref"
             path="." />
-        <include
-            domain="file"
-            path="datastore/" />
+        <exclude
+            domain="sharedpref"
+            path="jys_creator_identity_secure.xml" />
+        <!-- No file-domain include: DataStore is excluded. -->
     </device-transfer>
 </data-extraction-rules>

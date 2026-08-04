@@ -104,7 +104,7 @@ fun InferScreen(
     when (val s = resultState) {
         is UiState.Loading -> Box(Modifier.fillMaxSize()) {
             DetectingStage(
-                "正在溯源检测",
+                "正在运行主动水印链路评估",
                 fileName = imageUri?.lastPathSegment?.takeIf { it.contains('.') && !it.contains(':') } ?: "本地检材图像",
             )
         }
@@ -112,7 +112,7 @@ fun InferScreen(
         is UiState.Success -> InferReport(s.data, onAgain = { restart() })
 
         is UiState.Error -> Column(Modifier.fillMaxSize()) {
-            GradientTopBar(title = "溯源取证")
+            GradientTopBar(title = "主动水印链路评估")
             Spacer(Modifier.height(24.dp))
             ErrorState(s.message, onRetry = { imageUri?.let { viewModel.run(it, modelId, attackId) } })
             Spacer(Modifier.height(8.dp))
@@ -124,11 +124,11 @@ fun InferScreen(
         }
 
         is UiState.Idle -> StepScaffold(
-            title = "溯源取证",
+            title = "主动水印链路评估",
             currentStep = step,
             totalSteps = 3,
             stepLabels = STEP_LABELS,
-            primaryText = if (step < 3) "下一步" else "开始检测",
+            primaryText = if (step < 3) "下一步" else "开始评估",
             primaryEnabled = step != 1 || imageUri != null,
             onPrimary = {
                 if (step < 3) step++ else imageUri?.let { viewModel.run(it, modelId, attackId) }
@@ -139,7 +139,7 @@ fun InferScreen(
         ) {
             Spacer(Modifier.height(4.dp))
             when (step) {
-                1 -> StepBlock("上传待取证图像", "支持相册导入、现场拍摄,系统将生成唯一取证任务编号") {
+                1 -> StepBlock("选择评估图像", "该接口会为本次单请求新嵌入水印，不核验既有图片来源") {
                     ImagePickField(selectedUri = imageUri, onPicked = { imageUri = it })
                     if (imageUri != null) {
                         Spacer(Modifier.height(14.dp))
@@ -175,14 +175,14 @@ private fun EvidenceMaterialCard(uriLabel: String) {
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("检材信息", style = MaterialTheme.typography.titleSmall, color = Ink, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-            StatusPill("已上传", StatusTone.Success)
+            StatusPill("已选择", StatusTone.Success)
         }
         Spacer(Modifier.height(6.dp))
         KeyValueRow("采集方式", "相册导入")
-        KeyValueRow("文件哈希", "A93F4C…29C1", mono = true)
-        KeyValueRow("任务编号", "JYD-20260614-2237", mono = true)
+        KeyValueRow("文件标识", uriLabel.takeLast(28), mono = true)
+        KeyValueRow("任务编号", "由服务端执行后返回", mono = true)
         Text(
-            "上传后系统将计算 SHA-256 并生成唯一取证任务编号",
+            "当前仅完成本地选图；哈希与任务编号以服务端真实响应为准",
             style = MaterialTheme.typography.bodySmall,
             color = InkFaint,
         )
@@ -208,15 +208,15 @@ private fun StepBlock(
 @Composable
 private fun InferReport(ui: InferUi, onAgain: () -> Unit) {
     val r: InferResult = ui.result
-    val tone = when (r.compliance.verdict?.lowercase()) {
+    val tone = if (!r.claimValid) StatusTone.Warning else when (r.compliance.verdict?.lowercase()) {
         "compliant" -> StatusTone.Success
         "degraded" -> StatusTone.Warning
-        else -> if (r.compliance.watermarkDetected) StatusTone.Success else StatusTone.Danger
+        else -> if (r.compliance.watermarkDetected == true) StatusTone.Success else StatusTone.Danger
     }
-    val title = when (tone) {
-        StatusTone.Success -> "合规水印已验证"
+    val title = if (!r.claimValid) "单请求保护链路评估 · 不可发布" else when (tone) {
+        StatusTone.Success -> "本次新嵌入水印恢复成功"
         StatusTone.Warning -> "水印降级（篡改后残留）"
-        else -> "未检测到合规水印"
+        else -> "本次新嵌入水印未恢复"
     }
 
     Column(
@@ -224,7 +224,7 @@ private fun InferReport(ui: InferUi, onAgain: () -> Unit) {
             .fillMaxSize()
             .verticalScroll(rememberScrollState()),
     ) {
-        GradientTopBar(title = "取证报告", onBack = onAgain)
+        GradientTopBar(title = "保护链路评估报告", onBack = onAgain)
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -291,7 +291,7 @@ private fun InferReport(ui: InferUi, onAgain: () -> Unit) {
                     KeyValueRow("任务编号", r.taskId, mono = true)
                     KeyValueRow("摘要算法", "SHA-256")
                     KeyValueRow("生成时间", "2026-06-14 22:37", mono = true)
-                    KeyValueRow("签名状态", "本地签名完成 · 未上链")
+                    KeyValueRow("签名状态", "单请求评估不生成登记事件签名")
                     Spacer(Modifier.height(6.dp))
                     hashes.forEach { (key, value) -> HashRow(artifactLabel(key), value ?: "") }
                 }
