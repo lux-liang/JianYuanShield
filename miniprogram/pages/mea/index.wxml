@@ -2,15 +2,87 @@
   <view class="brand">
     <view class="brand-mark"><text class="ic">⚔</text></view>
     <view>
-      <view class="brand-title">MEA 横评</view>
-      <view class="brand-sub">Cross-Model Comparison</view>
+      <view class="brand-title">MEA 部署建议</view>
+      <view class="brand-sub">Evidence-Driven Deployment Recommendation</view>
+    </view>
+  </view>
+
+  <view class="card policy-card">
+    <text class="exhibit">Exhibit 14 · Collaboration Policy</text>
+    <view class="card-title">有向红队矩阵驱动的单模型部署选择</view>
+    <view class="card-desc">选择可能发生二次嵌入的威胁模型与决策偏好。后端对 256 图像中的 217 个身份等权执行 20,000 次确定性聚类 bootstrap，并在固定 96 项选择族上给出同时置信下界与可行域 Pareto 前沿；只生成建议，不自动执行双水印。</view>
+
+    <view class="field policy-field">
+      <view class="field-label">1 · 二次嵌入威胁集合</view>
+      <view class="seg">
+        <view wx:for="{{threatModels}}" wx:key="model" class="seg-item {{item.selected?'active':''}}" data-model="{{item.model}}" bindtap="onToggleThreat">{{item.model}}</view>
+      </view>
+    </view>
+
+    <view class="field">
+      <view class="field-label">2 · 决策偏好</view>
+      <view class="seg">
+        <view wx:for="{{policyProfiles}}" wx:key="v" class="seg-item {{policyProfile===item.v?'active':''}}" data-v="{{item.v}}" bindtap="onSelectPolicyProfile">{{item.t}}</view>
+      </view>
+    </view>
+
+    <button class="btn primary" loading="{{policyLoading}}" disabled="{{policyLoading}}" bindtap="runPolicy">生成证据绑定部署建议</button>
+    <view wx:if="{{policyError}}" class="status err">策略阻断：{{policyError}}</view>
+
+    <view wx:if="{{policyResult}}" class="policy-result">
+      <view class="trust-strip ok">
+        <text class="trust-mode">RELEASE-CORE VERIFIED · SIGNER PINNED</text>
+        <text class="trust-claim">单模型部署建议 {{policyResult.model}} · 未自动执行 · 置信调整得分 {{policyResult.score}}</text>
+      </view>
+      <view class="metrics">
+        <view class="metric"><view class="mv ok">{{policyResult.expected}}</view><view class="mk">期望归一化 margin 聚类 LCB</view></view>
+        <view class="metric"><view class="mv warn">{{policyResult.worst}}</view><view class="mk">最差归一化 margin 聚类 LCB</view></view>
+      </view>
+      <view class="row"><text class="k">首次嵌入 PSNR</text><text>{{policyResult.initialPsnr}}</text></view>
+      <view class="row"><text class="k">攻击后期望 PSNR LCB</text><text>{{policyResult.postPsnr}}</text></view>
+      <view class="row"><text class="k">矩阵中共存风险较低的威胁</text><text class="policy-value">{{policyResult.compatible}}</text></view>
+      <view class="row"><text class="k">身份簇审计</text><text class="policy-value">{{policyResult.identityAudit}}</text></view>
+      <view class="row"><text class="k">Bootstrap / 选择族</text><text class="policy-value">{{policyResult.bootstrapAudit}}</text></view>
+      <view class="row"><text class="k">被选模型稳定率</text><text>{{policyResult.stability}}</text></view>
+      <view class="row"><text class="k">旧 i.i.d. → 新 cluster 消融</text><text class="policy-value">{{policyResult.ablation}}</text></view>
+
+      <view class="field-label policy-subtitle">候选排序</view>
+      <view class="policy-ranking">
+        <view wx:for="{{policyResult.ranking}}" wx:key="model" class="policy-rank {{item.feasible?'':'blocked'}}">
+          <text class="policy-rank-no">#{{item.rank}}</text>
+          <view class="policy-rank-main"><text class="policy-rank-model">{{item.model}}</text><text class="policy-rank-meta">期望 LCB {{item.expected}} · 最差 LCB {{item.worst}}</text></view>
+          <view class="policy-rank-side"><text class="policy-score">{{item.score}}</text><text wx:if="{{item.pareto}}" class="badge info">Pareto</text></view>
+        </view>
+      </view>
+
+      <view class="field-label policy-subtitle">冲突解释与 planned policy hint</view>
+      <view class="interaction-grid">
+        <view wx:for="{{policyResult.interactions}}" wx:key="model" class="interaction-item">
+          <view class="interaction-head"><text>{{item.model}}</text><text class="badge {{item.cls}}">{{item.label}}</text></view>
+          <view class="interaction-metric">来源 margin 聚类 LCB {{item.sourceMargin}} · 后嵌 {{item.attackerMargin}}</view>
+          <view class="interaction-action">{{item.action}}</view>
+        </view>
+      </view>
+
+      <view class="fold">
+        <view class="code">cells={{policyResult.cells}} · rows={{policyResult.rows}}
+policy={{policyResult.policyHash}}
+summary={{policyResult.summaryHash}}
+protocol={{policyResult.protocolHash}}
+manifest={{policyResult.manifestHash}}
+signer={{policyResult.signerFingerprint}}</view>
+      </view>
     </view>
   </view>
 
   <view class="card">
     <text class="exhibit">Exhibit 13 · Side by Side</text>
-    <view class="card-title">同一图片 · 多模型抗攻击对比</view>
-    <view class="card-desc">相同攻击下，SepMark 与 WaveGuard 的水印存活率横向对比。</view>
+    <view class="card-title">同一图片 · 四模型单样本工程对比</view>
+    <view class="card-desc">相同攻击模拟下，对比 LIDMark、KAD-Net、SepMark 与 WaveGuard 的一次“嵌入 → 攻击 → 解码”输出。该流程不是既有内容盲检，也不输出来源、合规或取证结论。</view>
+    <view class="trust-strip risk">
+      <text class="trust-mode">EVALUATION ONLY · infer/single</text>
+      <text class="trust-claim">无论检查点是否真实，MEA 单样本输出均禁止标记“可引用”</text>
+    </view>
 
     <view class="field">
       <view class="field-label">1 · 选择图片</view>
@@ -18,6 +90,12 @@
         <image wx:if="{{imgPath}}" src="{{imgPath}}" mode="aspectFill"></image>
         <block wx:else><text class="plus">＋</text><text class="hint">点击从相册 / 拍照选择</text></block>
       </view>
+      <checkbox-group bindchange="onUploadConsent" class="privacy-box">
+        <label class="privacy-check">
+          <checkbox value="accepted" checked="{{uploadConsent}}" color="#0369a1"></checkbox>
+          <text>我确认拥有该图片的处理权限，并知悉图片会上传到已配置后端，分别执行模型嵌入与攻击评估。请勿上传敏感、未授权或含他人人脸的图片。</text>
+        </label>
+      </checkbox-group>
     </view>
 
     <view class="field">
@@ -36,12 +114,18 @@
       <view class="card-title" style="display:flex;align-items:center;gap:10rpx">{{item.model}}
         <text class="badge {{item.verdict.cls}}">{{item.verdict.t}}</text>
       </view>
+      <view class="trust-strip {{item.claimClass}}">
+        <text class="trust-mode">{{item.modeText}}</text>
+        <text class="trust-claim">{{item.provenanceText}}</text>
+        <text class="trust-claim">{{item.claimText}}</text>
+      </view>
+      <view wx:if="{{item.reason}}" class="status err">{{item.reason}}</view>
       <view wx:for="{{item.imgs}}" wx:for-item="im" wx:key="k" class="fig" style="margin-top:12rpx">
         <image src="{{im.src}}" mode="aspectFill"></image>
         <view class="cap">{{im.label}}</view>
       </view>
       <view class="metrics" style="margin-top:12rpx">
-        <view class="metric"><view class="mv {{item.accClass}}">{{item.acc}}</view><view class="mk">Bit Acc</view></view>
+        <view class="metric"><view class="mv {{item.accClass}}">{{item.acc}}</view><view class="mk">单样本 Bit Acc</view></view>
         <view class="metric"><view class="mv ok">{{item.psnr}}</view><view class="mk">PSNR</view></view>
       </view>
     </view>

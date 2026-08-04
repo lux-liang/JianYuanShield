@@ -1,1 +1,22 @@
-/* 复用全局 app.wxss */
+/* 复用全局 app.wxss；本页只定义协同策略的矩阵化展示。 */
+.policy-card { border-top: 5rpx solid var(--primary); }
+.policy-field { margin-top: 24rpx; }
+.policy-result { margin-top: 24rpx; padding-top: 2rpx; border-top: 1rpx solid var(--line); }
+.policy-subtitle { margin-top: 28rpx; font-weight: 750; color: var(--ink); }
+.policy-value { max-width: 62%; text-align: right; color: var(--ink); font-weight: 650; }
+.policy-ranking { display: flex; flex-direction: column; gap: 12rpx; }
+.policy-rank { display: flex; align-items: center; gap: 14rpx; padding: 18rpx; border: 1rpx solid var(--line); border-radius: 16rpx; background: var(--surface); }
+.policy-rank.blocked { opacity: .52; }
+.policy-rank-no { width: 50rpx; color: var(--primary); font-family: ui-monospace, Menlo, Consolas, monospace; font-weight: 800; }
+.policy-rank-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.policy-rank-model { font-size: 26rpx; font-weight: 800; color: var(--ink); }
+.policy-rank-meta { margin-top: 2rpx; font-size: 19rpx; color: var(--ink-2); }
+.policy-rank-side { display: flex; flex-direction: column; align-items: flex-end; gap: 5rpx; }
+.policy-score { color: var(--primary); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 28rpx; font-weight: 800; }
+.policy-rank-side .badge { padding: 3rpx 10rpx; font-size: 16rpx; }
+.interaction-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12rpx; }
+.interaction-item { padding: 16rpx; border: 1rpx solid var(--line); border-radius: 16rpx; background: var(--surface); min-width: 0; }
+.interaction-head { display: flex; align-items: center; justify-content: space-between; gap: 8rpx; font-size: 22rpx; font-weight: 750; }
+.interaction-head .badge { padding: 5rpx 10rpx; font-size: 17rpx; }
+.interaction-metric { margin-top: 9rpx; color: var(--ink-2); font-size: 18rpx; }
+.interaction-action { margin-top: 5rpx; color: var(--ink-3); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 17rpx; word-break: break-word; }

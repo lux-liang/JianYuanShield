@@ -1,10 +1,29 @@
-const params = new URLSearchParams(window.location.search);
-const API = params.get("api") || window.JYS_API_BASE || `${window.location.protocol}//${window.location.hostname}:8026`;
+function normalizeApiBase(value) {
+  const configured = String(value || "").trim();
+  if (!configured && window.location.protocol === "file:") return "http://127.0.0.1:8026";
+  const parsed = new URL(configured || window.location.origin, window.location.origin);
+  if (!["http:", "https:"].includes(parsed.protocol) || parsed.username || parsed.password || parsed.search || parsed.hash) {
+    throw new Error("JYS_API_BASE must be an HTTP(S) origin or same-origin /api prefix without credentials");
+  }
+  return `${parsed.origin}${parsed.pathname.replace(/\/+$/, "")}`;
+}
+
+// Production defaults to the current TLS origin. The gateway owns the user
+// session and injects the server-side API key while proxying /api to 127.0.0.1:8026.
+const API = normalizeApiBase(window.JYS_API_BASE);
+const TRUST_CONTRACTS = window.JYSTrustContracts || null;
+
+function apiURL(path) {
+  if (typeof path !== "string" || !path.startsWith("/api/")) throw new Error("invalid API path");
+  return API.endsWith("/api") ? `${API}${path.slice(4)}` : `${API}${path}`;
+}
 
 let currentFilter = "all";
 let lastPayload = null;
 let readinessLabel = "syncing";
 let readinessPercent = 0;
+let protectModelGate = new Map();
+let protectBusy = false;
 
 class ApiError extends Error {
   constructor({ code, message, path, status, details }) {
@@ -92,6 +111,7 @@ function fmtScore(value) {
 function statusKey(value) {
   const raw = String(value || "").toLowerCase();
   if (["no", "false", "fail"].includes(raw.trim())) return "failed";
+  if (["unverified", "review_required", "review", "blocked", "unavailable", "proxy_only", "not_assessed"].some((key) => raw.includes(key))) return "pending";
   if (["missing", "not_found", "not_ready", "incomplete", "not_generated"].some((key) => raw.includes(key))) return "missing";
   if (["failed", "read_failed", "offline", "network_error", "http_error"].some((key) => raw.includes(key))) return "failed";
   if (["running", "partial", "smoke", "single_smoke", "checkpoint_load"].some((key) => raw.includes(key))) return "smoke";
@@ -141,7 +161,7 @@ const num = (fn) => ({ fn, cls: "num" });
 async function getJSON(path) {
   let res;
   try {
-    res = await fetch(`${API}${path}`);
+    res = await fetchWithTimeout(apiURL(path));
   } catch (error) {
     throw new ApiError({
       code: "network_error",
@@ -181,17 +201,30 @@ async function getJSON(path) {
 }
 
 async function postJSON(path, body) {
-  const res = await fetch(`${API}${path}`, {
+  const res = await fetchWithTimeout(apiURL(path), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
-  });
+  }, 130000);
   const payload = await res.json();
   if (!res.ok) {
     const apiError = payload?.error || {};
     throw new ApiError({ code: apiError.code, message: apiError.message, path, status: res.status });
   }
   return payload;
+}
+
+async function fetchWithTimeout(resource, options = {}, timeoutMs = 15000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(resource, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error.name === "AbortError") throw new Error(`请求超时（${Math.round(timeoutMs / 1000)}s）`);
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function formatApiError(error) {
@@ -233,13 +266,16 @@ function attackSummaries(summary) {
 }
 
 function sampleCount(summary, progress) {
-  return summary?.num_images || summary?.images || summary?.requested_images || progress?.num_images || progress?.processed_images || progress?.completed_images || "-";
+  return summary?.num_images || summary?.n_images || summary?.images || summary?.requested_images || progress?.num_images || progress?.processed_images || progress?.completed_images || "-";
 }
 
 function statusFrom(payload) {
   const summary = payload?.summary || {};
   const progress = payload?.progress || {};
-  return summary.status || progress.status || (payload?.results_csv_exists ? "running" : "pending");
+  const artifactStatus = summary.status || progress.status || (payload?.results_csv_exists ? "artifact_present" : "pending");
+  if (payload?.claim_valid === true) return "evidence_verified";
+  if (artifactStatus !== "pending") return "evidence_review_required";
+  return "pending";
 }
 
 const ASSET_CHECK_META = {
@@ -255,7 +291,7 @@ const ASSET_CHECK_META = {
   },
   benchmark_ready: {
     label: "Benchmark",
-    path: "system/reports/*_benchmark 或 runs/lidmark_lfw_eval_full",
+    path: "JYS_REPORT_ROOT 下的 *_benchmark 评测目录",
     missing: "缺少全量评测输出，概览和 Benchmark 表格会显示待生成。",
   },
   aggregate_ready: {
@@ -297,11 +333,12 @@ function cleanAttack(payload) {
 function readComparisonRows(aggregate) {
   return (aggregate?.comparison || []).map((row) => ({
     ...row,
+    claimValid: row.claim_valid === true,
     checkpointLabel: row.checkpoint_type || row.mode || row.checkpoint || "-",
     dataLabel: row.data_type || row.data || "-",
     countLabel: row.num_images || row.images || row.count || row.requested_images || "-",
-    defenseLabel: row.defense_ready || row.can_use_for_defense || row.can_defense || "-",
-    statusLabel: row.status || "-",
+    defenseLabel: row.claim_valid === true ? (row.defense_ready || row.can_use_for_defense || row.can_defense || "yes") : "no",
+    statusLabel: row.claim_valid === true ? (row.status || "verified") : "evidence_review_required",
   }));
 }
 
@@ -309,7 +346,7 @@ function filterRows(records) {
   if (currentFilter === "all") return records;
   return records.filter((record) => {
     const haystack = `${record.checkpointLabel} ${record.defenseLabel} ${record.statusLabel}`.toLowerCase();
-    if (currentFilter === "real") return haystack.includes("real") || haystack.includes("yes") || haystack.includes("complete");
+    if (currentFilter === "real") return record.claimValid === true;
     if (currentFilter === "smoke") return haystack.includes("smoke") || haystack.includes("partial") || haystack.includes("running");
     if (currentFilter === "pending") return haystack.includes("pending") || haystack.includes("no") || haystack.includes("failed") || haystack.includes("missing");
     return true;
@@ -318,7 +355,13 @@ function filterRows(records) {
 
 function setImage(id, src) {
   const image = document.getElementById(id);
-  if (!image || !src) return;
+  if (!image) return;
+  if (!src) {
+    image.removeAttribute("src");
+    delete image.dataset.path;
+    image.style.opacity = "0";
+    return;
+  }
   // 内容路径没变就不动 src，避免每轮轮询都重新下载大图并闪烁
   if (image.dataset.path === src) return;
   image.dataset.path = src;
@@ -326,7 +369,7 @@ function setImage(id, src) {
   image.onload = () => {
     image.style.opacity = "1";
   };
-  image.src = `${API}${src}?t=${Date.now()}`;
+  image.src = `${apiURL(src)}?t=${Date.now()}`;
 }
 
 /* 就绪度环 + 状态词：percent 驱动 conic 环（--p 平滑过渡）与数字滚动，
@@ -471,14 +514,16 @@ function renderModules(modules) {
 }
 
 function renderComparison(aggregate) {
-  const records = filterRows(readComparisonRows(aggregate));
+  const records = aggregate?.claim_valid === true
+    ? filterRows(readComparisonRows(aggregate))
+    : [];
   rows("comparisonRows", records, [
     (r) => escapeHTML(r.method || "-"),
     (r) => badge(r.checkpointLabel),
     (r) => escapeHTML(r.dataLabel),
     num((r) => escapeHTML(r.countLabel)),
-    num((r) => fmt(r.clean_bit_error || r.mean_bit_error)),
-    num((r) => fmtScore(r.clean_bit_accuracy || r.mean_bit_accuracy)),
+    num((r) => fmt(r.clean_bit_error ?? r.mean_bit_error)),
+    num((r) => fmtScore(r.clean_bit_accuracy ?? r.mean_bit_accuracy)),
     (r) => badge(r.defenseLabel),
     (r) => badge(r.statusLabel),
   ]);
@@ -486,14 +531,23 @@ function renderComparison(aggregate) {
 
 
 function renderMeaMatrix(mea) {
-  const models = mea?.models || ["SepMark", "WaveGuard", "LIDMark", "KAD-Net", "HiDDeN"];
+  const models = mea?.models?.length ? mea.models : ["LIDMark", "KAD-Net", "SepMark", "WaveGuard"];
   const matrix = mea?.matrix || {};
   const badge = document.getElementById("meaMatrixBadge");
+  const thead = document.getElementById("meaMatrixHead");
   const tbody = document.getElementById("meaMatrixBody");
   if (!tbody) return;
+  if (thead) {
+    thead.innerHTML = `<th>Source ↓ / Attacker →</th>${models.map((model) => `<th>${escapeHTML(model)}</th>`).join("")}`;
+  }
   if (badge) {
-    badge.textContent = mea?.status === "complete" ? `complete · n=${mea.images_per_cell}/格` : "pending";
-    badge.className = `panel-badge ${mea?.status === "complete" ? "real" : "warning"}`;
+    badge.textContent = mea?.claim_valid ? `verified · n=${mea.images_per_cell}/格` : "evidence review";
+    badge.className = `panel-badge ${mea?.claim_valid ? "real" : "warning"}`;
+  }
+  if (mea?.claim_valid !== true) {
+    tbody.innerHTML = `<tr><td colspan="${models.length + 1}"><span class="verdict-warn">矩阵 artifact 尚未通过 checkpoint、数据清单与签名门禁，数值已隐藏</span></td></tr>`;
+    tbody.__sig = tbody.innerHTML;
+    return;
   }
   function gradeIcon(v) {
     if (v == null) return "—";
@@ -507,13 +561,144 @@ function renderMeaMatrix(mea) {
       <td><strong>${escapeHTML(src)}</strong></td>
       ${models.map(att => {
         const cell = row[att] || {};
-        return `<td style="text-align:center">${gradeIcon(cell.first_acc)} / ${gradeIcon(cell.second_acc)}</td>`;
+        const first = cell.aggregates?.source_bit_accuracy?.mean ?? cell.first_acc;
+        const second = cell.aggregates?.attacker_bit_accuracy?.mean ?? cell.second_acc;
+        return `<td style="text-align:center">${gradeIcon(first)} / ${gradeIcon(second)}</td>`;
       }).join("")}
     </tr>`;
   }).join("");
   if (tbody.__sig === html) return;
   tbody.__sig = html;
   tbody.innerHTML = html;
+}
+
+function evidencePercent(value, decimals = 2) {
+  return `${(Number(value) * 100).toFixed(decimals)}%`;
+}
+
+function farVerdict(value) {
+  if (value <= 0.05) return "num-ok";
+  if (value <= 0.15) return "num-warn";
+  return "num-risk";
+}
+
+function renderSimSwapEvidence(payload) {
+  const badgeElement = document.getElementById("simswapEvidenceBadge");
+  const statusElement = document.getElementById("simswapEvidenceStatus");
+  const body = document.getElementById("simswapEvidenceRows");
+  const gateDetails = document.getElementById("simswapGateDetails");
+  if (!badgeElement || !statusElement || !body || !gateDetails) return;
+  try {
+    if (!TRUST_CONTRACTS) throw new Error("前端证据契约模块未加载");
+    const evidence = TRUST_CONTRACTS.validateSimSwapEvidence(payload);
+    text("simswapPairCoverage", "256 / 64 / 192");
+    text("simswapResultCoverage", "1024 / 1024");
+    text("simswapIdentityCoverage", "1792 / 1792");
+    text("simswapClaimState", "PUBLISHABLE");
+    badgeElement.textContent = "verified · publishable";
+    badgeElement.className = "panel-badge real";
+    statusElement.textContent = "固定 n256 证据已通过覆盖、实现哈希与签名门禁；身份指标明确限定为流程内 ArcFace 迁移证据（非独立身份验证器）";
+    const controlLabels = {
+      unwatermarked: "无水印",
+      wrong_message: "错误消息",
+      cross_record: "跨记录",
+    };
+    const html = evidence.rows.map((row) => {
+      const controls = row.controls.map((control) => `
+        <span><b>${escapeHTML(controlLabels[control.name])}</b> ${control.successes}/${control.total}
+        → <strong class="${farVerdict(control.high)}">${escapeHTML(evidencePercent(control.high, 2))}</strong></span>`).join("");
+      return `<tr>
+        <td><span class="simswap-model"><strong>${escapeHTML(row.model)}</strong><small>third-party watermark baseline</small></span></td>
+        <td class="num">${row.tar.successes}/${row.tar.total} · ${escapeHTML(evidencePercent(row.tar.estimate, 2))}</td>
+        <td class="num">${fmtScore(row.tar.low)}</td>
+        <td class="num">${row.far.successes}/${row.far.total} · <span class="${farVerdict(row.far.estimate)}">${escapeHTML(evidencePercent(row.far.estimate, 2))}</span></td>
+        <td><span class="simswap-controls">${controls}</span></td>
+        <td><span class="simswap-identity"><strong>${escapeHTML(evidencePercent(row.conservativeIdentityLcb, 2))} conservative</strong><small>clean ${escapeHTML(evidencePercent(row.cleanIdentity.low, 2))} · watermarked ${escapeHTML(evidencePercent(row.watermarkedIdentity.low, 2))}</small></span></td>
+        <td><span class="simswap-identity"><strong>${escapeHTML(evidencePercent(row.conservativeConditionedLcb, 2))} conservative</strong><small>clean ${row.cleanConditioned.successes}/${row.cleanConditioned.total} · clean+watermarked ${row.watermarkedConditioned.successes}/${row.watermarkedConditioned.total}</small></span></td>
+      </tr>`;
+    }).join("");
+    if (body.__sig !== html) {
+      body.__sig = html;
+      body.innerHTML = html;
+    }
+    gateDetails.innerHTML = [
+      `<span>implementation hashes<br><strong class="verdict-ok">VERIFIED</strong></span>`,
+      `<span>signature profile<br><strong>${escapeHTML(evidence.signature.profile)}</strong></span>`,
+      `<span>signer pin<br><strong>${escapeHTML(evidence.signature.public_key_fingerprint_sha256.slice(0, 16))}…</strong></span>`,
+      `<span>manifest<br><strong>${escapeHTML(evidence.signature.manifest_sha256.slice(0, 16))}…</strong></span>`,
+      `<span>identity scope<br><strong>PIPELINE INTERNAL · independent=false</strong></span>`,
+    ].join("");
+  } catch (error) {
+    text("simswapPairCoverage", "—");
+    text("simswapResultCoverage", "—");
+    text("simswapIdentityCoverage", "—");
+    text("simswapClaimState", "NOT PUBLISHABLE");
+    badgeElement.textContent = "不可发布";
+    badgeElement.className = "panel-badge danger";
+    const failedGates = Object.entries(payload?.release_gate || {})
+      .filter(([, value]) => value !== true)
+      .map(([key]) => key);
+    const suffix = failedGates.length ? ` · 阻断：${failedGates.join(", ")}` : "";
+    statusElement.textContent = `不可发布 · ${error.message}${suffix}`;
+    const blocked = `<tr><td colspan="7"><span class="verdict-risk">数值已隐藏：真实换脸响应未通过完整发布契约</span></td></tr>`;
+    if (body.__sig !== blocked) {
+      body.__sig = blocked;
+      body.innerHTML = blocked;
+    }
+    gateDetails.innerHTML = `<span>schema / run_id</span><span>256 / 64 / 192 · 1024 · 1792</span><span>implementation hash</span><span>signature / signer pin</span>`;
+  }
+}
+
+const MODEL_GATE_REASON = {
+  checkpoint_unavailable_or_hash_mismatch: "checkpoint 缺失或哈希不符",
+  checkpoint_unregistered: "未登记",
+  calibration_unverified: "校准未验收",
+  weight_manifest_untrusted: "权重清单未验签",
+};
+
+function updateProtectButton() {
+  const button = document.getElementById("protectBtn");
+  const select = document.getElementById("protectModel");
+  const selected = protectModelGate.get(select?.value);
+  if (button) button.disabled = protectBusy || selected?.provenance_ready !== true;
+}
+
+function renderProvenanceModelStatus(payload) {
+  const select = document.getElementById("protectModel");
+  const statusElement = document.getElementById("protectModelStatus");
+  if (!select || !statusElement) return;
+  try {
+    if (!TRUST_CONTRACTS) throw new Error("前端模型门禁模块未加载");
+    const validated = TRUST_CONTRACTS.validateModelStatus(payload);
+    protectModelGate = new Map(validated.options.map((item) => [item.model, item]));
+    const current = protectModelGate.get(select.value);
+    const selectedModel = current?.provenance_ready ? current.model : validated.preferredModel;
+    select.innerHTML = validated.options.map((item) => {
+      const reason = item.provenance_ready
+        ? "provenance ready"
+        : item.reason_codes.map((code) => MODEL_GATE_REASON[code] || code).join(" / ");
+      return `<option value="${escapeHTML(item.model)}"${item.provenance_ready ? "" : " disabled"}>${escapeHTML(item.model)} · ${escapeHTML(reason)}</option>`;
+    }).join("");
+    if (selectedModel) select.value = selectedModel;
+    select.disabled = !selectedModel;
+    const blocked = validated.options
+      .filter((item) => !item.provenance_ready)
+      .map((item) => `${item.model}: ${item.reason_codes.map((code) => MODEL_GATE_REASON[code] || code).join("、")}`);
+    if (selectedModel) {
+      statusElement.textContent = `默认 ${selectedModel} · registered + calibrated + trusted；禁用项：${blocked.join("；") || "无"}`;
+      statusElement.className = "model-gate-status ready";
+    } else {
+      statusElement.textContent = `不可保护：无 provenance-ready 模型 · ${blocked.join("；")}`;
+      statusElement.className = "model-gate-status blocked";
+    }
+  } catch (error) {
+    protectModelGate = new Map();
+    select.innerHTML = TRUST_CONTRACTS?.MODEL_ORDER?.map((model) => `<option disabled>${escapeHTML(model)} · 状态不可验证</option>`).join("") || "";
+    select.disabled = true;
+    statusElement.textContent = `不可保护：${error.message}`;
+    statusElement.className = "model-gate-status blocked";
+  }
+  updateProtectButton();
 }
 
 /* ═══ 实时证据 Ticker ═══
@@ -558,12 +743,24 @@ function renderTicker(payload, audit) {
   if (payload.meaMatrix?.status) {
     push("MEA 矩阵", payload.meaMatrix.status, payload.meaMatrix.status === "complete" ? "ready" : "smoke");
   }
+  push(
+    "SimSwap n256",
+    payload.simswap?.claim_valid === true ? "PUBLISHABLE" : "BLOCKED",
+    payload.simswap?.claim_valid === true ? "ready" : "pending",
+  );
   push("报告", payload.report?.exists?.json ? "ready" : "pending");
   if (audit) {
     const blocking = (audit.blocking_findings || []).length;
     push("审计阻断", blocking, blocking === 0 ? "ready" : "pending");
     const sig = audit.signature || {};
     push("Ed25519", sig.verified ? "verified" : (sig.status || "pending"), sig.verified ? "ready" : "pending");
+  }
+  if (payload.claims) {
+    push(
+      "CLAIMS",
+      payload.claims.ready_for_claims ? "PUBLISHABLE" : "REVIEW",
+      payload.claims.ready_for_claims ? "ready" : "pending",
+    );
   }
   push("HEALTH", payload.health?.ok ? "OK" : "FAIL", payload.health?.ok ? "ready" : "pending");
 
@@ -578,7 +775,7 @@ function renderTicker(payload, audit) {
 }
 
 function renderPayload(payload) {
-  const { health, modules, hidden, sepmark, lidmark, waveguard, kadnet, meaMatrix, aggregate, report } = payload;
+  const { health, modules, hidden, sepmark, lidmark, waveguard, kadnet, meaMatrix, simswap, modelsStatus, aggregate, report, claims } = payload;
   const localReady = readinessSnapshot(payload);
 
   text("apiEndpoint", `API · ${API.replace(/^https?:\/\//, "")}`);
@@ -589,7 +786,7 @@ function renderPayload(payload) {
     sepmarkStatus: statusFrom(sepmark),
     lidmarkStatus: statusFrom(lidmark),
     waveguardStatus: statusFrom(waveguard),
-    reportStatus: report.exists?.json ? "ready" : "pending",
+    reportStatus: report.claim_valid ? "evidence_verified" : (report.exists?.json ? "evidence_review_required" : "pending"),
     kadnetStatus: statusFrom(kadnet),
   };
 
@@ -598,14 +795,25 @@ function renderPayload(payload) {
     setCardStatus(id, value);
   });
 
-  text("hiddenCount", sampleCount(hidden.summary, hidden.progress) === "-" ? "等待 benchmark 结果" : `${sampleCount(hidden.summary, hidden.progress)} images`);
-  text("sepmarkCount", sampleCount(sepmark.summary, sepmark.progress) === "-" ? "等待 benchmark 结果" : `${sampleCount(sepmark.summary, sepmark.progress)} images`);
-  text("lidmarkCount", sampleCount(lidmark.summary, lidmark.progress) === "-" ? "等待 LIDMark eval 结果" : `${sampleCount(lidmark.summary, lidmark.progress)} images`);
-  text("waveguardCount", sampleCount(waveguard.summary, waveguard.progress) === "-" ? "等待 WaveGuard 结果" : `${sampleCount(waveguard.summary, waveguard.progress)} images`);
-  text("kadnetCount", kadnet?.summary?.n_images ? `${kadnet.summary.n_images} images · geo-finetuned (EP50)` : "等待 KAD-Net 结果");
+  const evidenceCount = (item, summary, progress, pending) => {
+    if (item?.claim_valid !== true) return "证据待复核 · 数值隐藏";
+    const count = sampleCount(summary, progress);
+    return count === "-" ? pending : `${count} images`;
+  };
+  const waveguardFormal = waveguard.full_benchmark?.claim_valid === true
+    ? waveguard.full_benchmark
+    : waveguard.small_benchmark?.claim_valid === true
+      ? waveguard.small_benchmark
+      : null;
+  text("hiddenCount", evidenceCount(hidden, hidden.summary, hidden.progress, "等待 benchmark 结果"));
+  text("sepmarkCount", evidenceCount(sepmark, sepmark.summary, sepmark.progress, "等待 benchmark 结果"));
+  text("lidmarkCount", evidenceCount(lidmark, lidmark.summary, lidmark.progress, "等待 LIDMark eval 结果"));
+  text("waveguardCount", waveguardFormal
+    ? evidenceCount(waveguardFormal, waveguardFormal.summary, waveguardFormal.progress, "等待 WaveGuard 结果")
+    : "证据待复核 · 数值隐藏");
+  text("kadnetCount", evidenceCount(kadnet, kadnet.summary, {}, "等待 KAD-Net 结果"));
   text("aggregatePath", aggregate.report_md_path || "pending");
 
-  const sepClean = cleanAttack(sepmark);
   countField("heroMetric", localReady.percent, { decimals: 0 });
   text("heroMetricLabel", "本地资产就绪度");
   text(
@@ -616,16 +824,23 @@ function renderPayload(payload) {
   );
   text(
     "contrastConclusion",
-    `项目结论：LIDMark 3-seed 99.97% · KAD-Net 100% · SepMark Acc-RF ${fmt(sepClean.mean_bit_accuracy_rf)} · WaveGuard JPEG Q=50 100%`,
+    claims?.ready_for_claims
+      ? "声明门禁：全部必需证据已验证，可发布结论"
+      : `声明门禁：研究复核中 · ${claims?.summary?.blocked_required ?? "-"} 项必需声明被阻断`,
   );
-  text("boundaryConclusion", `LIDMark 3-seed 99.97%；WaveGuard JPEG Q=50 已修复（100%）；KAD-Net 几何微调中`);
+  text(
+    "boundaryConclusion",
+    "真实 Deepfake、性能数字与司法效力须由签名 artifact 单独放行；simulation 不进入结论。",
+  );
 
   updateReadiness(payload);
   renderMeaMatrix(meaMatrix);
+  renderSimSwapEvidence(simswap);
+  renderProvenanceModelStatus(modelsStatus);
   renderModules(modules);
   renderComparison(aggregate);
 
-  rows("hiddenRows", attackSummaries(hidden.summary), [
+  rows("hiddenRows", hidden.claim_valid === true ? attackSummaries(hidden.summary) : [], [
     (r) => badge(r.attack_type || r.attack || "-"),
     num((r) => fmt(r.mean_bit_error)),
     num((r) => fmtScore(r.mean_bit_accuracy)),
@@ -634,7 +849,7 @@ function renderPayload(payload) {
     num((r) => fmtScore(r.success_rate)),
   ]);
 
-  rows("sepmarkRows", attackSummaries(sepmark.summary), [
+  rows("sepmarkRows", sepmark.claim_valid === true ? attackSummaries(sepmark.summary) : [], [
     (r) => badge(r.attack_type || r.attack || "-"),
     num((r) => fmt(r.mean_bit_error)),
     num((r) => fmtScore(r.mean_bit_accuracy)),
@@ -643,16 +858,16 @@ function renderPayload(payload) {
     num((r) => fmtScore(r.success_rate)),
   ]);
 
-  rows("waveguardRows", attackSummaries(waveguard.full_benchmark?.summary || waveguard.small_benchmark?.summary), [
+  rows("waveguardRows", waveguardFormal ? attackSummaries(waveguardFormal.summary) : [], [
     (r) => badge(r.attack_type || r.attack || "-"),
-    num((r) => fmt(r.mean_bit_error_detector || r.mean_bit_error)),
-    num((r) => fmtScore(r.mean_bit_accuracy_detector || r.mean_bit_accuracy)),
-    num((r) => fmt(r.mean_bit_error_tracer)),
-    num((r) => fmtScore(r.mean_bit_accuracy_tracer)),
+    num((r) => fmt(r.mean_bit_error_tracer ?? r.mean_bit_error)),
+    num((r) => fmtScore(r.mean_bit_accuracy_tracer ?? r.mean_bit_accuracy)),
+    num((r) => fmt(r.mean_bit_error_detector)),
+    num((r) => fmtScore(r.mean_bit_accuracy_detector)),
     num((r) => fmtScore(r.success_rate)),
   ]);
 
-  rows("kadnetRows", attackSummaries(kadnet.summary), [
+  rows("kadnetRows", kadnet.claim_valid === true ? attackSummaries(kadnet.summary) : [], [
     (r) => badge(r.attack_type || r.attack || "-"),
     num((r) => fmt(r.mean_bit_error)),
     num((r) => fmtScore(r.mean_bit_accuracy)),
@@ -661,24 +876,22 @@ function renderPayload(payload) {
     num((r) => fmtScore(r.success_rate)),
   ]);
 
-  setImage("hiddenGrid", hidden.grid_image);
-  setImage("sepmarkGrid", sepmark.grid_image);
-  setImage("degradationCurve", aggregate.degradation_curve);
+  setImage("hiddenGrid", hidden.claim_valid === true ? hidden.grid_image : null);
+  setImage("sepmarkGrid", sepmark.claim_valid === true ? sepmark.grid_image : null);
+  setImage("degradationCurve", aggregate.claim_valid === true ? aggregate.degradation_curve : null);
 
   document.getElementById("lidmarkJson").textContent = JSON.stringify({
+    claim_valid: lidmark.claim_valid === true,
+    claim_status: lidmark.claim_status,
     checkpoint_type: lidmark.checkpoint_type,
-    summary: lidmark.summary,
-    progress: lidmark.progress,
-    results_csv_path: lidmark.results_csv_path,
+    summary: lidmark.claim_valid === true ? lidmark.summary : "hidden_until_evidence_gate_passes",
   }, null, 2);
 
   document.getElementById("waveguardJson").textContent = JSON.stringify({
-    checkpoint_type: waveguard.checkpoint_type,
-    summary: waveguard.summary,
-    full_benchmark: waveguard.full_benchmark?.summary,
-    small_benchmark: waveguard.small_benchmark?.summary,
-    progress: waveguard.progress,
-    results_csv_path: waveguard.results_csv_path,
+    claim_valid: Boolean(waveguardFormal),
+    claim_status: waveguardFormal?.claim_status || "evidence_review_required",
+    checkpoint_type: waveguardFormal?.checkpoint_type || waveguard.checkpoint_type,
+    summary: waveguardFormal?.summary || "hidden_until_evidence_gate_passes",
   }, null, 2);
 
   document.getElementById("reportPaths").innerHTML = `
@@ -704,13 +917,16 @@ function renderAudit(audit) {
 }
 
 function renderDemo(result) {
-  text("demoStatus", `${result.task_id} · ${result.security_conclusion}`);
+  const source = result.execution_valid ? "checkpoint 单样本执行" : "simulation";
+  text("demoStatus", `${result.task_id} · ${source} · 正式声明未放行`);
   const artifacts = document.getElementById("demoArtifacts");
   artifacts.innerHTML = Object.entries(result.artifacts || {}).map(([name, src]) => `
-    <figure><img src="${API}${escapeHTML(src)}" alt="${escapeHTML(name)}"><figcaption>${escapeHTML(name)}</figcaption></figure>
+    <figure><img src="${escapeHTML(apiURL(src))}" alt="${escapeHTML(name)}"><figcaption>${escapeHTML(name)}</figcaption></figure>
   `).join("");
   document.getElementById("demoEvidence").textContent = JSON.stringify({
     mode: result.mode,
+    execution_valid: result.execution_valid,
+    claim_valid: result.claim_valid,
     metrics: result.metrics,
     evidence: result.evidence,
     notes: result.notes,
@@ -733,9 +949,12 @@ const ENDPOINTS = [
   ["waveguard", "/api/benchmark/waveguard"],
   ["kadnet", "/api/benchmark/kadnet"],
   ["meaMatrix", "/api/benchmark/mea-matrix"],
+  ["simswap", "/api/benchmark/simswap-lfw"],
+  ["modelsStatus", "/api/models/status"],
   ["aggregate", "/api/benchmark/aggregate"],
   ["report", "/api/competition-report"],
   ["audit", "/api/evidence/audit"],
+  ["claims", "/api/claims"],
 ];
 
 async function load() {
@@ -770,8 +989,11 @@ async function load() {
       waveguard: data.waveguard || {},
       kadnet: data.kadnet || {},
       meaMatrix: data.meaMatrix || {},
+      simswap: data.simswap || {},
+      modelsStatus: data.modelsStatus || {},
       aggregate: data.aggregate || {},
       report: data.report || { exists: {} },
+      claims: data.claims || { ready_for_claims: false, summary: {} },
     };
     renderPayload(lastPayload);
 
@@ -797,7 +1019,7 @@ async function load() {
 const VIEW_META = {
   overview: { title: "概览", sub: "防御结论 · 模块状态 · 证据就绪度" },
   forensics: { title: "互动取证", sub: "真实 checkpoint 推理 · 上传取证 · 合规检测" },
-  benchmark: { title: "Benchmark", sub: "LFW 13,233 全量评测 · 方法对比 · 退化曲线" },
+  benchmark: { title: "Benchmark", sub: "证据门禁 · 方法对比 · 退化曲线" },
   audit: { title: "证据审计", sub: "协议审计 · Ed25519 签名 · 原始证据 JSON" },
 };
 
@@ -880,11 +1102,11 @@ document.getElementById("demoForm")?.addEventListener("submit", async (event) =>
 });
 
 document.querySelectorAll("[data-report-format]").forEach((link) => {
-  link.href = `${API}/api/competition-report/download/${link.dataset.reportFormat}`;
+  link.href = apiURL(`/api/competition-report/download/${link.dataset.reportFormat}`);
 });
 
 document.querySelectorAll("[data-signature-file]").forEach((link) => {
-  link.href = `${API}/api/evidence/signature/download/${link.dataset.signatureFile}`;
+  link.href = apiURL(`/api/evidence/signature/download/${link.dataset.signatureFile}`);
 });
 
 initializeDemo().catch(renderErrorState);
@@ -918,63 +1140,84 @@ document.querySelectorAll("[data-scenario]").forEach((btn) => {
   });
 });
 
-function verdictBadge(verdict) {
-  const map = {
-    compliant: '<span class="verdict-ok">✔ 合规水印已验证</span>',
-    degraded: '<span class="verdict-warn">⚠ 水印降级</span>',
-    no_watermark: '<span class="verdict-risk">✘ 无合规水印</span>',
-  };
-  return map[verdict] || escapeHTML(verdict || "—");
+function formalEvidenceBadge(result, expectedProvenance) {
+  const valid = result?.mode === "real_checkpoint"
+    && result?.claim_valid === true
+    && result?.result_provenance === expectedProvenance
+    && result?.checkpoint_registered === true
+    && result?.checkpoint_calibrated === true
+    && result?.evidence_signature?.signed === true;
+  return valid
+    ? '<span class="verdict-ok">✔ checkpoint、校准与签名门禁通过</span>'
+    : '<span class="verdict-warn">⚠ 操作完成，但正式证据未放行</span>';
 }
 
-function renderInferResult(result) {
-  const imgs = result.artifacts_b64 || {};
-  document.getElementById("inferImages").innerHTML = Object.entries(imgs)
-    .filter(([key]) => ["original", "watermarked", "attacked", "heatmap"].includes(key))
-    .map(([key, b64]) => `<figure>
-      <img src="data:image/png;base64,${b64}" alt="${escapeHTML(key)}">
-      <figcaption>${escapeHTML(key)}</figcaption>
-    </figure>`).join("");
-
-  const m = result.metrics || {};
-  const acc = m.bit_accuracy_tracer != null ? m.bit_accuracy_tracer
-    : m.bit_accuracy_c != null ? m.bit_accuracy_c
-    : m.bit_accuracy_detector != null ? m.bit_accuracy_detector
-    : m.bit_accuracy;
-  const comp = result.compliance || {};
-  document.getElementById("inferMetrics").innerHTML = `
-    <div class="infer-metric-row">
-      <span>Bit Accuracy</span><strong>${acc != null ? (acc * 100).toFixed(1) + "%" : "—"}</strong>
-      <span>PSNR</span><strong>${m.psnr != null ? m.psnr.toFixed(1) + " dB" : "—"}</strong>
-      <span>合规结论</span><strong>${verdictBadge(comp.verdict)}</strong>
-      <span>推理模式</span><strong>${result.mode === "real_checkpoint" ? '<span class="verdict-ok">✔ 真实模型</span>' : '<span class="verdict-warn">⚠ 模拟</span>'}</strong>
-    </div>`;
-  document.getElementById("inferEvidence").textContent = JSON.stringify({
-    task_id: result.task_id, model: result.model, attack: result.attack,
-    metrics: result.metrics, compliance: result.compliance, evidence: result.evidence,
-  }, null, 2);
-  document.getElementById("inferStatus").textContent = `完成 · task_id: ${result.task_id}`;
-}
-
-document.getElementById("inferForm")?.addEventListener("submit", async (event) => {
+document.getElementById("protectForm")?.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const btn = document.getElementById("inferBtn");
-  btn.disabled = true;
-  document.getElementById("inferStatus").textContent = "推理中…";
-  document.getElementById("inferImages").innerHTML = "";
-  document.getElementById("inferMetrics").innerHTML = "";
+  const model = document.getElementById("protectModel").value;
+  if (protectModelGate.get(model)?.provenance_ready !== true) {
+    text("protectStatus", "不可保护：所选模型未同时通过 checkpoint 登记、校准与签名清单门禁");
+    updateProtectButton();
+    return;
+  }
+  protectBusy = true;
+  updateProtectButton();
+  text("protectStatus", "正在嵌入唯一来源消息并登记…");
+  document.getElementById("protectResult").innerHTML = "";
   try {
     const fd = new FormData();
-    fd.append("file", document.getElementById("inferFile").files[0]);
-    fd.append("model", document.getElementById("inferModel").value);
-    fd.append("attack", document.getElementById("inferAttack").value);
-    fd.append("return_b64", "true");
-    const res = await fetch(`${API}/api/infer/single`, { method: "POST", body: fd });
+    fd.append("file", document.getElementById("protectFile").files[0]);
+    fd.append("creator_ref", document.getElementById("creatorRef").value);
+    fd.append("model", model);
+    const res = await fetchWithTimeout(apiURL("/api/provenance/protect"), { method: "POST", body: fd }, 130000);
     const result = await res.json();
     if (!res.ok) throw new Error((result.error && result.error.message) || res.statusText);
-    renderInferResult(result);
+    document.getElementById("verifyContentId").value = result.content_id;
+    const imageSource = result.protected_image?.png_base64
+      ? `data:image/png;base64,${result.protected_image.png_base64}`
+      : apiURL(result.protected_image?.url || "/api/invalid-artifact");
+    document.getElementById("protectResult").innerHTML = `
+      <figure><img src="${escapeHTML(imageSource)}" alt="已保护图片"><figcaption>protected · 可下载后用于传播核验</figcaption></figure>
+      <div class="infer-metric-row">
+        <span>内容 ID</span><strong>${escapeHTML(result.content_id)}</strong>
+        <span>创作者引用</span><strong>${escapeHTML(result.creator_ref)}</strong>
+        <span>原图留存</span><strong>${result.privacy?.original_persisted ? "是" : "否"}</strong>
+        <span>正式证据</span><strong>${formalEvidenceBadge(result, "registered_protection_record")}</strong>
+      </div>`;
+    document.getElementById("protectEvidence").textContent = JSON.stringify(result, null, 2);
+    text("protectStatus", `保护与登记完成 · ${result.content_id} · ${result.evidence_status}`);
   } catch (err) {
-    document.getElementById("inferStatus").textContent = "错误: " + err.message;
+    text("protectStatus", `失败：${err.message}`);
+  } finally {
+    protectBusy = false;
+    updateProtectButton();
+  }
+});
+
+document.getElementById("verifyForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const btn = document.getElementById("verifyBtn");
+  btn.disabled = true;
+  text("verifyStatus", "正在盲解码并查询登记记录…");
+  document.getElementById("verifyResult").innerHTML = "";
+  try {
+    const fd = new FormData();
+    fd.append("file", document.getElementById("verifyFile").files[0]);
+    fd.append("content_id", document.getElementById("verifyContentId").value.trim());
+    const res = await fetchWithTimeout(apiURL("/api/provenance/verify"), { method: "POST", body: fd }, 130000);
+    const result = await res.json();
+    if (!res.ok) throw new Error((result.error && result.error.message) || res.statusText);
+    document.getElementById("verifyResult").innerHTML = `<div class="infer-metric-row">
+      <span>登记消息匹配</span><strong>${result.verified ? '<span class="verdict-ok">✔ 达到协议阈值</span>' : '<span class="verdict-risk">✘ 未达到协议阈值</span>'}</strong>
+      <span>Bit Accuracy</span><strong>${Number.isFinite(Number(result.bit_accuracy)) ? (Number(result.bit_accuracy) * 100).toFixed(1) + "%" : "—"}</strong>
+      <span>精确文件匹配</span><strong>${result.exact_protected_file_match ? "是" : "否（可能经历传播变换）"}</strong>
+      <span>登记主体</span><strong>${escapeHTML(result.creator_ref)}</strong>
+      <span>正式证据</span><strong>${formalEvidenceBadge(result, "registered_blind_verification")}</strong>
+    </div>`;
+    document.getElementById("verifyEvidence").textContent = JSON.stringify(result, null, 2);
+    text("verifyStatus", `${result.verified ? "消息匹配" : "消息不匹配"} · event_id: ${result.event_id}`);
+  } catch (err) {
+    text("verifyStatus", `失败：${err.message}`);
   } finally {
     btn.disabled = false;
   }
@@ -991,17 +1234,16 @@ document.getElementById("batchForm")?.addEventListener("submit", async (event) =
     const files = document.getElementById("batchFiles").files;
     for (const file of files) fd.append("files", file);
     fd.append("model", document.getElementById("batchModel").value);
-    const res = await fetch(`${API}/api/compliance/batch`, { method: "POST", body: fd });
+    const res = await fetchWithTimeout(apiURL("/api/compliance/batch"), { method: "POST", body: fd }, 130000);
     const result = await res.json();
     if (!res.ok) throw new Error((result.error && result.error.message) || res.statusText);
-    const rate = ((result.compliance_rate || 0) * 100).toFixed(0);
-    document.getElementById("batchStatus").textContent =
-      `检测完成 · ${result.total} 张 · 合规率 ${rate}% · 模式: ${result.mode}`;
+    const rate = result.compliance_rate == null ? null : (result.compliance_rate * 100).toFixed(0);
+    document.getElementById("batchStatus").textContent = rate == null
+      ? `未执行合规判定 · ${result.warning || result.reason || "blind detector 不可用"}`
+      : `检测完成 · ${result.total} 张 · 合规率 ${rate}% · 模式: ${result.mode}`;
     document.getElementById("batchResults").innerHTML = `
       <div class="batch-summary">
-        <span class="verdict-ok">✔ 合规 <strong>${escapeHTML(result.compliant)}</strong></span>
-        <span class="verdict-warn">⚠ 降级 <strong>${escapeHTML(result.degraded)}</strong></span>
-        <span class="verdict-risk">✘ 无标识 <strong>${escapeHTML(result.no_watermark)}</strong></span>
+        <span class="verdict-warn">${escapeHTML(result.warning || "等待盲检能力")}</span>
       </div>
       <div class="table-wrap">
         <table>
@@ -1020,25 +1262,143 @@ document.getElementById("batchForm")?.addEventListener("submit", async (event) =
   }
 });
 
+const COLLABORATION_PROFILES = {
+  balanced: { risk_aversion: 0.6, fidelity_weight: 0.2, minimum_worst_case_protocol_normalized_margin: 0.45 },
+  security: { risk_aversion: 0.9, fidelity_weight: 0.1, minimum_worst_case_protocol_normalized_margin: 0.7 },
+  quality: { risk_aversion: 0.4, fidelity_weight: 0.45, minimum_worst_case_protocol_normalized_margin: 0.45 },
+};
+
+function collaborationPercent(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? `${(number * 100).toFixed(1)}%` : "—";
+}
+
+function assertCollaborationResponse(result, requestedThreats, requestedProfile) {
+  const contracts = globalThis.JYSTrustContracts;
+  if (!contracts?.validateCollaborationResponse) {
+    throw new Error("协同信任合约未加载");
+  }
+  return contracts.validateCollaborationResponse(
+    result,
+    requestedThreats,
+    requestedProfile,
+  ).response;
+}
+
+document.getElementById("collaborationForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const button = document.getElementById("collaborationRun");
+  const status = document.getElementById("collaborationStatus");
+  const output = document.getElementById("collaborationResult");
+  const badgeElement = document.getElementById("collaborationBadge");
+  const threats = [...document.querySelectorAll('input[name="collaborationThreat"]:checked')]
+    .map((input) => ({ model: input.value, exposure: 1.0 }));
+  if (!threats.length) {
+    status.textContent = "至少选择一个二次嵌入威胁模型";
+    output.innerHTML = "";
+    badgeElement.textContent = "fail closed";
+    badgeElement.className = "panel-badge warning";
+    return;
+  }
+  const profileName = document.getElementById("collaborationProfile").value;
+  const profile = COLLABORATION_PROFILES[profileName] || COLLABORATION_PROFILES.balanced;
+  button.disabled = true;
+  status.textContent = "正在验签逐图证据并计算 217 身份簇置信前沿…";
+  output.innerHTML = "";
+  badgeElement.textContent = "verifying";
+  badgeElement.className = "panel-badge muted";
+  try {
+    const result = assertCollaborationResponse(await postJSON("/api/collaboration/recommend", {
+      threats,
+      candidate_models: ["LIDMark", "KAD-Net", "SepMark", "WaveGuard"],
+      ...profile,
+    }), threats, profile);
+    const selected = result.recommendation;
+    const ranking = (result.ranking || []).map((item, index) => `
+      <tr>
+        <td>#${index + 1}</td>
+        <td><strong>${escapeHTML(item.model)}</strong>${item.pareto_optimal ? ' <span class="status-badge">Pareto</span>' : ""}</td>
+        <td class="num">${escapeHTML(Number(item.score).toFixed(3))}</td>
+        <td class="num">${escapeHTML(collaborationPercent(item.expected_source_protocol_normalized_margin_cluster_lcb))}</td>
+        <td class="num">${escapeHTML(collaborationPercent(item.worst_case_source_protocol_normalized_margin_cluster_lcb))}</td>
+      </tr>`).join("");
+    const classLabels = {
+      coexistence: ["共存风险观测", "verdict-ok"],
+      source_dominant: ["来源占优", "verdict-warn"],
+      source_overwritten: ["来源被覆盖", "verdict-risk"],
+      destructive_collision: ["破坏性冲突", "verdict-risk"],
+    };
+    const interactions = (result.interaction_plan || []).map((item) => {
+      const meta = classLabels[item.class] || [item.class || "未知", "verdict-risk"];
+      return `<article class="collaboration-cell">
+        <div><strong>${escapeHTML(item.attacker_model)}</strong><span class="${meta[1]}">${escapeHTML(meta[0])}</span></div>
+        <small>来源归一化 margin 聚类 LCB ${escapeHTML(collaborationPercent(item.source_protocol_normalized_margin_cluster_lcb))} · 后嵌 ${escapeHTML(collaborationPercent(item.attacker_protocol_normalized_margin_cluster_lcb))}</small>
+        <code>PLANNED POLICY HINT · ${escapeHTML(item.policy_hint || "planned_block_second_embedding")}</code>
+      </article>`;
+    }).join("");
+    const evidence = result.evidence || {};
+    const releaseSignature = evidence.release_signature || {};
+    const scoring = result.scoring || {};
+    const stability = scoring.selection_stability || {};
+    const ablation = result.ablation || {};
+    const legacyModel = ablation.legacy_iid_raw_accuracy?.selected_model || "none";
+    const selectedFrequency = collaborationPercent(stability.selected_model_frequency);
+    output.innerHTML = `
+      <div class="collaboration-hero">
+        <span>RECOMMENDED SINGLE-MODEL DEPLOYMENT</span>
+        <strong>${escapeHTML(selected.model)}</strong>
+        <small>置信调整得分 ${escapeHTML(Number(selected.score).toFixed(3))} · 最差协议归一化 margin 聚类 LCB ${escapeHTML(collaborationPercent(selected.worst_case_source_protocol_normalized_margin_cluster_lcb))}</small>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Rank</th><th>Model</th><th>Score</th><th>期望 margin 聚类 LCB</th><th>最差 margin 聚类 LCB</th></tr></thead>
+        <tbody>${ranking}</tbody>
+      </table></div>
+      <div class="collaboration-cells">${interactions}</div>
+      <pre class="collaboration-evidence">images=${escapeHTML(evidence.image_count ?? "—")} identities=${escapeHTML(evidence.identity_count ?? "—")} repeated_identities=${escapeHTML(evidence.repeated_identity_count ?? "—")} max_cluster=${escapeHTML(evidence.max_cluster_size ?? "—")}
+bootstrap=${escapeHTML(scoring.uncertainty_method || "—")} seed=${escapeHTML(scoring.bootstrap_seed ?? "—")} resamples=${escapeHTML(scoring.bootstrap_resamples ?? "—")} family=${escapeHTML(scoring.family_size ?? "—")}
+selection_stability=${escapeHTML(selectedFrequency)} old_iid=${escapeHTML(legacyModel)} new_cluster=${escapeHTML(ablation.identity_cluster_normalized_policy_selected_model || "none")} changed=${escapeHTML(String(ablation.selection_changed))}
+cells=${escapeHTML(evidence.cells ?? "—")} rows=${escapeHTML(evidence.rows ?? "—")}
+policy=${escapeHTML(evidence.policy_sha256 || "—")}
+summary=${escapeHTML(evidence.summary_sha256 || "—")}
+protocol=${escapeHTML(evidence.protocol_sha256 || "—")}
+manifest=${escapeHTML(releaseSignature.manifest_sha256 || "—")}
+signer=${escapeHTML(releaseSignature.public_key_fingerprint_sha256 || "—")}</pre>`;
+    status.textContent = "部署建议已生成但未自动执行 · 217 身份等权、96 项选择族与 20,000 次聚类重采样可复算";
+    badgeElement.textContent = "evidence verified";
+    badgeElement.className = "panel-badge real";
+  } catch (error) {
+    status.textContent = `策略阻断：${formatApiError(error)}`;
+    badgeElement.textContent = "fail closed";
+    badgeElement.className = "panel-badge warning";
+  } finally {
+    button.disabled = false;
+  }
+});
+
 document.getElementById("meaForm")?.addEventListener("submit", async (event) => {
   event.preventDefault();
   const btn = document.getElementById("meaBtn");
   btn.disabled = true;
-  document.getElementById("meaStatus").textContent = "对比推理中（4个模型）…";
+  document.getElementById("meaStatus").textContent = "对比推理中（4个正式候选）…";
   document.getElementById("meaResults").innerHTML = "";
   try {
     const file = document.getElementById("meaFile").files[0];
     const attack = document.getElementById("meaAttack").value;
-    const results = await Promise.all(["SepMark", "WaveGuard"].map(async (model) => {
+    const results = await Promise.all(["LIDMark", "KAD-Net", "SepMark", "WaveGuard"].map(async (model) => {
       const fd = new FormData();
       fd.append("file", file);
       fd.append("model", model);
       fd.append("attack", attack);
       fd.append("return_b64", "true");
-      const res = await fetch(`${API}/api/infer/single`, { method: "POST", body: fd });
-      return res.json();
+      const res = await fetchWithTimeout(apiURL("/api/infer/single"), { method: "POST", body: fd }, 130000);
+      const body = await res.json();
+      if (!res.ok) throw new Error((body.error && body.error.message) || `HTTP ${res.status}`);
+      return body;
     }));
-    document.getElementById("meaStatus").textContent = "对比完成";
+    const allCheckpoint = results.every((result) => result.execution_valid === true);
+    document.getElementById("meaStatus").textContent = allCheckpoint
+      ? "checkpoint 单样本对比完成 · 不代表正式 Benchmark 结论"
+      : "流程模拟完成 · 不可用于性能结论";
     document.getElementById("meaResults").innerHTML = `<div class="mea-grid">` +
       results.map((result) => {
         const m = result.metrics || {};
@@ -1047,7 +1407,7 @@ document.getElementById("meaForm")?.addEventListener("submit", async (event) => 
           : m.bit_accuracy_detector != null ? m.bit_accuracy_detector : m.bit_accuracy;
         const imgs = result.artifacts_b64 || {};
         return `<div class="mea-card">
-          <h4>${escapeHTML(result.model)} <small>${escapeHTML(result.mode)}</small></h4>
+          <h4>${escapeHTML(result.model)} <small>${result.execution_valid ? "checkpoint 单样本 · 未放行" : "simulation · 不可作结论"}</small></h4>
           <div class="mea-figs">
             ${["watermarked", "attacked", "heatmap"].filter((key) => imgs[key]).map((key) =>
               `<figure>
@@ -1058,7 +1418,7 @@ document.getElementById("meaForm")?.addEventListener("submit", async (event) => 
           <div class="mea-metrics">
             <span>Bit Accuracy</span><strong>${acc != null ? (acc * 100).toFixed(1) + "%" : "—"}</strong>
             <span>PSNR</span><strong>${m.psnr != null ? m.psnr.toFixed(1) + " dB" : "—"}</strong>
-            <span>合规</span><strong>${(result.compliance || {}).verdict === "compliant" ? '<span class="verdict-ok">✔</span>' : '<span class="verdict-risk">✘</span>'}</strong>
+            <span>声明状态</span><strong><span class="verdict-warn">待正式 Benchmark 证据</span></strong>
           </div>
         </div>`;
       }).join("") + `</div>`;
