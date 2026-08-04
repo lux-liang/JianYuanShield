@@ -111,7 +111,7 @@ fun PubConfirmScreen(
         Column(Modifier.fillMaxSize()) {
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                 PubHero(contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 14.dp, bottom = 60.dp)) {
-                    PubNavBar("确认图片", subtitle = "看清楚是这张,就开始鉴别", onBack = onBack)
+                    PubNavBar("确认评估图片", subtitle = "确认后运行单请求嵌入—攻击—恢复评估", onBack = onBack)
                 }
 
                 Column(Modifier.offset(y = (-48).dp)) {
@@ -178,27 +178,27 @@ fun PubConfirmScreen(
                         }
                     }
 
-                    SectionHeader("这一次会帮你检测", contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 14.dp, bottom = 11.dp))
+                    SectionHeader("本次主动水印流程", contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 14.dp, bottom = 11.dp))
 
                     // P1-⑦ WillRow 错时入场(对齐后端真实能力)
                     PubCard(Modifier.padding(horizontal = 16.dp), contentPadding = PaddingValues(horizontal = 18.dp)) {
                         AnimatedVisibility(visibleWill0, enter = enterStd(0)) {
-                            WillRow(PubIcons.shieldCheck, 1, "有没有溯源水印", "读出图片里隐藏的来源标记", divider = true)
+                            WillRow(PubIcons.shieldCheck, 1, "嵌入并恢复来源水印", "验证本流程写入的隐藏来源标记", divider = true)
                         }
                         AnimatedVisibility(visibleWill1, enter = enterStd(0)) {
-                            WillRow(PubIcons.bolt, 2, "抗攻击鲁棒不鲁棒", "压缩/裁剪/换脸后水印还在不在", divider = true)
+                            WillRow(PubIcons.bolt, 2, "评估抗攻击鲁棒性", "验证压缩、裁剪等处理后的恢复能力", divider = true)
                         }
                         AnimatedVisibility(visibleWill2, enter = enterStd(0)) {
                             WillRow(PubIcons.image, 3, "画质有没有损失", "嵌入水印后的 PSNR / SSIM", divider = true)
                         }
                         AnimatedVisibility(visibleWill3, enter = enterStd(0)) {
-                            WillRow(PubIcons.verified, 0, "合不合规", "是否携带《AI 标识办法》隐式标识", divider = false)
+                            WillRow(PubIcons.verified, 0, "评估合规标识", "评估本流程嵌入的隐式标识", divider = false)
                         }
                     }
 
                     PrivacyTip(Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp))
 
-                    PrimaryCta("开始鉴别", Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp), icon = PubIcons.search) {
+                    PrimaryCta("开始保护链路评估", Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp), icon = PubIcons.search) {
                         if (consent) onStart() else showConsent = true
                     }
                     SecondaryButton(
@@ -233,7 +233,7 @@ private fun ConsentDialog(onAgree: () -> Unit, onDismiss: () -> Unit) {
         title = { Text("上传提示", fontWeight = FontWeight.Bold, color = Pub.Ink) },
         text = {
             Text(
-                "这张图片会上传到鉴别服务器用于本次检测,继续即表示你同意。\n之后不再询问;可在「我的 → 服务器设置」改回演示模式(不上传)。",
+                "这张图片会上传到你配置的服务器，用于本次主动水印嵌入、攻击与恢复验证；继续即表示你同意。\n之后不再询问；也可在「我的 → 服务器设置」显式开启本地演示模式（不上传、不可发布结论）。",
                 fontSize = 13.sp, lineHeight = 20.sp, color = Pub.Ink2,
             )
         },

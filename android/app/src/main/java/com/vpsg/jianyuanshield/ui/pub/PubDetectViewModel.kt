@@ -11,7 +11,6 @@ import androidx.lifecycle.viewmodel.viewModelFactory
 import com.vpsg.jianyuanshield.core.ImageCompressor
 import com.vpsg.jianyuanshield.core.app
 import com.vpsg.jianyuanshield.core.toUserMessage
-import com.vpsg.jianyuanshield.data.MockData
 import com.vpsg.jianyuanshield.data.UiState
 import com.vpsg.jianyuanshield.data.history.HistoryEntry
 import com.vpsg.jianyuanshield.data.history.HistoryStore
@@ -26,13 +25,15 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
  * 公众版"一次鉴别会话"的共享状态:选图 → 调真实后端 [ShieldRepository.inferSingle] →
- * 映射 [PubResultUi];网络失败回退本地演示(标记 offline)。成功(真连)即写入历史。
+ * 映射 [PubResultUi]。本地模拟只允许由用户显式开启 demoMode；网络或服务失败直接进入
+ * [UiState.Error]，绝不伪装成成功结果。只有通过声明门禁的真实结果才写入历史。
  */
 class PubDetectViewModel(
     app: Application,
@@ -71,6 +72,9 @@ class PubDetectViewModel(
         settings.userName.stateIn(viewModelScope, SharingStarted.Eagerly, "鉴源盾用户")
     val avatarPath: StateFlow<String?> =
         settings.avatarPath.stateIn(viewModelScope, SharingStarted.Eagerly, null)
+    val apiTokenConfigured: StateFlow<Boolean> =
+        settings.apiToken.map { it.isNotBlank() }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     private var model: String = DEFAULT_MODEL.id
     private var attack: String = DEFAULT_ATTACK.id
@@ -116,17 +120,17 @@ class PubDetectViewModel(
             val name = _fileName.value
             try {
                 val res = repository.inferSingle(uri, model, attack)
-                val offline = settings.demoMode.first()
-                val ui = res.toPubResultUi(base, name, uri.toString(), offline)
+                val explicitDemo = settings.demoMode.first()
+                val ui = res.toPubResultUi(base, name, uri.toString(), explicitDemo)
                 _state.value = UiState.Success(ui)
-                if (!offline) saveHistory(uri, ui, res.createdAt)
+                if (ui.canIssueCertificate) saveHistory(uri, ui, res.createdAt)
             } catch (ce: CancellationException) {
                 throw ce
             } catch (e: Throwable) {
                 val msg = e.toUserMessageSafe()
-                val fallback = MockData.inferResult(uri.toString(), model, attack)
-                _state.value = UiState.Success(
-                    fallback.toPubResultUi(base, name, uri.toString(), offline = true).copy(offlineHint = msg),
+                _state.value = UiState.Error(
+                    "$msg\n\n为避免把模拟结果误作真实结论，本次未自动进入演示模式。" +
+                        "如需预览流程，请先在服务器设置中显式开启演示模式。",
                 )
             }
         }
@@ -156,6 +160,10 @@ class PubDetectViewModel(
     fun reportUrl(taskId: String): String =
         baseUrl.value.trimEnd('/') + "/api/reports/" + taskId
 
+    /** 导航和导出层共用的防御性凭证门禁。 */
+    fun canIssueCertificate(): Boolean =
+        (_state.value as? UiState.Success)?.data?.canIssueCertificate == true
+
     fun probeConnection() {
         if (_probe.value is ConnProbe.Checking) return
         viewModelScope.launch {
@@ -166,8 +174,14 @@ class PubDetectViewModel(
 
     suspend fun testConnection(): ConnProbe = withContext(Dispatchers.IO) {
         try {
+            val explicitDemo = settings.demoMode.first()
             val h = repository.health()
-            ConnProbe.Ok(mode = h.mode ?: "unknown", version = h.version)
+            val ready = if (explicitDemo) emptyList() else repository.modelsStatus().readyModels.keys.toList()
+            ConnProbe.Ok(
+                mode = if (explicitDemo) "local_demo" else h.mode ?: "unknown",
+                version = h.version,
+                provenanceReadyModels = ready,
+            )
         } catch (ce: CancellationException) {
             throw ce
         } catch (e: Throwable) {
@@ -177,13 +191,15 @@ class PubDetectViewModel(
 
     /** 凭证页用:平台证据签名状态文案(best-effort,失败返回 null)。 */
     suspend fun evidenceSignatureLabel(): String? = withContext(Dispatchers.IO) {
+        if (!canIssueCertificate()) return@withContext null
         runCatching {
             val s = repository.evidenceSignature()
             if (s.verified == true || s.signatureValid == true) "平台证据已 Ed25519 签名核验" else null
         }.getOrNull()
     }
 
-    suspend fun saveBaseUrl(url: String) = settings.setBaseUrl(url)
+    suspend fun saveBaseUrl(url: String) = repository.saveBaseUrl(url)
+    suspend fun saveApiToken(token: String) = repository.saveApiToken(token)
     suspend fun setDemoMode(enabled: Boolean) = settings.setDemoMode(enabled)
     suspend fun grantConsent() = settings.setUploadConsent(true)
     suspend fun setBigFont(enabled: Boolean) = settings.setBigFont(enabled)

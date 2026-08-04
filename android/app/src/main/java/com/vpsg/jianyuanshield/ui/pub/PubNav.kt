@@ -32,12 +32,14 @@ import com.vpsg.jianyuanshield.ui.pub.screens.PubReportScreen
 import com.vpsg.jianyuanshield.ui.pub.screens.PubResultScreen
 import com.vpsg.jianyuanshield.ui.pub.screens.PubServerScreen
 import com.vpsg.jianyuanshield.ui.pub.screens.PubUploadScreen
+import com.vpsg.jianyuanshield.ui.pub.provenance.ProvenanceScreen
 
 /** 公众版路由表。 */
 object PubRoutes {
     const val ONBOARDING = "onboarding"
     const val HOME = "home"
     const val UPLOAD = "upload"
+    const val PROVENANCE = "provenance"
     const val CONFIRM = "confirm"
     const val DETECTING = "detecting"
     const val RESULT = "result"
@@ -58,7 +60,7 @@ object PubRoutes {
 private fun NavHostController.switchTab(tab: PubTab) {
     val route = when (tab) {
         PubTab.Home -> PubRoutes.HOME
-        PubTab.Detect -> PubRoutes.UPLOAD
+        PubTab.Detect -> PubRoutes.PROVENANCE
         PubTab.Records -> PubRoutes.RECORDS
         PubTab.Me -> PubRoutes.ME
     }
@@ -118,9 +120,16 @@ fun PubApp(
         ) {
             PubHomeScreen(
                 vm = vm,
-                onUpload = { nav.navigate(PubRoutes.UPLOAD) },
+                onUpload = { nav.navigate(PubRoutes.PROVENANCE) },
                 onOpenRecords = { nav.navigate(PubRoutes.RECORDS) },
                 onOpenLearn = { nav.navigate(PubRoutes.LEARN) },
+                onSelectTab = nav::switchTab,
+            )
+        }
+        composable(PubRoutes.PROVENANCE) {
+            ProvenanceScreen(
+                onBack = { nav.popBackStack() },
+                onOpenServer = { nav.navigate(PubRoutes.SETTINGS) },
                 onSelectTab = nav::switchTab,
             )
         }
@@ -165,7 +174,9 @@ fun PubApp(
             PubResultScreen(
                 vm = vm,
                 onBack = { nav.popBackStack() },
-                onSaveCertificate = { nav.navigate(PubRoutes.CERTIFICATE) },
+                onSaveCertificate = {
+                    if (vm.canIssueCertificate()) nav.navigate(PubRoutes.CERTIFICATE)
+                },
                 onOpenReport = { nav.navigate(PubRoutes.REPORT) },
                 onRetry = {
                     vm.reset()
@@ -178,7 +189,9 @@ fun PubApp(
             PubReportScreen(
                 vm = vm,
                 onBack = { nav.popBackStack() },
-                onSaveCertificate = { nav.navigate(PubRoutes.CERTIFICATE) },
+                onSaveCertificate = {
+                    if (vm.canIssueCertificate()) nav.navigate(PubRoutes.CERTIFICATE)
+                },
                 onSelectTab = nav::switchTab,
             )
         }

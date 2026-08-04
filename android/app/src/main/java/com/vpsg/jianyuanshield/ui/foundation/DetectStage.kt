@@ -139,7 +139,7 @@ fun DetectingStage(
         Text(text, style = MaterialTheme.typography.titleMedium, color = Ink)
         Spacer(Modifier.height(4.dp))
         Text(
-            "鉴源盾正在本地运行取证模型,请稍候",
+            "鉴源盾正在运行本次嵌入—攻击—恢复评估,请稍候",
             style = MaterialTheme.typography.bodySmall,
             color = InkSecondary,
         )
@@ -229,7 +229,7 @@ fun DetectingStage(
             }
             Spacer(Modifier.height(12.dp))
             Text(
-                "本地推理 · 检材不出端 · 全程不上传云端",
+                "图片已发送至所配置服务 · 结果可发布性以声明门禁为准",
                 style = MaterialTheme.typography.labelSmall,
                 color = InkFaint,
             )

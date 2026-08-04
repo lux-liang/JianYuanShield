@@ -103,7 +103,7 @@ fun PubHomeScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text("你好,$userName", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-                            Text("今天有什么图片想验证?", color = Color.White.copy(alpha = 0.78f), fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+                            Text("今天要保护新内容，还是核验已登记记录?", color = Color.White.copy(alpha = 0.78f), fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
                         }
                         Box(
                             Modifier.size(36.dp).clip(RoundedCornerShape(50)).background(Color.White.copy(alpha = 0.14f))
@@ -129,23 +129,23 @@ fun PubHomeScreen(
 
                     AnimatedVisibility(play, enter = enterHero(0)) {
                         Text(
-                            "图片真伪,\n一鉴便知", color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.ExtraBold,
+                            "来源保护\n登记核验", color = Color.White, fontSize = 25.sp, fontWeight = FontWeight.ExtraBold,
                             lineHeight = 32.sp, modifier = Modifier.padding(top = 20.dp),
                         )
                     }
 
                     AnimatedVisibility(visibleSub, enter = enterHero(0)) {
                         Text(
-                            "溯源水印 · 抗攻击鲁棒性 · 合规标识,真连服务器检测",
+                            "provenance_ready · content_id · decode-only · 声明门禁",
                             color = Color.White.copy(alpha = 0.85f), fontSize = 12.5.sp, modifier = Modifier.padding(top = 10.dp),
                         )
                     }
 
                     AnimatedVisibility(visibleStats, enter = enterHero(0)) {
                         Row(Modifier.fillMaxWidth().padding(top = 20.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            HeroStat(PubIcons.check, "$total", "累计鉴别", Color(0xFFBDF1FF), Color(0x387EE6FF), Modifier.weight(1f))
-                            HeroStat(PubIcons.shieldCheck, "$passed", "通过核验", Color(0xFFBFF3D6), Color(0x3863E6A0), Modifier.weight(1f))
-                            HeroStat(PubIcons.warning, "$flagged", "需留意", Color(0xFFFFC0B8), Color(0x38FFA096), Modifier.weight(1f))
+                            HeroStat(PubIcons.check, "$total", "累计核验", Color(0xFFBDF1FF), Color(0x387EE6FF), Modifier.weight(1f))
+                            HeroStat(PubIcons.shieldCheck, "$passed", "恢复通过", Color(0xFFBFF3D6), Color(0x3863E6A0), Modifier.weight(1f))
+                            HeroStat(PubIcons.warning, "$flagged", "降级/未通过", Color(0xFFFFC0B8), Color(0x38FFA096), Modifier.weight(1f))
                         }
                     }
                 }
@@ -158,17 +158,17 @@ fun PubHomeScreen(
                             contentPadding = PaddingValues(horizontal = 6.dp, vertical = 18.dp),
                         ) {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
-                                QuickAction(PubIcons.camera, 0, "拍照鉴别", onUpload)
-                                QuickAction(PubIcons.gallery, 1, "相册鉴别", onUpload)
-                                QuickAction(PubIcons.shieldCheck, 2, "水印核验", onUpload)
-                                QuickAction(PubIcons.clock, 3, "鉴别记录", onOpenRecords)
+                                QuickAction(PubIcons.shieldCheck, 0, "保护登记", onUpload)
+                                QuickAction(PubIcons.gallery, 1, "登记核验", onUpload)
+                                QuickAction(PubIcons.verified, 2, "凭证门禁", onUpload)
+                                QuickAction(PubIcons.clock, 3, "核验记录", onOpenRecords)
                             }
                         }
                     }
 
-                    PrimaryCta("上传一张图,立即鉴别", Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp), icon = PubIcons.upload, onClick = onUpload)
+                    PrimaryCta("保护新内容或核验预登记凭证", Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp), icon = PubIcons.shieldCheck, onClick = onUpload)
 
-                    SectionHeader("最近鉴别", action = "全部", onAction = onOpenRecords)
+                    SectionHeader("最近核验", action = "全部", onAction = onOpenRecords)
 
                     if (recent.isEmpty()) {
                         EmptyRecent(Modifier.padding(horizontal = 16.dp))
@@ -195,7 +195,7 @@ fun PubHomeScreen(
                             ClayIcon(PubIcons.learn, palette = 2, size = 40.dp, corner = 12.dp, iconSize = 20.dp)
                             Column(Modifier.weight(1f).padding(start = 14.dp)) {
                                 Text("3 秒看懂:溯源水印怎么用?", color = Color(0xFF22306B), fontSize = 13.5.sp, fontWeight = FontWeight.Bold)
-                                Text("学会这几招,转发前先验真", color = Color(0xFF6B76A3), fontSize = 11.5.sp, modifier = Modifier.padding(top = 4.dp))
+                                Text("了解主动水印如何保护和核对来源", color = Color(0xFF6B76A3), fontSize = 11.5.sp, modifier = Modifier.padding(top = 4.dp))
                             }
                             Icon(PubIcons.chevronRight, null, tint = Color(0xFF8893C4), modifier = Modifier.size(20.dp))
                         }
@@ -214,8 +214,8 @@ private fun EmptyRecent(modifier: Modifier = Modifier) {
     PubCard(modifier, corner = 18.dp, contentPadding = PaddingValues(vertical = 26.dp, horizontal = 18.dp)) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(PubIcons.history, null, tint = Pub.Ink3, modifier = Modifier.size(34.dp))
-            Text("还没有鉴别记录", color = Pub.Ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 10.dp))
-            Text("上传一张图试试,结果会自动存到这里", color = Pub.Ink3, fontSize = 11.5.sp, modifier = Modifier.padding(top = 4.dp))
+            Text("还没有核验记录", color = Pub.Ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 10.dp))
+            Text("通过声明门禁的真实结果会保存到这里", color = Pub.Ink3, fontSize = 11.5.sp, modifier = Modifier.padding(top = 4.dp))
         }
     }
 }

@@ -104,7 +104,7 @@ private fun HomeContent(data: HomeData, onNavigate: (String) -> Unit, onRefresh:
                 Column(Modifier.weight(1f)) {
                     Text("鉴源盾", style = MaterialTheme.typography.headlineMedium, color = Color.White)
                     Spacer(Modifier.height(2.dp))
-                    Text("深度伪造溯源与司法取证平台", style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.82f))
+                    Text("主动水印保护、登记与指定记录核验平台", style = MaterialTheme.typography.bodyMedium, color = Color.White.copy(alpha = 0.82f))
                 }
                 IconButton(onClick = onRefresh) {
                     Icon(Icons.Rounded.Refresh, contentDescription = "刷新", tint = Color.White)
@@ -147,7 +147,7 @@ private fun HomeContent(data: HomeData, onNavigate: (String) -> Unit, onRefresh:
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 SectionHeader("核心服务", subtitle = "溯源、合规、核验、评测一体化")
-                ServiceEntry(Icons.Rounded.Fingerprint, "溯源取证", "上传检材、生成取证任务", GovBlue, { onNavigate(Routes.INFER) })
+                ServiceEntry(Icons.Rounded.Fingerprint, "链路评估", "单请求嵌入、攻击与恢复", GovBlue, { onNavigate(Routes.INFER) })
                 ServiceEntry(Icons.AutoMirrored.Rounded.FactCheck, "合规检测", "隐式水印与标识核验", GovBlue, { onNavigate(Routes.COMPLIANCE) })
                 ServiceEntry(Icons.Rounded.Gavel, "证据核验", "签名与文件哈希校验", GovBlue, { onNavigate(Routes.EVIDENCE) })
                 ServiceEntry(Icons.Rounded.Analytics, "基准评测", "模型性能与鲁棒性评估", GovBlue, { onNavigate(Routes.BENCHMARK) })
@@ -155,7 +155,7 @@ private fun HomeContent(data: HomeData, onNavigate: (String) -> Unit, onRefresh:
 
             // ── 最近取证任务 ──
             SectionCard(Modifier.entrance(2)) {
-                SectionHeader("最近取证任务", subtitle = "近 7 日")
+                SectionHeader("最近链路评估", subtitle = "近 7 日")
                 Spacer(Modifier.height(4.dp))
                 TaskCard(
                     taskId = "JYD-20260614-2237",

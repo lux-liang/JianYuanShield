@@ -1,175 +1,146 @@
-<div align="center">
+# 鉴源盾 Android 客户端
 
-# 🛡️ 鉴源盾 · Android 客户端
+**JianYuanShield · 主动水印来源核验客户端**
 
-**JianYuanShield · Deepfake 溯源与取证移动端**
+本目录是 Kotlin + Jetpack Compose 编写的 Android 客户端。默认入口为公众版
+`PubApp`，负责选图、明确上传授权、调用统一 REST API，并按后端声明门禁展示结果。
+模型推理不在手机本地执行。
 
-基于 Kotlin + Jetpack Compose + Material 3，调用鉴源盾统一 REST API
+> 当前 `/api/infer/single` 是“新嵌入 → 攻击 → 解码”的单请求评估接口，
+> 不是对既有图片的来源盲检；它始终返回 `claim_valid=false`。客户端不得据此生成、
+> 保存或分享正式来源/合规凭证。
 
-[![Kotlin](https://img.shields.io/badge/Kotlin-2.0-7F52FF?style=flat-square&logo=kotlin&logoColor=white)](https://kotlinlang.org)
-[![Compose](https://img.shields.io/badge/Jetpack_Compose-Material_3-4285F4?style=flat-square&logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
-[![minSdk](https://img.shields.io/badge/minSdk-26-3DDC84?style=flat-square&logo=android&logoColor=white)](https://developer.android.com)
-[![API](https://img.shields.io/badge/统一REST_API-FastAPI后端-009688?style=flat-square)](../JianyuanShield)
+## 当前能力与边界
 
-</div>
-
----
-
-## 一、项目定位
-
-鉴源盾 Android 客户端是「鉴源盾五端覆盖（Web / **Android** / iOS / 微信小程序 / 鸿蒙）」中的移动端实现。
-它**不内置模型推理**，而是把图片上传到鉴源盾 FastAPI 后端，由后端的四模型水印平台
-（LIDMark / KAD-Net / WaveGuard / SepMark）完成水印嵌入、攻击仿真、溯源解码与证据链签名，
-客户端负责**采集、上传、可视化与取证展示**。
-
-UI 风格借鉴国家级公共安全 / 反诈类政务应用的视觉语言——**安全蓝主色、盾牌标识、宫格导航、卡片化信息层级**，
-并按 Figma / Canva 的设计规范打磨：渐变 Hero、语义化状态色、统一圆角与留白，做到「简单不简约」。
-
-> ⚠️ 本仓库只包含**源代码 + 文档**，不含 Gradle Wrapper 二进制（`gradle-wrapper.jar`）与第三方依赖包。
-> 首次构建请用 Android Studio 打开，或在已联网环境执行 `gradle wrapper` 生成 wrapper，再 `./gradlew assembleDebug`。
-
----
-
-## 二、功能总览
-
-| 模块 | 入口 | 对应后端 API | 说明 |
-|:---|:---|:---|:---|
-| 🏠 **首页** | `首页` Tab | `/api/health`、`/api/models/status`、`/api/modules` | 后端状态、四模型加载状态、平台能力宫格 |
-| 🔍 **溯源取证** | `溯源` Tab | `POST /api/infer/single` | 选图 → 选模型/攻击 → 嵌入水印、攻击仿真、取证指标、SHA-256 证据 |
-| ✅ **合规检测** | `合规` Tab | `POST /api/compliance/batch` | 多图批量验证隐式水印，输出合规率与逐项结果 |
-| ⚖️ **证据链** | `证据` Tab | `GET /api/evidence/audit` | Ed25519 签名状态、评测完整性、协议与审计发现 |
-| 📊 **基准评测** | 首页 → 基准评测 | `GET /api/benchmark/{model}` | LIDMark / KAD-Net / WaveGuard / SepMark 的 LFW 全量基准 |
-| ⚙️ **我的** | `我的` Tab | `GET /api/health` | 配置后端地址、测试连通性、关于信息 |
-
----
-
-## 三、技术栈
-
-| 层 | 选型 | 说明 |
+| 能力 | 后端接口 | Android 行为 |
 |:---|:---|:---|
-| UI | **Jetpack Compose + Material 3** | 声明式 UI，自定义品牌色与语义状态色 |
-| 架构 | **MVVM + 单向数据流** | `ViewModel` + `StateFlow` + `UiState<T>` 状态机 |
-| 导航 | **Navigation-Compose** | 底部导航 5 Tab + 基准评测二级页 |
-| 网络 | **Retrofit + OkHttp** | `multipart/form-data` 上传图片 |
-| 序列化 | **kotlinx.serialization** | `ignoreUnknownKeys` 容错，开放字段用 `JsonObject` |
-| 图片 | **Coil** | 加载后端 `/artifacts/**` 产物图 |
-| 持久化 | **DataStore Preferences** | 保存后端 Base URL |
-| 依赖注入 | **手写 AppContainer** | 轻量、零反射，避免引入 Hilt |
+| 服务探测 | `GET /api/health` | 展示实际连接状态；网络失败不会自动伪装成成功 |
+| 来源保护登记 | `POST /api/provenance/protect` | 原始字节上传；只允许 `provenance_ready=true` 模型；展示 `content_id`、checkpoint、签名和声明门禁 |
+| 创作者持钥证明 | `POST /api/creator/challenges` | 设备 Ed25519 密钥签署一次性挑战；证明密钥持有，不声明自然人实名身份 |
+| 来源凭证 | 保护响应 + `POST /api/provenance/verify` | 导出签名 JSON sidecar；另一设备可导入 sidecar 定位登记记录并核验 |
+| 指定记录核验 | `POST /api/provenance/verify` | 图片与 `content_id` 或签名来源凭证同时提交；只把 `registered_blind_verification + claim_valid=true` 展示为可发布技术记录 |
+| 签名撤销 | revocation intent + revoke | 获取一次性撤销意图，用登记时同一创作者密钥签名；撤销后强制 `claim_valid=false` |
+| 模型来源门禁 | `GET /api/models/status` | 解析 `model-provenance-status.v1` 元数据；优先模型若未 ready 则拒绝并选择首个 ready 模型 |
+| 主动水印流程评估 | `POST /api/infer/single` | 展示嵌入、攻击、恢复与画质技术输出，并固定标明不可发布 |
+| 显式演示模式 | 本地 `MockData` | 只有用户主动开启才使用；不写入正式历史，不生成凭证 |
+| 盲检能力检查 | `POST /api/compliance/batch` | 按 `compliance-batch.v2` 展示“能力不可用”，不显示虚构合规率 |
+| 声明与证据 | `GET /api/claims`、`GET /api/evidence/audit` | 可发布性以后端 claims gate 和签名 artifact 为准 |
+| 服务设置 | DataStore + 运行时 Host/Auth 拦截器 | 用户注入短期 Token；release 仅 HTTPS；Token 不进 URL、日志、安装包或备份 |
 
----
+默认公众版底栏“登记核验”已实现
+`POST /api/provenance/protect` → `POST /api/provenance/verify` 完整垂直切片。保护响应中的
+受保护 PNG 会原样写入应用缓存，随后可直接作为 verify 输入，避免二次 JPEG 压缩破坏
+精确文件哈希或水印消息。签名来源凭证可单独导出、跨设备导入；“签名撤销”页执行
+一次性意图签名与不可恢复撤销。
 
-## 四、目录结构
+创作者 Ed25519 私钥由 Tink 生成，并用 Android Keystore 中不可导出的 AES-GCM 密钥
+包装后落盘；私钥不进入 UI、网络、备份或设备迁移。`creator_ref` 仍只是应用侧引用，
+`creator_identity_verified=true` 精确表示设备密钥持有证明，不表示自然人实名身份。
 
+## 后端契约
+
+### `infer-single.v1`
+
+`POST /api/infer/single` 即使成功运行真实 checkpoint，也只证明本次单样本
+embed-attack-decode 评估执行成功。当前响应语义为：
+
+- `claim_valid=false`：始终不能发布正式来源、合规、科研或司法结论；
+- `execution_valid=true` 只表示兼容 checkpoint 确实执行；
+- `result_provenance=checkpoint_single_sample_evaluation` 或
+  `deterministic_ui_simulation`；
+- `compliance.assessment_status=not_assessed`，
+  `watermark_detected=null`，`verdict=not_assessed`；
+- 原始上传图不持久化；衍生 artifact 按后端
+  `JYS_ARTIFACT_TTL_SECONDS` 清理。
+
+Android 目录使用 `evaluation_protocol.v1` canonical attack ID：
+
+`clean`、`jpeg50`、`jpeg70`、`jpeg90`、`webp50`、
+`resize_0.5x`、`crop_center_0.8`、`rotate_5`、
+`gaussian_blur_5`、`gaussian_noise_sigma_3`、
+`brightness_0.85`、`contrast_1.2`、`platform_wechat_v1`、
+`platform_douyin_v1`、`deepfake_proxy_v1`。
+
+其中 `deepfake_proxy_v1` 是确定性的局部人脸编辑代理，不是真实 Deepfake
+模型或真实平台传播实测。
+
+### `compliance-batch.v2`
+
+当前 `POST /api/compliance/batch` 明确返回：
+
+- `mode=capability_unavailable`；
+- `capability=blind_watermark_detection`；
+- `capability_available=false`、`claim_valid=false`、`assessed=0`；
+- `compliant`、`degraded`、`no_watermark`、`compliance_rate` 均为 `null`；
+- 每个文件为 `assessment_unavailable`。
+
+这不表示“没有水印”，也不表示内容合规或不合规。
+
+### 鉴权、artifact 与 CORS
+
+后端路由采用 `X-API-Key` 策略；`JYS_MODE=production` 时强制鉴权。
+`/api/infer/single`、`/api/compliance/batch`、`/api/artifacts/status`、
+`/api/artifacts/{path}`、models、benchmark 和 evidence 路由均受保护。
+`/api/health` 与 `/api/claims` 可用于未鉴权状态探测。
+
+“服务器设置”接受部署方签发的短期 Token；`ApiAuthInterceptor` 在发送时注入
+`X-API-Key`，并先移除调用方伪造的同名头。Token 不在界面回显，不进入 URL，HTTP
+日志固定隐藏该头，DataStore 目录也从云备份与设备迁移中排除。源码、`BuildConfig`
+和版本库均无长期服务密钥。
+
+CORS 不是通配配置。后端默认只允许：
+
+- `http://127.0.0.1:8027`
+- `http://localhost:8027`
+
+如 Web 部署域名不同，应显式设置 `JYS_CORS_ORIGINS`。Android 原生 HTTP 客户端
+不受浏览器 CORS 限制，但不会绕过 API 鉴权。
+
+## 网络与构建变体
+
+| 变体 | 默认 Base URL | 明文 HTTP |
+|:---|:---|:---|
+| debug | `http://10.0.2.2:8026` | 仅允许模拟器宿主机 `10.0.2.2` |
+| release | `https://jianyuanshield.invalid/` | 全部禁止 |
+
+`.invalid` 是保留的不可用域名，用于在尚未配置正式 HTTPS 服务时 fail closed。
+release 必须在 App 中配置已授权的 HTTPS 节点。真机和局域网联调也应使用 HTTPS；
+debug 不再放行任意局域网明文 IP。
+
+后端开发启动示例：
+
+```bash
+PYTHONPATH=. uvicorn system.backend.app:app --host 0.0.0.0 --port 8026
 ```
+
+Android 构建：
+
+```bash
+# 推荐用 Android Studio 打开 android/ 并 Sync
+./gradlew :app:assembleDebug :app:testDebugUnitTest
+```
+
+仓库已提交 Gradle 8.7 Wrapper；Android SDK 与依赖缓存由构建机提供，首次构建需
+可访问 `google()` 与 `mavenCentral()`。
+
+## 代码结构
+
+```text
 app/src/main/java/com/vpsg/jianyuanshield/
-├── JianYuanShieldApp.kt          # Application，持有 AppContainer
-├── MainActivity.kt               # 单 Activity，承载 Compose
-├── core/                         # 容器、错误映射、URL/指标格式化、相机工具
-│   ├── AppContainer.kt
-│   ├── ErrorMapper.kt            # 异常 → 友好中文文案
-│   ├── MetricFormat.kt           # JsonObject 指标 → 展示行
-│   ├── UrlUtils.kt / CaptureUtils.kt / ViewModelExt.kt
+├── MainActivity.kt                 # 默认承载 PubApp
+├── core/                           # URL、格式化、错误映射
 ├── data/
-│   ├── UiState.kt                # Idle / Loading / Success / Error
-│   ├── remote/
-│   │   ├── ApiService.kt         # Retrofit 接口
-│   │   ├── NetworkModule.kt      # OkHttp + Retrofit + Json 工厂
-│   │   ├── HostSelectionInterceptor.kt  # 运行时切换 Base URL
-│   │   └── dto/ApiModels.kt      # 与后端契约一一对应的数据类
-│   ├── repository/ShieldRepository.kt   # 唯一数据入口（含 multipart 组装）
-│   └── settings/SettingsRepository.kt   # DataStore
-├── domain/Catalog.kt             # 模型 / 攻击类型静态目录
+│   ├── remote/                     # Retrofit、OkHttp、DTO
+│   ├── repository/                 # multipart 与数据入口
+│   ├── settings/                   # DataStore 设置
+│   └── history/                    # 本地历史
+├── domain/Catalog.kt               # 模型与 canonical attack 目录
 └── ui/
-    ├── theme/                    # Color / Type / Theme（品牌安全蓝）
-    ├── navigation/               # 路由 + 底部导航 + NavHost
-    ├── components/               # Hero、宫格、卡片、状态、指标、选择器等可复用组件
-    └── screens/                  # home / infer / compliance / evidence / benchmark / settings
+    ├── pub/                        # 默认公众版流程（含 provenance 完整闭环）
+    ├── screens/                    # 保留的专家/旧版功能页
+    ├── components/
+    └── theme/
 ```
 
-每个 `screens/<feature>/` 下为 `XxxScreen.kt`（UI）+ `XxxViewModel.kt`（状态与业务）。
-
----
-
-## 五、运行步骤
-
-### 1. 启动后端
-
-参见上层仓库 `../JianyuanShield`：
-
-```bash
-JYS_INFER_DEVICE=cuda:0 PYTHONPATH=. \
-  uvicorn system.backend.app:app --host 0.0.0.0 --port 8026
-```
-
-后端 CORS 已放开（`allow_origins=["*"]`），可直接被移动端访问。
-
-### 2. 配置 Base URL
-
-| 运行环境 | 推荐 Base URL |
-|:---|:---|
-| Android 模拟器（访问宿主机） | `http://10.0.2.2:8026`（默认值） |
-| 真机（与后端同局域网） | `http://<后端电脑IP>:8026` |
-
-默认值通过 `app/build.gradle.kts` 的 `DEFAULT_API_BASE` 注入到 `BuildConfig`，
-也可在 App 内「我的 → 后端服务地址」运行时修改并测试连通性。
-
-### 3. 构建运行
-
-```bash
-# 推荐：Android Studio (Koala+) 直接打开本目录，Sync 后点 Run
-
-# 命令行（需先有 gradle-wrapper.jar 或本机 gradle）：
-gradle wrapper          # 仅首次：生成 wrapper（联网）
-./gradlew assembleDebug # 产出 app/build/outputs/apk/debug/app-debug.apk
-./gradlew installDebug  # 安装到已连接设备
-```
-
-> 关于明文 HTTP：后端默认走 HTTP，已在 `res/xml/network_security_config.xml` 放开 cleartext，
-> 仅用于本地 / 局域网联调；生产环境请改用 HTTPS 并收紧该配置。
-
----
-
-## 六、与后端的数据契约
-
-客户端 DTO（`data/remote/dto/ApiModels.kt`）严格对齐后端 `docs/API_CONTRACT.md`：
-
-- `POST /api/infer/single` → `infer-single.v1`：`metrics`（开放字典，用 `JsonObject`）、`artifacts`（相对 URL）、`evidence.sha256`、`compliance.verdict`
-- `POST /api/compliance/batch` → `compliance-batch.v1`：`compliant / degraded / no_watermark / compliance_rate / results[]`
-- `GET /api/evidence/audit` → `evidence-audit.v1`：`signature.verified`、`benchmark_complete`、`protocol`、`findings[]`
-- `GET /api/benchmark/{model}` → 单模型基准，优先取 `normalized.attacks[]`（WaveGuard 会从 `full_benchmark` 兜底）
-- 错误统一为 `{ ok:false, error:{ code, message, path } }`，由 `core/ErrorMapper.kt` 转为中文提示
-
-模型标识：`LIDMark` / `KAD-Net` / `WaveGuard` / `SepMark`；攻击标识见 `domain/Catalog.kt`
-（`clean`、`jpeg_50/70/90`、`webp_80`、`resize`、`crop`、`rotate_5`、`blur`、`noise`、`brightness`、`contrast`、
-`platform_wechat_v1`、`platform_douyin_v1`、`deepfake_proxy_v1`）。
-
----
-
-## 七、设计说明（UI）
-
-- **品牌色**：安全蓝 `#1457B8`（主色）+ 渐变 Hero `#0B4DA2 → #2E86E0`，语义色 成功绿 / 警示琥珀 / 危险红。
-- **信息层级**：Hero（品牌 + 后端状态）→ 宫格核心功能 → 状态卡 → 结果卡，圆角 18–20dp、卡片轻投影。
-- **状态反馈**：每个请求都有 Loading / Error（带重试）/ Empty / Success 四态，错误文案本地化。
-- **取证可视化**：原图 / 含水印 / 攻击后 / 热力图 / 残差五图对比 + 指标卡 + SHA-256 证据。
-- **深色模式**：随系统切换，品牌蓝在暗色下自动调亮。
-
----
-
-## 八、与其他端的关系
-
-```
-        ┌──────────── 统一 REST API (FastAPI :8026) ────────────┐
-   Web │  Android(本仓库)  │   iOS   │  微信小程序  │   鸿蒙        │
-        └──────────────────────── 四模型水印平台 ────────────────┘
-                   LIDMark · KAD-Net · WaveGuard · SepMark
-```
-
-五端共用同一后端契约，本客户端为 Android 端参考实现。
-
----
-
-<div align="center">
-
-🛡️ **鉴源盾 Android** · 新疆大学 VPSG 实验室 · 《人工智能生成合成内容标识办法》技术落地
-
-</div>
+发布任何性能、合规或来源声明前，应以 `/api/claims`、
+`/api/evidence/audit` 和对应签名 artifact 的实时状态为唯一依据。

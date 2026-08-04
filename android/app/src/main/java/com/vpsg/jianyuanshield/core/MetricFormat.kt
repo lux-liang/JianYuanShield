@@ -26,6 +26,9 @@ private val METRIC_LABELS: Map<String, String> = mapOf(
 
 data class MetricRow(val label: String, val value: String)
 
+/** Preserve the semantic difference between a real zero and an unavailable count. */
+fun formatNullableCount(value: Int?): String = value?.toString() ?: "—"
+
 /** Render a metrics [JsonObject] into a stable, display-ready list of rows. */
 fun JsonObject.toMetricRows(): List<MetricRow> = entries
     .sortedBy { displayOrder(it.key) }

@@ -112,7 +112,7 @@ fun PubMeScreen(
                                 }
                                 Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Icon(PubIcons.shieldCheck, null, tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(14.dp))
-                                    Text("已完成 $total 次鉴别 · $passed 次通过核验", color = Color.White.copy(alpha = 0.85f), fontSize = 12.5.sp)
+                                    Text("已保存 $total 条链路评估 · $passed 条通过门禁", color = Color.White.copy(alpha = 0.85f), fontSize = 12.5.sp)
                                 }
                             }
                             Box(
@@ -126,7 +126,7 @@ fun PubMeScreen(
 
                     AnimatedVisibility(visibleStats, enter = enterStd(delayMillis = 0)) {
                         Row(Modifier.fillMaxWidth().padding(top = 20.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            MeStat(PubIcons.check, total, "累计鉴别", Color(0xFFBDF1FF), Color(0x387EE6FF), Modifier.weight(1f), play = visibleStats)
+                            MeStat(PubIcons.check, total, "链路评估", Color(0xFFBDF1FF), Color(0x387EE6FF), Modifier.weight(1f), play = visibleStats)
                             MeStat(PubIcons.shieldCheck, passed, "通过核验", Color(0xFFBFF3D6), Color(0x3863E6A0), Modifier.weight(1f), play = visibleStats)
                             MeStat(PubIcons.warning, flagged, "需留意", Color(0xFFFFC0B8), Color(0x38FFA096), Modifier.weight(1f), play = visibleStats)
                         }
@@ -135,8 +135,8 @@ fun PubMeScreen(
 
                 AnimatedVisibility(visibleMenu, enter = enterStd(delayMillis = 0)) {
                     PubCard(Modifier.padding(start = 16.dp, end = 16.dp, top = 18.dp), contentPadding = PaddingValues(horizontal = 18.dp)) {
-                        MenuRow(palette = 0, icon = PubIcons.shieldCheck, title = "我的鉴别凭证", sub = "每次鉴别都生成可核验凭证,可回看", tag = if (total > 0) "$total 张" else null, divider = true, onClick = onOpenRecords)
-                        MenuRow(palette = 1, icon = PubIcons.clock, title = "鉴别记录", sub = "看看以前查过的图,随时回看结果", divider = true, onClick = onOpenRecords)
+                        MenuRow(palette = 0, icon = PubIcons.shieldCheck, title = "声明门禁记录", sub = "仅保存通过客户端门禁的链路评估", tag = if (total > 0) "$total 条" else null, divider = true, onClick = onOpenRecords)
+                        MenuRow(palette = 1, icon = PubIcons.clock, title = "评估记录", sub = "查看已保存的主动水印链路结果", divider = true, onClick = onOpenRecords)
                         MenuRow(palette = 2, icon = PubIcons.cloud, title = "服务器设置", sub = "配置地址、测试连接、演示/大字模式", divider = true, onClick = onOpenServer)
                         MenuRow(palette = 3, icon = PubIcons.lock, title = "隐私与数据", sub = "图片如何上传与使用", divider = true, onClick = { onOpenInfo("privacy") })
                         MenuRow(palette = 0, icon = PubIcons.help, title = "帮助中心", sub = "怎么用?结果怎么看?", divider = true, onClick = { onOpenInfo("help") })
@@ -150,7 +150,7 @@ fun PubMeScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(PubIcons.shield, null, tint = Pub.Blue, modifier = Modifier.size(15.dp))
-                    Text("技术支持 · 新疆大学 VPSG 实验室 · 符合国家 AI 内容标识规定", color = Pub.Ink3, fontSize = 11.5.sp, modifier = Modifier.padding(start = 7.dp))
+                    Text("技术支持 · 新疆大学 VPSG 实验室 · 技术记录不替代监管或司法认定", color = Pub.Ink3, fontSize = 11.5.sp, modifier = Modifier.padding(start = 7.dp))
                 }
 
                 Spacer(Modifier.height(20.dp))

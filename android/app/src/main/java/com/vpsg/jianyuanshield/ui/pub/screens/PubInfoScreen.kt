@@ -86,19 +86,19 @@ private fun infoContent(key: String): InfoContent = when (key) {
         subtitle = "怎么用?结果怎么看?都在这",
         palette = 1,
         sections = listOf(
-            InfoSection("怎么鉴别一张图", listOf(
-                "1. 在「鉴别」页点拍照或从相册选一张图。",
-                "2. 确认是这张后点「开始鉴别」,图片会上传到鉴别服务器分析。",
-                "3. 几秒后出结果:结论 + 各项指标;可保存成凭证或分享。",
+            InfoSection("怎么使用登记来源凭证", listOf(
+                "1. 在「登记核验」页选择新内容，填写应用侧主体引用。",
+                "2. 只选择 provenance_ready 模型完成保护登记，并保存受保护 PNG 与 content_id。",
+                "3. 核验时同时提交图片和 content_id；只有 registered_blind_verification 且 claim_valid=true 才形成可发布技术记录。",
             )),
             InfoSection("结果颜色怎么看", legend = listOf(
-                0xFF13A06A to "绿色「通过核验」:成功恢复出可信的来源水印,来源可追溯。",
-                0xFFE0901F to "琥珀「水印降级」:有水印残留但已明显降级,可能被压缩或二次处理。",
-                0xFFE0463C to "红色「未能确认」:没恢复出可信水印,无法确认来源,转发请谨慎。",
+                0xFF13A06A to "绿色：预登记消息匹配，且 checkpoint 与签名声明门禁通过。",
+                0xFFE0901F to "琥珀：消息匹配但声明门禁未通过，只能作为 operational 记录。",
+                0xFFE0463C to "红色：未匹配指定 content_id 的预登记消息。",
             )),
             InfoSection("连不上服务器怎么办", listOf(
                 "去「我的 → 服务器设置」填后端地址并点测试连接。",
-                "连不上时 App 会自动用本地演示数据,并在结果页标注「离线演示」,不作为真实结论。",
+                "连接失败会明确报错，App 不会自动生成模拟成功结果；如需预览流程，请自行显式开启演示模式。",
             )),
         ),
     )
@@ -108,15 +108,15 @@ private fun infoContent(key: String): InfoContent = when (key) {
         palette = 2,
         sections = listOf(
             InfoSection("图片去哪了", listOf(
-                "点「开始鉴别」后,所选图片会经压缩后上传到你配置的鉴别服务器,用于这一次检测。",
-                "首次鉴别会弹窗征得你同意;之后不再询问。",
+                "点「保护并登记」或「核验预登记凭证」后，所选图片以原始字节上传到你配置的服务器。",
+                "首次上传会弹窗征得你同意；之后不再询问。",
             )),
             InfoSection("会不会留存", listOf(
-                "服务器为了生成可核验的报告与凭证,会保存本次的检测结果与图像工件。",
-                "如果你不希望上传,可在「服务器设置」打开演示模式——全程用本地模拟数据,不联网。",
+                "保护接口不持久化原始上传图，但会保存 creator_ref、登记元数据和受保护 PNG；自建节点应单独核对其保留策略。",
+                "如果你不希望上传，可显式开启本地演示模式；模拟数据不联网，也不形成可发布结论或凭证。",
             )),
             InfoSection("凭证与指纹", listOf(
-                "每次鉴别生成的凭证带 SHA-256 指纹与可扫码核验链接,用来证明结论未被篡改。",
+                "正式凭证还必须是 registered_blind_verification 且 claim_valid=true；SHA-256 只用于核对工件完整性，不是图片真伪鉴定。",
             )),
         ),
     )
@@ -126,14 +126,14 @@ private fun infoContent(key: String): InfoContent = when (key) {
         palette = 0,
         sections = listOf(
             InfoSection("鉴源盾是什么", listOf(
-                "一款面向普通人的图片来源核验工具:基于「主动取证水印」技术,帮你确认一张图的来源是否可追溯、是否被二次处理。",
+                "本 Android 端已接入跨请求保护登记与 decode-only 核验生命周期，并对模型来源、checkpoint、校准与签名状态做 fail-closed 展示。",
             )),
             InfoSection("技术原理(大白话)", listOf(
-                "我们在图片里嵌入肉眼看不见的来源水印,即使图片被压缩、裁剪甚至换脸,也能尝试把它恢复出来,从而判断来源是否可信。",
+                "系统为新内容嵌入与 content_id 绑定的来源消息；后续只核验指定登记记录。它不是任意图片真假、AI 生成或换脸分类器。",
             )),
             InfoSection("版本与团队", listOf(
                 "版本 V2.0.0。",
-                "技术支持:新疆大学 VPSG 实验室。符合国家《人工智能生成合成内容标识办法》。",
+                "技术支持：新疆大学 VPSG 实验室。本工具提供技术验证记录，不替代监管认定或司法鉴定。",
             )),
         ),
     )

@@ -530,6 +530,46 @@ fun SecondaryButton(
     }
 }
 
+/**
+ * Result provenance/release-gate banner shared by result and report screens.
+ * Invalid or simulated data remains visually explicit even when the user scrolls past the hero copy.
+ */
+@Composable
+fun ResultProvenanceBanner(
+    ui: PubResultUi,
+    modifier: Modifier = Modifier,
+) {
+    val publishable = ui.canIssueCertificate
+    val bg = if (publishable) Pub.OkB else Pub.WarnB
+    val border = if (publishable) Color(0xFFD4EEE2) else Color(0xFFF0D5A5)
+    val fg = if (publishable) Pub.Ok else Pub.WarnD
+    val detail = if (publishable) Color(0xFF397A60) else Pub.WarnD2
+    Row(
+        modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(bg)
+            .border(1.dp, border, RoundedCornerShape(14.dp))
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(
+            if (publishable) PubIcons.verified else PubIcons.warning,
+            contentDescription = null,
+            tint = fg,
+            modifier = Modifier.size(19.dp),
+        )
+        Column(Modifier.weight(1f)) {
+            Text(ui.evidenceStatusLabel, color = fg, fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
+            Text(
+                ui.evidenceStatusDetail,
+                color = detail,
+                fontSize = 11.sp,
+                lineHeight = 16.sp,
+                modifier = Modifier.padding(top = 3.dp),
+            )
+        }
+    }
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // 卡片 / 区块标题
 // ─────────────────────────────────────────────────────────────────────────────
@@ -770,7 +810,7 @@ fun PubTabBar(
             horizontalArrangement = Arrangement.SpaceAround,
         ) {
             PubTabItem(PubIcons.home, "首页", selected == PubTab.Home) { onSelect(PubTab.Home) }
-            PubTabItem(PubIcons.search, "鉴别", selected == PubTab.Detect) { onSelect(PubTab.Detect) }
+            PubTabItem(PubIcons.shieldCheck, "登记核验", selected == PubTab.Detect) { onSelect(PubTab.Detect) }
             PubTabItem(PubIcons.clock, "记录", selected == PubTab.Records) { onSelect(PubTab.Records) }
             PubTabItem(PubIcons.person, "我的", selected == PubTab.Me) { onSelect(PubTab.Me) }
         }

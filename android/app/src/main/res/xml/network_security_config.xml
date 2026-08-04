@@ -1,19 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!--
-  收紧明文:正式(release / main)默认【禁止】明文 HTTP,强制 HTTPS。
-  仅放行开发主机(模拟器 10.0.2.2 / 本机 localhost / 127.0.0.1)。
-  调试构建由 src/debug/res/xml/ 下同名文件覆盖,允许任意明文,方便真机局域网联调。
-  若你的后端是公网 http://IP,请把该 IP 加进下面的 domain-config,或改用 https。
--->
+<!-- Release/main 禁止所有明文 HTTP；正式服务必须使用 HTTPS。 -->
 <network-security-config>
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
     </base-config>
-    <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="true">10.0.2.2</domain>
-        <domain includeSubdomains="true">localhost</domain>
-        <domain includeSubdomains="true">127.0.0.1</domain>
-    </domain-config>
 </network-security-config>

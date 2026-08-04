@@ -21,13 +21,16 @@ object PubCertImage {
     private const val HEADER_H = 230f
 
     fun render(ui: PubResultUi, qrContent: String?): Bitmap {
+        require(ui.canIssueCertificate) {
+            "Only registered blind-verification, claim-valid, real-checkpoint results may generate a certificate"
+        }
         val bodyW = W - 2 * M
 
         // 文案画笔
         val descPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF4E5D77.toInt(); textSize = 30f }
         val footPaint = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF97A2B8.toInt(); textSize = 24f }
         val descLayout = staticLayout(ui.desc, descPaint, bodyW.toInt())
-        val footText = "技术支持 · 新疆大学 VPSG 实验室 · 符合国家 AI 内容标识规定"
+        val footText = "技术支持 · 新疆大学 VPSG 实验室 · 技术核验记录，非司法鉴定"
         val footLayout = staticLayout(footText, footPaint, bodyW.toInt())
 
         // 动态计算总高
@@ -56,9 +59,9 @@ object PubCertImage {
         val title = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = Color.WHITE; textSize = 46f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         }
-        c.drawText("鉴源盾 · 鉴别凭证", M, 96f, title)
+        c.drawText("鉴源盾 · 来源核验凭证", M, 96f, title)
         val sub = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xCCFFFFFF.toInt(); textSize = 24f }
-        c.drawText("IMAGE AUTHENTICITY CERTIFICATE", M, 138f, sub)
+        c.drawText("WATERMARK VERIFICATION RECORD", M, 138f, sub)
         c.drawText("编号 ${ui.certNumber}", M, 188f, sub)
 
         var y = HEADER_H + 64f
@@ -92,9 +95,9 @@ object PubCertImage {
         // ── KV ──
         val kv = listOf(
             "图片名称" to ui.certName,
-            "鉴别时间" to ui.certTime,
-            "检测项目" to ui.certItems,
-            "检测引擎" to "鉴源盾 · ${ui.model}",
+            "评估时间" to ui.certTime,
+            "评估项目" to ui.certItems,
+            "评估引擎" to "鉴源盾 · ${ui.model}",
         )
         val kPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF97A2B8.toInt(); textSize = 28f }
         val vPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF0F1A2E.toInt(); textSize = 28f }
@@ -116,10 +119,10 @@ object PubCertImage {
         val qLabel = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = 0xFF0F1A2E.toInt(); textSize = 30f; typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         }
-        c.drawText("扫码核验", qrRightX, qrTop + 50f, qLabel)
+        c.drawText("扫码核对报告", qrRightX, qrTop + 50f, qLabel)
         val qDesc = TextPaint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF4E5D77.toInt(); textSize = 24f }
         val qDescLayout = staticLayout(
-            "扫码可在服务器核对这次鉴别的原始报告(SHA-256 指纹一致即未被改动)。",
+            "扫码可在服务器核对本次主动水印验证报告(SHA-256 指纹一致表示报告未被改动)。",
             qDesc, (W - qrRightX - M).toInt(),
         )
         c.save(); c.translate(qrRightX, qrTop + 72f); qDescLayout.draw(c); c.restore()

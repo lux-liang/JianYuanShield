@@ -71,7 +71,7 @@ fun EvidenceScreen(
         ) {
             GradientTopBar(
                 title = "证据链",
-                subtitle = "Ed25519 签名 · 司法级取证",
+                subtitle = "Ed25519 签名 · 证据完整性核验",
             )
 
             Column(

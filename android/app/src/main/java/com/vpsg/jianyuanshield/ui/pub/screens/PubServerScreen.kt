@@ -35,8 +35,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vpsg.jianyuanshield.BuildConfig
 import com.vpsg.jianyuanshield.ui.pub.ConnProbe
 import com.vpsg.jianyuanshield.ui.pub.PrimaryCta
 import com.vpsg.jianyuanshield.ui.pub.Pub
@@ -57,16 +59,20 @@ fun PubServerScreen(
     val savedUrl by vm.baseUrl.collectAsState()
     val demoMode by vm.demoMode.collectAsState()
     val bigFont by vm.bigFont.collectAsState()
+    val tokenConfigured by vm.apiTokenConfigured.collectAsState()
     val scope = rememberCoroutineScope()
 
     var urlText by remember(savedUrl) { mutableStateOf(savedUrl) }
     var probe by remember { mutableStateOf<ConnProbe>(ConnProbe.Idle) }
     var savedHint by remember { mutableStateOf(false) }
+    var tokenText by remember { mutableStateOf("") }
+    var tokenHint by remember { mutableStateOf(false) }
+    var tokenError by remember { mutableStateOf<String?>(null) }
 
     Box(Modifier.fillMaxSize().background(Pub.Bg)) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             PubHero(contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 14.dp, bottom = 30.dp)) {
-                PubNavBar("服务器设置", subtitle = "连上鉴别服务器,功能才能真用", onBack = onBack)
+                PubNavBar("服务器设置", subtitle = "连通状态不等于结论可发布", onBack = onBack)
             }
 
             Column(Modifier.offset(y = (-14).dp)) {
@@ -77,7 +83,13 @@ fun PubServerScreen(
                         onValueChange = { urlText = it; savedHint = false },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        placeholder = { Text("http://你的服务器IP:8026", color = Pub.Ink3, fontSize = 14.sp) },
+                        placeholder = {
+                            Text(
+                                if (BuildConfig.DEBUG) "http://10.0.2.2:8026" else "https://api.example.com",
+                                color = Pub.Ink3,
+                                fontSize = 14.sp,
+                            )
+                        },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                         colors = TextFieldDefaults.colors(
                             focusedContainerColor = Color.White,
@@ -90,7 +102,11 @@ fun PubServerScreen(
                         ),
                     )
                     Text(
-                        "真机请填【公网地址】或与手机同 WiFi 的电脑局域网 IP。\n10.0.2.2 只对模拟器有效。",
+                        if (BuildConfig.DEBUG) {
+                            "Debug 仅放行 10.0.2.2 模拟器宿主的明文 HTTP；其他地址须使用 HTTPS。"
+                        } else {
+                            "正式包只允许 HTTPS；默认 .invalid 地址会安全地连接失败，请填写已授权节点。"
+                        },
                         color = Pub.Ink3, fontSize = 11.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 10.dp),
                     )
                     // 连接结果
@@ -99,15 +115,92 @@ fun PubServerScreen(
                     Row(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         SecondaryButton("测试连接", Modifier.weight(1f), icon = PubIcons.bolt) {
                             scope.launch {
-                                vm.saveBaseUrl(urlText)
                                 probe = ConnProbe.Checking
-                                probe = vm.testConnection()
+                                probe = try {
+                                    vm.saveBaseUrl(urlText)
+                                    vm.testConnection()
+                                } catch (error: Throwable) {
+                                    ConnProbe.Fail(error.message ?: "服务节点地址无效")
+                                }
                             }
                         }
                         SecondaryButton(if (savedHint) "已保存 ✓" else "保存地址", Modifier.weight(1f), icon = PubIcons.save) {
                             scope.launch {
-                                vm.saveBaseUrl(urlText)
-                                savedHint = true
+                                try {
+                                    vm.saveBaseUrl(urlText)
+                                    savedHint = true
+                                } catch (error: Throwable) {
+                                    savedHint = false
+                                    probe = ConnProbe.Fail(error.message ?: "服务节点地址无效")
+                                }
+                            }
+                        }
+                    }
+                }
+
+                SectionHeader("短期 API Token")
+                PubCard(Modifier.padding(horizontal = 16.dp), contentPadding = PaddingValues(16.dp)) {
+                    Text(
+                        if (tokenConfigured) "当前已配置运行时 Token（值不回显）" else "当前未配置 Token",
+                        color = if (tokenConfigured) Pub.Ok else Pub.Warn,
+                        fontSize = 12.5.sp,
+                        fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                    )
+                    OutlinedTextField(
+                        value = tokenText,
+                        onValueChange = {
+                            tokenText = it.take(512)
+                            tokenHint = false
+                            tokenError = null
+                        },
+                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                        singleLine = true,
+                        label = { Text("部署方签发的短期 Token") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White,
+                            focusedIndicatorColor = Pub.Blue,
+                            unfocusedIndicatorColor = Pub.Hair,
+                            cursorColor = Pub.Blue,
+                            focusedTextColor = Pub.Ink,
+                            unfocusedTextColor = Pub.Ink,
+                        ),
+                    )
+                    Text(
+                        "Token 仅在运行时注入 X-API-Key，不写入 URL、日志或安装包，也不参与系统备份。",
+                        color = Pub.Ink3,
+                        fontSize = 11.sp,
+                        lineHeight = 17.sp,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                    tokenError?.let {
+                        Text(it, color = Pub.Hi, fontSize = 11.5.sp, modifier = Modifier.padding(top = 6.dp))
+                    }
+                    Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        SecondaryButton(
+                            if (tokenHint) "已保存 ✓" else "保存 Token",
+                            Modifier.weight(1f),
+                            PubIcons.lock,
+                        ) {
+                            if (tokenText.isNotBlank()) {
+                                scope.launch {
+                                    try {
+                                        vm.saveApiToken(tokenText)
+                                        tokenText = ""
+                                        tokenHint = true
+                                    } catch (error: Throwable) {
+                                        tokenError = error.message ?: "API Token 格式无效"
+                                    }
+                                }
+                            }
+                        }
+                        SecondaryButton("清除 Token", Modifier.weight(1f), PubIcons.close) {
+                            scope.launch {
+                                vm.saveApiToken("")
+                                tokenText = ""
+                                tokenHint = false
                             }
                         }
                     }
@@ -122,7 +215,7 @@ fun PubServerScreen(
                         Column(Modifier.weight(1f)) {
                             Text("使用本地演示数据", color = Pub.Ink, fontSize = 14.5.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
                             Text(
-                                "打开后不连服务器,全程用本地模拟数据(仅供界面预览)。关闭则真连后端。",
+                                "只有你显式打开后才使用本地模拟数据；仅供界面预览，不形成结论、历史或凭证。关闭则真连后端，失败会明确报错。",
                                 color = Pub.Ink3, fontSize = 11.5.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 3.dp, end = 8.dp),
                             )
                         }
@@ -189,8 +282,19 @@ private fun ConnResult(probe: ConnProbe, modifier: Modifier = Modifier) {
         is ConnProbe.Checking -> Quad(Color(0xFFEAF1FE), Pub.Blue, PubIcons.bolt, "正在连接…")
         is ConnProbe.Ok -> Quad(
             Pub.OkB, Pub.Ok, PubIcons.checkCircle,
-            "连接成功 · ${if (probe.mode == "real_checkpoint") "真实模型" else "演示模拟"}" +
-                (probe.version?.let { " · v$it" } ?: ""),
+            when (probe.mode) {
+                "local_demo" -> "本地演示已显式开启 · 未测试服务器"
+                "real_checkpoint" -> "连接成功 · 真实模型"
+                else -> "连接成功 · 服务器仅返回流程模拟"
+            } + if (probe.mode == "local_demo") "" else buildString {
+                probe.version?.let { append(" · v$it") }
+                if (probe.provenanceReadyModels.isNotEmpty()) {
+                    append(" · 来源就绪 ")
+                    append(probe.provenanceReadyModels.joinToString())
+                } else {
+                    append(" · 无来源就绪模型")
+                }
+            },
         )
         is ConnProbe.Fail -> Quad(Pub.HiB, Pub.Hi, PubIcons.warning, probe.message)
     }

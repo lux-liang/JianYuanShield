@@ -83,8 +83,8 @@ fun PubOnboardingScreen(onFinish: () -> Unit) {
             when (page) {
                 0 -> SlideHero(
                     glyph = ShieldGlyph.Magnifier,
-                    title = "这张图,是真是假?",
-                    body = "假图越来越真,眼睛已经看不出来了。\n鉴源盾,帮你一键看穿。",
+                    title = "保护并登记新内容",
+                    body = "写入与 content_id 绑定的来源消息，\n再对指定登记记录做 decode-only 核验。",
                     withChips = true,
                     currentPage = pager.currentPage,
                     ctaText = "下一步",
@@ -95,13 +95,13 @@ fun PubOnboardingScreen(onFinish: () -> Unit) {
                 2 -> SlidePrivacy(currentPage = pager.currentPage, onCta = { goNext(2) })
                 else -> SlideHero(
                     glyph = ShieldGlyph.Check,
-                    title = "准备好了,开始鉴别吧",
-                    body = "从现在起,真假你自己说了算。",
+                    title = "准备好了,进入登记核验",
+                    body = "仅核验本系统预登记来源凭证；\n不判断任意图片真假或 AI 生成。",
                     withChips = false,
                     withBadges = true,
                     currentPage = pager.currentPage,
-                    ctaText = "立即开始鉴别",
-                    ctaIcon = PubIcons.search,
+                    ctaText = "进入登记核验",
+                    ctaIcon = PubIcons.shieldCheck,
                     ctaIconLeading = true,
                     onCta = onFinish,
                 )
@@ -193,7 +193,7 @@ private fun SlideHero(
                 ) {
                     FloatingChip(
                         PubIcons.ai, Brush.linearGradient(listOf(Color(0xFFFFB257), Color(0xFFEE7C20))),
-                        "疑似 AI 生成", "可能性 88%",
+                        "主动嵌入水印", "绑定来源身份",
                     )
                 }
                 this@Column.AnimatedVisibility(
@@ -203,7 +203,7 @@ private fun SlideHero(
                 ) {
                     FloatingChip(
                         PubIcons.check, Brush.linearGradient(listOf(Color(0xFF52C98E), Color(0xFF1C9C6A))),
-                        "真伪一眼看穿", "3 秒出结论",
+                        "攻击后尝试恢复", "验证鲁棒能力",
                     )
                 }
             }
@@ -213,10 +213,10 @@ private fun SlideHero(
                     Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    AnimatedVisibility(visible = badge0Visible, enter = enterStd()) { Badge(PubIcons.ai, 0, "AI 生成") }
-                    AnimatedVisibility(visible = badge1Visible, enter = enterStd()) { Badge(PubIcons.faceSwap, 1, "换脸") }
-                    AnimatedVisibility(visible = badge2Visible, enter = enterStd()) { Badge(PubIcons.tamper, 2, "P 图") }
-                    AnimatedVisibility(visible = badge3Visible, enter = enterStd()) { Badge(PubIcons.watermark, 3, "水印") }
+                    AnimatedVisibility(visible = badge0Visible, enter = enterStd()) { Badge(PubIcons.ai, 0, "主动嵌入") }
+                    AnimatedVisibility(visible = badge1Visible, enter = enterStd()) { Badge(PubIcons.faceSwap, 1, "攻击评估") }
+                    AnimatedVisibility(visible = badge2Visible, enter = enterStd()) { Badge(PubIcons.tamper, 2, "恢复评估") }
+                    AnimatedVisibility(visible = badge3Visible, enter = enterStd()) { Badge(PubIcons.watermark, 3, "声明门禁") }
                 }
             }
         }
@@ -254,24 +254,24 @@ private fun SlideCaps(currentPage: Int, onCta: () -> Unit) {
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         Column(Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.Center) {
             Column(Modifier.fillMaxWidth().padding(horizontal = 34.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("拍一下,一秒看穿真假", color = Color.White, fontSize = 29.sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center, lineHeight = 38.sp)
-                Text("不管是群里转发的,还是新闻截图,\n一传给它,马上看出真假。", color = Color(0xFFE4EEFF).copy(alpha = 0.84f), fontSize = 13.sp, textAlign = TextAlign.Center, lineHeight = 22.sp, modifier = Modifier.padding(top = 13.dp))
+                Text("完整来源生命周期", color = Color.White, fontSize = 29.sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center, lineHeight = 38.sp)
+                Text("模型来源、登记记录、decode-only 核验与签名门禁在同一移动端闭环展示。", color = Color(0xFFE4EEFF).copy(alpha = 0.84f), fontSize = 13.sp, textAlign = TextAlign.Center, lineHeight = 22.sp, modifier = Modifier.padding(top = 13.dp))
             }
             Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 30.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
                     AnimatedVisibility(visible = card0Visible, enter = enterStd(), modifier = Modifier.weight(1f)) {
-                        CapCard(PubIcons.ai, 0, "AI 画的图", "整张图都是 AI 画出来的", Modifier.fillMaxWidth())
+                        CapCard(PubIcons.shieldCheck, 0, "保护并登记", "新内容写入绑定登记消息", Modifier.fillMaxWidth())
                     }
                     AnimatedVisibility(visible = card1Visible, enter = enterStd(), modifier = Modifier.weight(1f)) {
-                        CapCard(PubIcons.faceSwap, 1, "换脸冒充", "把别人的脸贴上去", Modifier.fillMaxWidth())
+                        CapCard(PubIcons.verified, 1, "指定记录核验", "图片与 content_id 同时提交", Modifier.fillMaxWidth())
                     }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
                     AnimatedVisibility(visible = card2Visible, enter = enterStd(), modifier = Modifier.weight(1f)) {
-                        CapCard(PubIcons.tamper, 2, "P 图动手脚", "截图被涂改、拼接", Modifier.fillMaxWidth())
+                        CapCard(PubIcons.lock, 2, "来源门禁", "只启用 provenance_ready 模型", Modifier.fillMaxWidth())
                     }
                     AnimatedVisibility(visible = card3Visible, enter = enterStd(), modifier = Modifier.weight(1f)) {
-                        CapCard(PubIcons.watermark, 3, "删改水印", "来源标记被抹掉", Modifier.fillMaxWidth())
+                        CapCard(PubIcons.watermark, 3, "证据状态", "显示 checkpoint 与事件签名", Modifier.fillMaxWidth())
                     }
                 }
             }
@@ -297,8 +297,8 @@ private fun SlidePrivacy(currentPage: Int, onCta: () -> Unit) {
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         Column(Modifier.fillMaxWidth().weight(1f), verticalArrangement = Arrangement.Center) {
             Column(Modifier.fillMaxWidth().padding(horizontal = 34.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("上传只为这次鉴别", color = Color.White, fontSize = 29.sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center, lineHeight = 38.sp)
-                Text("图片仅用于这次鉴别,会安全上传分析;\n每次还出一张凭证,家人扫一下就知真假。", color = Color(0xFFE4EEFF).copy(alpha = 0.84f), fontSize = 13.sp, textAlign = TextAlign.Center, lineHeight = 22.sp, modifier = Modifier.padding(top = 13.dp))
+                Text("上传至所配置服务", color = Color.White, fontSize = 29.sp, fontWeight = FontWeight.Black, textAlign = TextAlign.Center, lineHeight = 38.sp)
+                Text("保护接口不持久化原始上传图；会保存登记元数据与受保护 PNG。\n正式结论必须通过 claim_valid 门禁。", color = Color(0xFFE4EEFF).copy(alpha = 0.84f), fontSize = 13.sp, textAlign = TextAlign.Center, lineHeight = 22.sp, modifier = Modifier.padding(top = 13.dp))
             }
             Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 30.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 // 隐私卡
@@ -331,19 +331,19 @@ private fun SlidePrivacy(currentPage: Int, onCta: () -> Unit) {
                                     .background(Brush.linearGradient(listOf(Color(0xFF52C98E), Color(0xFF1C9C6A)))),
                                 contentAlignment = Alignment.Center,
                             ) { Icon(PubIcons.shieldCheck, null, tint = Color.White, modifier = Modifier.size(18.dp)) }
-                            Text("鉴别完成", color = Pub.Ok, fontSize = 14.5.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f))
-                            Text("2026-06-15 14:32", color = Pub.Ink3, fontSize = 11.sp)
+                            Text("正式凭证门禁", color = Pub.Ink, fontSize = 14.5.sp, fontWeight = FontWeight.ExtraBold, modifier = Modifier.weight(1f))
+                            Text("实时响应", color = Pub.Ink3, fontSize = 11.sp)
                         }
                         Row(Modifier.padding(top = 15.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Pill("已出真伪结论")
-                                Pill("圈出有问题的地方")
-                                Pill("带防伪编号")
+                                Pill("registered_blind_verification")
+                                Pill("claim_valid=true")
+                                Pill("签名 artifact 可核对")
                             }
                             QrBox(boxSize = 62.dp, padding = 5.dp)
                         }
                         Text(
-                            "每次生成专属凭证,扫码就能核验真假",
+                            "必须同时满足登记盲检 provenance 与声明门禁",
                             color = Pub.Ink2, fontSize = 12.5.sp, textAlign = TextAlign.Center,
                             modifier = Modifier.fillMaxWidth().padding(top = 14.dp),
                         )
@@ -440,8 +440,8 @@ private fun WhiteCard(content: @Composable androidx.compose.foundation.layout.Co
 private fun PrivacyCaption(modifier: Modifier = Modifier) {
     Text(
         buildAnnotatedString {
-            withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Pub.Ink)) { append("图片仅用于本次鉴别") }
-            append(",安全上传、不作他用")
+            withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = Pub.Ink)) { append("原始图不持久化") }
+            append("，受保护 PNG 与登记元数据按部署策略保存")
         },
         color = Pub.Ink2, fontSize = 12.5.sp, textAlign = TextAlign.Center,
         modifier = modifier.fillMaxWidth(),

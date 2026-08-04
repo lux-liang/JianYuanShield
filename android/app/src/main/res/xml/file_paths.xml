@@ -11,4 +11,8 @@
     <cache-path
         name="shares"
         path="shares/" />
+    <!-- Backend-returned protected PNG used by the registered verify lifecycle. -->
+    <cache-path
+        name="provenance"
+        path="provenance/" />
 </paths>

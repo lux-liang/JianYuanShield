@@ -62,6 +62,7 @@ import com.vpsg.jianyuanshield.ui.pub.PubTab
 import com.vpsg.jianyuanshield.ui.pub.PubTabBar
 import com.vpsg.jianyuanshield.ui.pub.PubTone
 import com.vpsg.jianyuanshield.ui.pub.RingProgress
+import com.vpsg.jianyuanshield.ui.pub.ResultProvenanceBanner
 import com.vpsg.jianyuanshield.ui.pub.SecondaryButton
 import com.vpsg.jianyuanshield.ui.pub.enterStd
 import kotlinx.coroutines.delay
@@ -128,7 +129,7 @@ private fun ResultContent(
                     palette = ui.heroPalette,
                     contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 14.dp, bottom = 60.dp),
                 ) {
-                    PubNavBar("鉴别结果", subtitle = "${ui.certName} · 刚刚完成", onBack = onBack)
+                    PubNavBar("保护链路评估结果", subtitle = "${ui.certName} · 刚刚完成", onBack = onBack)
                     Row(
                         Modifier.fillMaxWidth().padding(top = 18.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -159,10 +160,10 @@ private fun ResultContent(
                 }
 
                 Column(Modifier.offset(y = (-46).dp)) {
-                    // 离线回退横幅
-                    if (ui.offline) {
-                        OfflineBanner(ui.offlineHint, Modifier.padding(start = 16.dp, end = 16.dp, bottom = 4.dp))
-                    }
+                    ResultProvenanceBanner(
+                        ui,
+                        Modifier.padding(start = 16.dp, end = 16.dp, bottom = 10.dp),
+                    )
 
                     // 预览 + 真实热力图叠层
                     Box(
@@ -175,7 +176,7 @@ private fun ResultContent(
                         if (ui.previewUrl != null) {
                             AsyncImage(
                                 model = ui.previewUrl,
-                                contentDescription = "鉴别图片",
+                                contentDescription = "链路评估图片",
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize(),
                             )
@@ -248,15 +249,28 @@ private fun ResultContent(
 
                     AnimatedVisibility(visible = actionsVisible, enter = enterStd()) {
                         Column {
-                            PrimaryCta("保存鉴别凭证", Modifier.padding(start = 16.dp, end = 16.dp, top = 18.dp), icon = PubIcons.save, onClick = onSaveCertificate)
+                            if (ui.canIssueCertificate) {
+                                PrimaryCta(
+                                    "生成来源核验凭证",
+                                    Modifier.padding(start = 16.dp, end = 16.dp, top = 18.dp),
+                                    icon = PubIcons.save,
+                                    onClick = onSaveCertificate,
+                                )
+                            } else {
+                                CertificateUnavailableNotice(
+                                    Modifier.padding(start = 16.dp, end = 16.dp, top = 18.dp),
+                                )
+                            }
                             Row(Modifier.padding(start = 16.dp, end = 16.dp, top = 12.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 SecondaryButton("分享结果", Modifier.weight(1f), icon = PubIcons.share) {
                                     ShareUtils.shareText(
                                         context,
-                                        "【鉴源盾】鉴别结果:${ui.title} · ${ui.headlineLabel} ${ui.headlinePercent}%\n图片:${ui.certName}\n编号 ${ui.certNumber}",
+                                        "【鉴源盾】${ui.evidenceStatusLabel}\n${ui.evidenceStatusDetail}\n" +
+                                            "水印验证结果:${ui.title} · ${ui.headlineLabel} ${ui.headlinePercent}%\n" +
+                                            "图片:${ui.certName}\n任务编号 ${ui.taskId}",
                                     )
                                 }
-                                SecondaryButton("再测一张", Modifier.weight(1f), icon = PubIcons.refresh, onClick = onRetry)
+                                SecondaryButton("再验一张", Modifier.weight(1f), icon = PubIcons.refresh, onClick = onRetry)
                             }
 
                             PubCard(
@@ -294,7 +308,7 @@ private fun ResultLoading(onBack: () -> Unit, onSelectTab: (PubTab) -> Unit) {
     Box(Modifier.fillMaxSize().background(Pub.Bg)) {
         Column(Modifier.fillMaxSize()) {
             PubHero(contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 14.dp, bottom = 28.dp)) {
-                PubNavBar("鉴别结果", onBack = onBack)
+                PubNavBar("保护链路评估结果", onBack = onBack)
             }
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = Pub.Blue, strokeWidth = 3.dp)
@@ -312,7 +326,7 @@ private fun ResultError(message: String, onBack: () -> Unit, onRetry: () -> Unit
                 palette = Pub.heroRed,
                 contentPadding = PaddingValues(start = 22.dp, end = 22.dp, top = 14.dp, bottom = 40.dp),
             ) {
-                PubNavBar("鉴别失败", subtitle = "没能完成这次鉴别", onBack = onBack)
+                PubNavBar("保护链路评估失败", subtitle = "未生成任何模拟成功结果", onBack = onBack)
             }
             Column(Modifier.weight(1f).padding(16.dp)) {
                 PubCard(contentPadding = PaddingValues(18.dp)) {
@@ -321,7 +335,7 @@ private fun ResultError(message: String, onBack: () -> Unit, onRetry: () -> Unit
                         Text(message, color = Pub.Ink2, fontSize = 13.sp, lineHeight = 19.sp)
                     }
                 }
-                PrimaryCta("重新鉴别", Modifier.padding(top = 16.dp), icon = PubIcons.refresh, onClick = onRetry)
+                PrimaryCta("重新评估", Modifier.padding(top = 16.dp), icon = PubIcons.refresh, onClick = onRetry)
             }
             PubTabBar(PubTab.Detect, onSelectTab)
         }
@@ -329,7 +343,7 @@ private fun ResultError(message: String, onBack: () -> Unit, onRetry: () -> Unit
 }
 
 @Composable
-private fun OfflineBanner(hint: String?, modifier: Modifier = Modifier) {
+private fun CertificateUnavailableNotice(modifier: Modifier = Modifier) {
     Row(
         modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Pub.WarnB)
             .border(1.dp, Color(0xFFF4E2BE), RoundedCornerShape(14.dp))
@@ -338,9 +352,9 @@ private fun OfflineBanner(hint: String?, modifier: Modifier = Modifier) {
     ) {
         Icon(PubIcons.warning, null, tint = Pub.Warn, modifier = Modifier.size(18.dp))
         Column {
-            Text("当前为离线演示数据", color = Pub.WarnD, fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
+            Text("来源核验凭证不可用", color = Pub.WarnD, fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
             Text(
-                hint ?: "未能连上鉴别服务器,以下为本地演示结果,不作为真实结论。",
+                "模拟结果或 claim_valid=false 的结果不能生成、保存或分享凭证。",
                 color = Pub.WarnD2, fontSize = 11.sp, lineHeight = 16.sp, modifier = Modifier.padding(top = 2.dp),
             )
         }

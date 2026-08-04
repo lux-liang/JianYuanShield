@@ -113,7 +113,7 @@ fun TrustedEvidenceCard(
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text("可信取证卡", style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.Bold)
+                Text("受控评估卡", style = MaterialTheme.typography.titleMedium, color = Color.White, fontWeight = FontWeight.Bold)
                 Text("数字证据身份凭证", style = MaterialTheme.typography.labelMedium, color = Color.White.copy(alpha = 0.7f))
             }
             Box(
@@ -135,10 +135,10 @@ fun TrustedEvidenceCard(
                 Text(chainStatus, style = MaterialTheme.typography.labelMedium, color = Color.White, fontWeight = FontWeight.SemiBold)
             }
         }
-        CardKv("今日取证任务", "$todayTasks")
+        CardKv("今日评估任务", "$todayTasks")
         Spacer(Modifier.height(16.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            GradientButton(text = "新建取证", onClick = onNewTask, modifier = Modifier.weight(1f))
+            GradientButton(text = "新建评估", onClick = onNewTask, modifier = Modifier.weight(1f))
             Box(
                 Modifier.weight(1f).height(52.dp)
                     .background(Color.White.copy(alpha = 0.14f), RoundedCornerShape(12.dp))

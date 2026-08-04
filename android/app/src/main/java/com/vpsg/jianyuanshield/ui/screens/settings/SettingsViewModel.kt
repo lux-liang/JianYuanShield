@@ -47,9 +47,9 @@ class SettingsViewModel(
     /** Persist the URL and immediately verify connectivity. */
     fun saveAndTest(url: String) {
         viewModelScope.launch {
-            settings.setBaseUrl(url)
             _ping.value = UiState.Loading
             try {
+                repository.saveBaseUrl(url)
                 _ping.value = UiState.Success(repository.health())
             } catch (e: Throwable) {
                 _ping.value = UiState.Error(e.toUserMessage())
