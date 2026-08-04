@@ -1,0 +1,129 @@
+name: jianyuanshield-production
+
+services:
+  api:
+    image: ${JYS_RELEASE_IMAGE:?Set JYS_RELEASE_IMAGE to the verified image@sha256 digest}
+    ports:
+      - "${JYS_BIND_ADDRESS:-127.0.0.1}:${JYS_BACKEND_PORT:-8026}:8026"
+    volumes:
+      - jys-reports:/app/runtime/reports
+      - jys-assets:/app/runtime/assets
+      - jys-data:/app/data
+      - type: bind
+        source: ${JYS_WEIGHT_HOST:?Set JYS_WEIGHT_HOST to the verified checkpoint directory}
+        target: /app/weights
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${JYS_MODEL_SOURCE_HOST:?Set JYS_MODEL_SOURCE_HOST to the reviewed model-source directory}
+        target: /app/model-sources
+        read_only: true
+        bind:
+          create_host_path: false
+    secrets:
+      - jys_api_key
+      - jys_provenance_secret
+      - jys_evidence_private_key
+    environment:
+      JYS_MODE: production
+      JYS_ENABLE_DEMO: "false"
+      JYS_REQUIRE_API_KEY: "true"
+      JYS_API_KEY_FILE: /run/secrets/jys_api_key
+      JYS_PROVENANCE_SECRET_FILE: /run/secrets/jys_provenance_secret
+      JYS_EVIDENCE_PRIVATE_KEY: /run/secrets/jys_evidence_private_key
+      JYS_EVIDENCE_PUBLIC_KEY_FINGERPRINT: ${JYS_EVIDENCE_PUBLIC_KEY_FINGERPRINT:?Set the reviewed 64-character public-key fingerprint}
+      JYS_CORS_ORIGINS: ${JYS_CORS_ORIGINS:?Set the exact HTTPS console origin}
+      JYS_CORS_ALLOW_CREDENTIALS: "false"
+      JYS_RATE_LIMIT_REQUESTS: ${JYS_RATE_LIMIT_REQUESTS:-120}
+      JYS_RATE_LIMIT_WINDOW_SECONDS: ${JYS_RATE_LIMIT_WINDOW_SECONDS:-60}
+      JYS_MAX_RATE_LIMIT_CLIENTS: ${JYS_MAX_RATE_LIMIT_CLIENTS:-10000}
+      JYS_MIN_FREE_DISK_BYTES: ${JYS_MIN_FREE_DISK_BYTES:-536870912}
+      JYS_ARTIFACT_WRITE_RESERVE_BYTES: ${JYS_ARTIFACT_WRITE_RESERVE_BYTES:-134217728}
+      JYS_WARMUP_MODELS: "true"
+      JYS_PROVENANCE_DB: provenance.sqlite3
+      JYS_SEPMARK_CHECKPOINT: ${JYS_SEPMARK_CHECKPOINT:-/app/weights/mea/SepMark/results/FullFineTuningWithOnlyMessage/models/EC_108.pth}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=1073741824,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    ulimits:
+      nofile:
+        soft: 4096
+        hard: 8192
+    logging:
+      driver: json-file
+      options:
+        max-file: "3"
+        max-size: 10m
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8026/api/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 90s
+    networks:
+      - private
+
+  web:
+    image: ${JYS_RELEASE_IMAGE:?Set JYS_RELEASE_IMAGE to the verified image@sha256 digest}
+    command: ["python", "-m", "system.gateway", "--host", "0.0.0.0", "--port", "8027"]
+    ports:
+      - "${JYS_BIND_ADDRESS:-127.0.0.1}:${JYS_FRONTEND_PORT:-8027}:8027"
+    depends_on:
+      api:
+        condition: service_healthy
+    secrets:
+      - jys_api_key
+    environment:
+      JYS_GATEWAY_UPSTREAM: http://api:8026
+      JYS_GATEWAY_API_KEY_FILE: /run/secrets/jys_api_key
+      JYS_GATEWAY_REQUIRE_API_KEY: "true"
+      JYS_GATEWAY_STATIC_ROOT: /app/system/frontend
+    restart: unless-stopped
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:rw,nosuid,nodev,size=67108864,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 64
+    logging:
+      driver: json-file
+      options:
+        max-file: "3"
+        max-size: 10m
+    networks:
+      - private
+
+networks:
+  private:
+    internal: true
+
+secrets:
+  jys_api_key:
+    file: ${JYS_API_KEY_SECRET_FILE:?Set JYS_API_KEY_SECRET_FILE}
+  jys_provenance_secret:
+    file: ${JYS_PROVENANCE_SECRET_FILE:?Set JYS_PROVENANCE_SECRET_FILE}
+  jys_evidence_private_key:
+    file: ${JYS_EVIDENCE_PRIVATE_KEY_FILE:?Set JYS_EVIDENCE_PRIVATE_KEY_FILE}
+
+volumes:
+  jys-reports:
+  jys-assets:
+  jys-data:

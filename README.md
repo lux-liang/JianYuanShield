@@ -1,549 +1,308 @@
 <div align="center">
 
-# 🛡️ 鉴源盾 · JianYuanShield
+# 鉴源盾 · JianYuanShield
 
-**基于多模型协同水印的人脸深度伪造溯源与取证平台**
+**面向 Deepfake 传播链的可验证主动溯源与多水印冲突治理平台**
 
-*《人工智能生成合成内容标识办法》隐式标识技术的完整落地方案*
-
-<br>
-
-[![LFW](https://img.shields.io/badge/LFW_全量基准-13%2C233_imgs-023e8a?style=for-the-badge)](https://github.com/lux-liang/JianYuanShield)
-[![Accuracy](https://img.shields.io/badge/LIDMark精度-99.98%25(S1)-0077b6?style=for-the-badge)](https://github.com/lux-liang/JianYuanShield)
-[![Evidence](https://img.shields.io/badge/证据链-Ed25519_已验签-265073?style=for-the-badge&logo=gnuprivacyguard&logoColor=white)](https://github.com/lux-liang/JianYuanShield)
-
-[![Regulation](https://img.shields.io/badge/完整符合-AI内容标识办法-9b2226?style=for-the-badge)](https://github.com/lux-liang/JianYuanShield)
-[![Competition](https://img.shields.io/badge/🏆_全国大学生信息安全竞赛-作品赛-4a3728?style=for-the-badge)](https://github.com/lux-liang/JianYuanShield)
-
-<br>
-
-[![Python](https://img.shields.io/badge/Python-3.10-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.111+-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com)
-[![PyTorch](https://img.shields.io/badge/PyTorch-2.5-EE4C2C?style=flat-square&logo=pytorch)](https://pytorch.org)
-[![CUDA](https://img.shields.io/badge/CUDA-12.x-76B900?style=flat-square&logo=nvidia)](https://developer.nvidia.com/cuda)
-[![Tests](https://img.shields.io/badge/tests-37_passed-555555?style=flat-square&logo=pytest&logoColor=white)](https://github.com/lux-liang/JianYuanShield)
-[![VPSG](https://img.shields.io/badge/XJU-VPSG_实验室-555555?style=flat-square)](https://github.com/lux-liang/JianYuanShield)
+[![Claims](https://img.shields.io/badge/claims-runtime_gated-0f766e)](configs/claims_manifest.v1.json)
+[![Protocol](https://img.shields.io/badge/protocol-evaluation.v1-2563eb)](configs/evaluation_protocol.v1.json)
+[![Evidence](https://img.shields.io/badge/evidence-Ed25519_integrity-0f766e)](system/backend/signing.py)
+[![Tests](https://img.shields.io/badge/tests-lightweight_gate-475569)](.github/workflows/quality.yml)
 
 </div>
 
----
+## 项目定位
 
-<div align="center">
+鉴源盾解决的不是“判断一张图片真不真”，而是一个更可追责的问题：
 
-<table>
-<tr>
-<td align="center" width="25%">🎯 <kbd>99.98%</kbd><br><sub>LIDMark 最高精度</sub></td>
-<td align="center" width="25%">🖼️ <kbd>13,233 张</kbd><br><sub>LFW 全量评测</sub></td>
-<td align="center" width="25%">⚔️ <kbd>15 种攻击</kbd><br><sub>统一评测框架</sub></td>
-<td align="center" width="25%">🔐 <kbd>22 文件</kbd><br><sub>Ed25519 签名覆盖</sub></td>
-</tr>
-<tr>
-<td align="center" width="25%">🏗️ <kbd>4 种模型</kbd><br><sub>协同水印平台</sub></td>
-<td align="center" width="25%">🌐 <kbd>Web 端已上线</kbd><br><sub>多端客户端开发中</sub></td>
-<td align="center" width="25%">🧪 <kbd>37 测试</kbd><br><sub>单元测试全通过</sub></td>
-<td align="center" width="25%">⚡ <kbd>&lt;2s / 张</kbd><br><sub>RTX 4090 实测</sub></td>
-</tr>
-</table>
+> 内容发布前如何建立来源记录；经历压缩、编辑或二次嵌入后，观测内容能否匹配某条预登记记录及其中由请求方声明的主体引用，并生成可独立验签的技术记录？
 
-</div>
+系统围绕主动水印构建四段式闭环：
 
----
+1. **保护**：为内容生成唯一水印消息，绑定请求方声明的应用侧 `creator_ref`。
+2. **登记**：记录原始内容、受保护内容和 checkpoint 的 SHA-256，不持久化原始图片。
+3. **核验**：对后续收到的图片执行 decode-only，与登记消息比较，不在核验时重新嵌入。
+4. **证据**：为登记和核验事件生成 canonical JSON；配置私钥后进行 Ed25519 独立签名。
 
-## 一句话定位
+同时，MEA（Multi-Embedding Attack）协议把“后嵌入水印覆盖先嵌入水印”形式化为红队测试，用来发现多平台、多主体水印共存时的冲突风险。
 
-> 🔍 **鉴源盾**是一套面向深度伪造溯源场景的多模型水印平台：在内容发布时主动嵌入创作者身份水印，在 Deepfake 篡改后仍能精确追溯来源，并以 Ed25519 签名证据链满足司法取证要求。
+## 证据验收状态
 
----
+本仓库采用双门禁，产品演示可用不等于研究结论可发布：
 
-## 一、背景与立项意义
+| 门禁 | 验收口径 | 含义 |
+|---|---|---|
+| 系统能力 | **可执行审计** | API、协议、签名、登记、核验、失败路径与自动测试均进入可审计实现集合 |
+| 四模型性能 | **动态 evidence-set 门禁** | `/api/claims` 现场重算 canonical 原始结果、checkpoint、协议、实现哈希、精确成员集合与固定签名者，不在文档中硬编码临时发布状态 |
+| 真实 Deepfake | **n256 实验闭包 + 独立签名门禁** | official SimSwap/LFW 身份不重叠轨道已完成 256 对（64 calibration + 192 holdout）严格复算；`deepfake_proxy_v1` 仍仅是局部编辑代理 |
+| 法律效力 | **不作承诺** | Ed25519 提供完整性与签名者控制证明，不自动等同司法采信或可信时间戳 |
 
-### 🚨 深度伪造：2025 年信息安全的头号威胁
+机器可读状态见 [claims_manifest.v1.json](configs/claims_manifest.v1.json)。`/api/claims` 会检查每条声明的证据文件，并以 fail-closed 方式计算 `ready_for_claims`。
 
-Deepfake 技术迭代加速——FaceSwap、SimSwap 已可在普通显卡实时换脸，AIGC 换脸工具月活过亿。
+### official SimSwap/LFW n256 holdout
 
-<table>
-<tr>
-<td align="center" width="25%">🏛️ <b>政治谣言</b><br><sub>伪造政要视频<br>制造虚假声明</sub></td>
-<td align="center" width="25%">🔒 <b>隐私侵害</b><br><sub>无授权人脸合成<br>色情换脸</sub></td>
-<td align="center" width="25%">💰 <b>金融诈骗</b><br><sub>声音+人脸克隆<br>绕过实人认证</sub></td>
-<td align="center" width="25%">©️ <b>版权纠纷</b><br><sub>原创内容被篡改<br>冒充他人作品</sub></td>
-</tr>
-</table>
+固定协议使用 64 个 calibration pair 选择阈值，以下数字只来自 192 个身份隔离 holdout pair。三类负对照（unwatermarked、wrong-message、cross-record）共享同一批 pair，因此 pooled FAR 仅是描述统计；置信界采用每类负控各 192 pair 的 Wilson 区间。
 
-现有平台（微信、抖音、小红书）仅能**被动检测**，**无法回答"这张图是谁发布的"**——溯源能力缺失。
+| 水印模型 | TAR | TAR Wilson 95% 下界 | pooled observed FAR（描述） | 最大单负控 Wilson 95% FAR 上界 |
+|---|---:|---:|---:|---:|
+| LIDMark | 0.81250000 | 0.75136283 | 136/576 = 0.23611111 | 0.31574692 |
+| KAD-Net | **0.99479167** | **0.97109250** | **0/576 = 0.00000000** | **0.01961515** |
+| SepMark | 0.94791667 | 0.90679489 | 7/576 = 0.01215278 | 0.05950325 |
+| WaveGuard | 0.54687500 | 0.47623085 | 331/576 = 0.57465278 | 0.67559432 |
 
-### ⚖️ 法规强制要求：《人工智能生成合成内容标识办法》2025年9月1日施行
+KAD-Net 的三类负控分别都是 0/192；0.01961515 是每个单控制的 Wilson 95% 上界。pooled 0/576 对应的 0.00662502 仍保留在原始 summary 供复算，但不把三个相关控制表述为 576 次独立试验。
 
-| 条款 | 法规要求 | 🛡️ 鉴源盾对应能力 |
-|:---:|:---|:---|
-| **第六条** | 须添加**隐式标识**（不可见水印） | ✅ 四模型 API 批量嵌入，PSNR ≥ 37 dB |
-| **第七条** | 须**稳健抗干扰**，传播后仍可识别 | ✅ LFW 全量基准 91%–100%，覆盖 15 种攻击 |
-| **第八条** | 须支持**监管机构溯源查验** | ✅ Ed25519 签名证据包，可随时验签 |
-| **第十二条** | 须建立**内容可信体系** | ✅ 合规审计 API，自动生成 JSON 报告 |
+在流程内 ArcFace 迁移子集上，registered-positive 恢复结果由 raw rows 与 pair manifest 动态重算：KAD-Net 在 clean swap 已迁移子集为 160/161（0.99378882，Wilson 95% 下界 0.96566044），在 clean 与 watermarked swap 均迁移子集为 153/154（0.99350649，下界 0.96413879）；SepMark 对应为 151/161（0.93788820，下界 0.88945175）和 150/159（0.94339623，下界 0.89593484）。
 
-> 🏆 鉴源盾是目前**面向以上四条要求的完整开源技术方案**，提供从水印嵌入到司法取证的端到端实现。
+同一个固定 ArcFace checkpoint 既向 SimSwap generator 提供 source identity conditioning，也计算 source-vs-target cosine migration；clean swap 在 161/192 holdout pair 上更接近 source（0.83854167，Wilson 95% 下界 0.77994169）。因此这里称为“流程内身份迁移证据”，不是独立身份验证器结论。逐行结果、嵌入、视觉资产、条件分组和实现哈希由 `simswap_lfw_evidence.v1` 重算并进入 release-core。
 
-### 🔍 现有方案的致命局限
+## 三项核心创新
 
-| 方案 | 类型 | ❌ 致命缺陷 |
-|:---|:---|:---|
-| FaceForensics++ | 被动检测 | 告诉你"这是假的"，不知道"谁造的" |
-| HiDDeN / RivaGAN | 单一水印 | 平台二次压缩后水印消失；单点故障 |
-| 区块链存证 | 哈希上链 | 不能嵌入媒体本身，无法追溯篡改后版本 |
-| 人工审核 | 人工介入 | 不可扩展，误报率高，无法实时处理 |
+### 1. 预登记来源记录绑定
 
----
+`/api/provenance/protect` 不再使用固定或临时丢弃的随机消息，而是：
 
-## 二、核心能力一览
+- 为每份内容生成唯一消息和 `content_id`；
+- 将消息与 `creator_ref`、模型、原始/输出/checkpoint 哈希绑定；
+- 仅保存受保护图片，默认不保存上传原图；
+- 通过 `/api/provenance/verify` 跨请求执行 blind decode 和登记查询；
+- 记录精确文件匹配与攻击后比特恢复两种结论。
 
-> 本项目依赖于新疆大学 VPSG 实验室平台。
+这使系统可以回答“该内容是否匹配本系统的某条预登记来源记录”。`creator_ref` 是请求方声明的应用侧引用；除非部署另行接入租户、认证会话、对象授权与身份提供方，它不证明自然人身份，也不证明某人亲自发布了内容。
 
-<br>
+### 2. MEA 多水印冲突红队协议
 
-<table>
-<tr>
-<td width="25%" align="center" valign="top">
+MEA 测量两项独立指标：
 
-### 🔵 深度伪造溯源
+- `first_message_metrics`：二次嵌入后，先嵌水印的保留程度；
+- `second_message_metrics`：后嵌水印自身的嵌入成功程度。
 
-**LIDMark**
+协议价值在于暴露冲突与覆盖风险，而不是保证矩阵结果都高。不同消息长度和 decoder 语义必须分开解释，未经证据门禁放行的矩阵数字不进入 README。
 
-152 维关键点水印向量，语义结构绑定。Deepfake 换脸后继承原始几何残留，仍可解码原创者 ID。
+部署选择不把 256 张图像误当作 256 个独立身份：正式策略从逐图证据重建 217 个 LFW 身份簇，身份内求均值、身份间等权，再用固定 seed 的 20,000 次 cluster bootstrap 和覆盖 `4×4×6=96` 项的单侧 Bonferroni 选择族计算同时下界。16/30/128/30 bit 的原始准确率只作诊断，跨模型排序使用各模型协议阈值归一化 margin、协议成功率与攻击后质量的聚类下界。
 
-3-seed 独立训练<br>
-精度 **99.98%** `[99.94%, 100%]` ¹<br>
-Stage2 Deepfake 微调进行中
+### 3. Claim-as-Code 声明—证据门禁
 
-`CVPR 2026 · VPSG原创`
+每条参赛声明都应绑定：模型、checkpoint 哈希、数据清单、样本量、seed、指标语义、攻击、协议版本与原始 artifact。缺少任一关键证据时，系统将声明标记为 `review_required` 或 `blocked`，前端与报告不得展示为已验证结论。
 
-</td>
-<td width="25%" align="center" valign="top">
+这一机制把“科研诚信检查”变成可执行的安全控制，而不是答辩前人工核对表格。
 
-### ⚔️ 跨模型攻击矩阵
-
-**MEA 协议**
-
-4×4 模型组合，16 种攻击路径，2,048 次独立实验。填补多水印并存场景评测空白。
-
-原创评测协议<br>
-每格 **128** 张 LFW 图像<br>
-国内外文献未见报道
-
-`VPSG原创 · 填补空白`
-
-</td>
-<td width="25%" align="center" valign="top">
-
-### 🔐 密码学证据链
-
-**Ed25519 签名**
-
-22 文件 SHA-256 完整性保护，任何评审者可在 5 秒内独立验签，密码学不可抵赖。
-
-私钥离线保存<br>
-API 实时验签<br>
-等价区块链存证
-
-`司法级 · 零信任验证`
-
-</td>
-<td width="25%" align="center" valign="top">
-
-### 🌐 Web 端 + 多端规划
-
-**统一 REST API**
-
-Web Demo 已上线；Android / iOS / 微信小程序 / 鸿蒙客户端由团队成员并行开发，共用同一后端。
-
-< 2s 推理延迟<br>
-15+ API 端点<br>
-37 测试全通过
-
-`后端完整 · 即开即用`
-
-</td>
-</tr>
-</table>
-
----
-
-## 三、深度伪造溯源流程
+## 系统架构
 
 ```mermaid
-sequenceDiagram
-    actor C as 👤 内容创作者
-    participant J as 🛡️ 鉴源盾
-    actor DF as 🤖 Deepfake 攻击者
-    actor V as ⚖️ 执法 / 平台方
+flowchart LR
+    U[创作者 / 平台] -->|protect| API[FastAPI 安全边界]
+    API --> V[上传类型·大小·像素·鉴权校验]
+    V --> A[统一模型 Adapter\nencode / decode]
+    A --> R[(Provenance Registry)]
+    R --> S[Ed25519 事件签名]
 
-    C->>J: 上传原始人脸图像
-    activate J
-    J->>J: 提取 152 维 dlib 关键点
-    J->>J: 嵌入身份水印向量<br/>PSNR ≈ 44 dB，肉眼不可见
-    J-->>C: 返回含水印图像
-    deactivate J
+    X[传播后内容] -->|verify + content_id| API
+    API --> D[Decode-only 核验]
+    D --> R
+    D --> E[比特准确率·阈值·哈希]
+    E --> S
 
-    Note over C,DF: ── 图像在网络中传播 ──
-
-    C->>DF: 图像流转至攻击者
-    DF->>DF: 深度伪造换脸处理<br/>（面部几何结构残留保留）
-    DF->>V: 传播篡改图像
-
-    Note over V,J: ── 事后取证阶段 ──
-
-    V->>J: 上传待取证图像
-    activate J
-    J->>J: 解码水印向量
-    J->>J: 比对身份 ID 比特
-    J-->>V: ✅ bit_accuracy = 100%，原创者 ID 已确认
-    J-->>V: 📋 Ed25519 签名证据包（可独立验签）
-    deactivate J
+    A --> M[MEA 红队评测]
+    M --> C[Claims Manifest]
+    C --> G{发布门禁}
+    G -->|verified| P[可发布结论]
+    G -->|missing evidence| B[review / blocked]
 ```
 
----
+## API 语义
 
-## 四、核心优势详解
+| 接口 | 用途 | 可用于正式结论 |
+|---|---|---|
+| `POST /api/provenance/protect` | 唯一消息嵌入、来源登记、事件签名 | 仅 checkpoint 清单审核且事件已签名时可以 |
+| `POST /api/provenance/verify` | decode-only、登记匹配、核验事件签名 | 仅 checkpoint 清单审核且事件已签名时可以 |
+| `GET /api/provenance/records/{id}` | 查询来源登记记录 | 可以，受 API Key 保护 |
+| `POST /api/infer/single` | 嵌入—攻击—恢复的单样本能力演示 | 不可以；该接口固定 `claim_valid=false` |
+| `POST /api/compliance/batch` | 盲检接口能力状态 | 当前返回 `capability_unavailable`，不制造合规率 |
+| `GET /api/claims` | 机器可读声明门禁 | 可以 |
+| `GET /api/evidence/audit` | artifact、签名、协议和声明综合门禁 | 可以 |
+| `GET /api/health` | 运行状态与安全配置摘要 | 仅运维用途 |
 
-### 🥇 优势一：LIDMark——全球首个 Deepfake 穿透溯源方案
+未知模型、缺失 checkpoint、无效图片和未配置的生产鉴权都会显式失败。模拟结果携带 `claim_valid=false`，不得用于合规、溯源或科研性能声明。
 
-```
-水印向量 [152维]:
-├── [0:135]   人脸 dlib 关键点坐标 → 嵌入在面部几何结构中
-└── [136:151] 用户 ID 比特 (编码为 {-1, +1}) → 精确身份绑定
-```
+## 安全设计
 
-> 💡 **核心突破**：Deepfake 在替换面部时不可避免地继承原始面部几何结构残留——LIDMark 利用这一物理约束，在换脸后依然解码出原始创作者 ID。这是**被动检测根本无法做到的**。
+- JPEG/PNG/WebP 类型与文件内容双重校验；
+- 默认单图 5 MiB、1600 万像素、批量 16 张上限；
+- GPU 推理默认单并发并设超时；
+- 生产模式自动要求 `X-API-Key`；
+- CORS 默认仅允许本机 Web 端，禁止通配来源携带凭据；
+- 样本和任务标识采用严格字符白名单，阻断路径穿越；
+- checkpoint 使用 `weights_only=True` 和严格 state-dict 加载；
+- 正式来源声明还要求 checkpoint SHA-256 出现在部署方审核的 `WEIGHT_MANIFEST.json` 中；
+- 动态来源记录使用 SQLite 参数化查询；
+- 原始上传字节只计算哈希，不进入来源资产目录；
+- 单样本推理不落盘原图，衍生任务工件默认 1 小时后清理；
+- 容器以非 root 用户运行，drop capabilities，并设置 PID 上限。
 
-| 指标 | 🏆 LIDMark (3-seed, 95% CI) | 同类竞品均值 |
-|:---|:---:|:---:|
-| Clean 精度 (Stage1) ¹ | **99.98%** `[99.94%, 100%]` | ≈ 88% |
-| JPEG Q=50 精度 (Stage1) | **99.96%** | ≈ 74% |
-| Deepfake proxy 精度 ² | **100%** | 无报告 |
-| 跨 seed 训练方差 | **± 0.02%** | 通常未报告 |
-| 独立训练验证 | **3 个独立 seed ✅** | 通常单 seed |
+这些控制是竞赛原型的安全基线。正式部署使用内置速率限制与写入磁盘准入，并由反向代理完成 TLS；平台级身份、对象级授权、可信时间戳、外部公钥信任锚和数据生命周期策略由部署环境统一实施。
 
-> ¹ **Stage1（通用扭曲训练）**：已在 CelebA-HQ 30k 图像上完成，含 JPEG/噪声/缩放等扰动。Stage2（Deepfake 换脸微调）进行中。  
-> ² Deepfake proxy 为轻量代理实现，完整 SimSwap/UniFace 深度伪造场景评测待 Stage2 完成后更新。
+## 快速开始
 
----
-
-### 🥈 优势二：四模型协同水印——多层次防御体系
-
-| 模型 | 嵌入域 | 水印长度 | 无攻击精度 | 核心优势 |
-|:---|:---:|:---:|:---:|:---|
-| 🔵 **LIDMark** | 空间域（关键点） | 152 bit | **99.98%** | 语义绑定，Deepfake 后溯源 |
-| 🟢 **KAD-Net** | 空间域（KAN+SE） | 30 bit | **100%** | KAN 非线性，全场景 100% |
-| 🟡 **WaveGuard** | 频域（DTCWT） | 1 bit | **100%** | 频域不变性，抗平台压缩 |
-| 🟣 **SepMark** | 频域（分离子带） | 30 bit | **91.2%** | 高低频分离，RF 解码器增强 |
-
----
-
-### 🥉 优势三：MEA——跨模型攻击评测协议（原创研究）
-
-> ⚔️ 先用模型 A 嵌入水印，再用模型 B 强行覆盖，测量 A 的水印存活率。  
-> 4×4 矩阵 = **16 种组合**，每格 **128 张** LFW 图像，共 **2,048 次**独立实验。
-
-**格式：Source 水印存活率 / Attacker 嵌入精度　　✅ ≥ 90%　　⚠️ 70–89%　　❌ < 70%**
-
-> ⚠️ **注**：下表为 MEA 协议框架设计与初步实验估算，完整 4×5 矩阵（每格 128 张 LFW）正式实验进行中，评审前将以真实结果替换。
-
-| Source ↓ · Attacker → | SepMark | WaveGuard | LIDMark | KAD-Net |
-|:---|:---:|:---:|:---:|:---:|
-| **SepMark** | 91% ✅ · 56% ❌ | 92% ✅ · 100% ✅ | 50% ❌ · 61% ❌ | 90% ✅ · 100% ✅ |
-| **WaveGuard** | 100% ✅ · 95% ✅ | 52% ❌ · 98% ✅ | 50% ❌ · 61% ❌ | 100% ✅ · 100% ✅ |
-| **LIDMark** | 68% ⚠️ · 69% ⚠️ | 72% ⚠️ · 100% ✅ | 52% ❌ · 60% ❌ | 67% ⚠️ · 93% ✅ |
-| **KAD-Net** | 100% ✅ · 84% ⚠️ | 100% ✅ · 100% ✅ | 50% ❌ · 61% ❌ | 50% ❌ · 100% ✅ |
-
-**🔬 初步研究假设（待正式矩阵实验验证）：**
-- 🎯 **LIDMark 作为攻击者破坏性最强假说**——语义绑定机制改变面部几何，预期先嵌水印降至随机水平
-- 🤝 **KAD-Net × WaveGuard 双向兼容假说**（均 ≥ 95%），多层级标识部署候选组合
-- 📐 **对角线失效规律**——自攻击覆盖，验证实验设计有效性（已观察到一致趋势）
-
----
-
-### 🏅 优势四：Ed25519 密码学证据链——司法级不可抵赖性
-
-```
-证据包（22 个文件，SHA-256 完整性保护）
-├── 📋 manifest.json     所有评测文件的哈希清单
-├── 🔐 signature.b64     对清单的 Ed25519 签名（私钥离线保存）
-├── 🔑 public_key.pem    公开验证密钥
-└── 📊 benchmark/*.json  全部评测原始数据
-```
+### 本机演示模式（非发布路径）
 
 ```bash
-# 实时验签（5 秒完成，无需信任本系统）
-openssl pkeyutl -verify -pubin -inkey public_key.pem \
-  -sigfile signature.bin -in manifest.json
-# → Signature Verified Successfully ✅
+docker compose config --quiet
+docker compose up --build
 ```
 
-> 📌 评测结果具有**密码学不可抵赖性**，与区块链存证等价，但无需链上确认延迟。
+- Web：`http://127.0.0.1:8027`
+- API：`http://127.0.0.1:8026`
+- OpenAPI：`http://127.0.0.1:8026/docs`
 
----
-
-### 🏅 优势五：15 种攻击统一评测框架
-
-| 攻击类别 | 具体攻击 | 🌐 实际对应场景 |
-|:---|:---|:---|
-| 🗜️ **压缩** | JPEG Q=50/70/90，WebP Q=80 | 社交平台上传压缩 |
-| 📐 **几何** | 缩放 0.5×，中心裁剪 0.8，旋转 5° | 图片裁剪、重构 |
-| 🌈 **光度** | 高斯噪声，亮度 ±20%，对比度 ±20% | 滤镜、后期处理 |
-| 📱 **平台仿真** | 微信压缩、抖音压缩（真实参数） | 主流平台二次转码 |
-| 🤖 **深度伪造** | Deepfake proxy v1 | AI 换脸攻击溯源 |
-
----
-
-### 🏅 优势六：Bootstrap CI + Holm 校正——统计严谨性行业标杆
-
-| 统计保障 | 实现方式 | 意义 |
-|:---|:---|:---|
-| **95% 置信区间** | Bootstrap 5,000 次重采样 | 每条结论可信度量化 |
-| **多重比较校正** | Holm-Bonferroni（FWER < 0.05） | 杜绝 p-hacking 刷榜 |
-| **训练方差验证** | LIDMark 3 个独立 seed | 同时捕捉两类不确定性 |
-
-> 📊 LIDMark clean 精度 **99.98%**，95% CI = [99.94%, 100%]，vs. SepMark 差值 **p < 0.001**（Holm 校正后仍显著）
-
----
-
-### 🏅 优势七：工程落地完整度远超 Demo 级作品
-
-| 🔧 工程维度 | ✅ 实现情况 |
-|:---|:---|
-| **后端 API** | FastAPI，15+ 端点，lifespan 预热，< 2s/张推理 ✅ |
-| **🌐 Web 前端** | 原生 JS，4 场景交互 Demo（创作者保护/平台合规/MEA/Deepfake 溯源）✅ |
-| **📱 Android** | Kotlin + Material Design 3，调用统一 REST API 🚧 开发中 |
-| **🍎 iOS** | SwiftUI + URLSession，相册导入，原生体验 🚧 开发中 |
-| **💬 微信小程序** | WXML/JS，微信生态，一键分享 🚧 开发中 |
-| **🌸 鸿蒙** | ArkTS + ArkUI，原生鸿蒙 🚧 开发中 |
-| **四模型适配** | Adapter 模式 + importlib 动态加载，解决命名空间冲突 |
-| **评测管线** | Bootstrap CI、Holm 校正、MEA 矩阵全自动生成 |
-| **证据链** | Ed25519 签名 + SHA-256，API 实时验签 |
-| **测试覆盖** | 37 个单元测试，全部通过 |
-| **文档** | 技术报告 + 评委 QA + 答辩口稿 |
-
----
-
-## 五、评测结果（完整数据）
-
-<details>
-<summary>📊 点击展开：单模型 LFW 全量基准</summary>
-
-<br>
-
-| 模型 | 指标 | 无攻击 | JPEG Q=50 | JPEG Q=70 | 噪声 | 缩放 | 样本量 |
-|:---|:---|:---:|:---:|:---:|:---:|:---:|:---:|
-| 🔵 **LIDMark** | ID 比特精度 (3-seed, Stage1) | **99.98%** `[99.94,100%]` | 99.96% | — | 99.96% | 99.97% | 1,536 |
-| 🟢 **KAD-Net** | 比特精度 | **100%** | 99.3% † | 99.9% | 100% | 100% | 512→13,233 † |
-| 🟡 **WaveGuard** | Tracer 精度 | **100%** | **100%** | 100% | 100% | 100% | 512 |
-| 🟣 **SepMark** | 比特精度 (RF) | 91.2% `[90.9,91.5%]` | 88.1% | 89.8% | 90.7% | 91.0% | 13,233 |
-
-> 所有数据附 **95% Bootstrap 置信区间**（5,000 次重采样），LIDMark 同时覆盖跨 seed 训练方差。  
-> † KAD-Net 全量 13,233 张 LFW benchmark 运行中，JPEG Q=50 为 smoke 测试结果（n=512），完成后更新。
-
-**Pairwise 统计显著性（Holm 校正）：**
-
-| 对比 | 精度差 | p 值 | Holm 校正后 |
-|:---|:---:|:---:|:---:|
-| LIDMark vs. SepMark | +8.78 pp | < 0.001 | **显著** ✅ |
-| KAD-Net vs. SepMark | +8.80 pp | < 0.001 | **显著** ✅ |
-| WaveGuard vs. SepMark | +8.80 pp | < 0.001 | **显著** ✅ |
-
-</details>
-
----
-
-## 六、全端覆盖：五大客户端
-
-| 平台 | 技术栈 | 核心特性 | 状态 |
-|:---|:---|:---|:---:|
-| 🌐 **Web** | 原生 JS + HTML5 | 4 场景完整 Demo，实时推理 | ✅ 已完成 |
-| 📱 **Android** | Kotlin + Material Design 3 | 相机/相册实时推理，APK 直装 | 🚧 开发中 |
-| 🍎 **iOS** | SwiftUI + URLSession | 相册导入，原生 UI | 🚧 开发中 |
-| 💬 **微信小程序** | WXML / WXSS / JS | 微信生态，一键转发分享 | 🚧 开发中 |
-| 🌸 **鸿蒙 HarmonyOS** | ArkTS + ArkUI | 原生鸿蒙体验，国产生态 | 🚧 开发中 |
-
----
-
-## 七、三大应用场景
-
-<table>
-<tr>
-<td width="33%" valign="top">
-
-### 🎨 场景 A：创作者保护
-
-```
-创作者上传自拍
-        ↓
-LIDMark 嵌入身份水印
-PSNR ≈ 44 dB（肉眼不可见）
-        ↓
-图片被 Deepfake 换脸传播
-        ↓
-平台上传至鉴源盾
-        ↓
-解码 ID 水印 → 定位原创作者
-        ↓
-bit_accuracy = 100% ✅
-```
-
-</td>
-<td width="33%" valign="top">
-
-### 🏢 场景 B：平台合规
+该 Compose 仅用于回环地址上的本机 UI/API 联调。无模型权重时系统仍可启动并展示协议、门禁和 UI 流程，但模型结果明确标记为 simulation。基础 Compose 不会擅自创建或挂载宿主模型目录。需要在本机联调真实模型时，先核验源码与 checkpoint，再显式配置并启动：
 
 ```bash
-curl -X POST \
-  /api/compliance/batch \
-  -F "files=@img1.jpg" \
-  -F "model=SepMark"
-
-# 响应
-{
-  "compliant": 97,
-  "flagged": 3,
-  "report_id": "2026-06-08"
-}
+export JYS_WEIGHT_HOST=/absolute/path/to/verified/weights
+export JYS_MODEL_SOURCE_HOST=/absolute/path/to/reviewed/model-sources
+docker compose -f docker-compose.yml -f docker-compose.models.yml up --build
 ```
 
-</td>
-<td width="33%" valign="top">
+两个宿主目录均以只读方式挂载；路径未配置或不存在时，Compose 会直接失败。
 
-### ⚖️ 场景 C：司法取证
+正式证据模式还需参考 `configs/weight_manifest.example.json`，在权重根目录创建 `WEIGHT_MANIFEST.json`，为每个获准 checkpoint 填写真实 SHA-256、源码 revision、审核人和审核时间。来源匹配阈值必须由身份隔离的 calibration/holdout、登记回环/无水印/错误消息三类对照 artifact 支撑；系统会从逐样本行重算覆盖、选阈、FAR/FRR 和 Wilson 区间。签名 evidence bundle 必须覆盖 weight manifest、其 checkpoint 与校准 artifact。部署还需通过密钥管理系统注入至少 32 字符的 `JYS_PROVENANCE_SECRET`，并用 `JYS_EVIDENCE_PUBLIC_KEY_FINGERPRINT` 独立固定签名私钥对应的 Ed25519 公钥指纹；仅有文件、任意哈希或任意自签名密钥都不会放行 `claim_valid`。
+
+### 正式发布与生产部署
+
+联网生产路径使用 [docker-compose.production.yml](docker-compose.production.yml)；国赛断网路径只使用 [docker-compose.competition.yml](docker-compose.competition.yml)、[build_release_image.py](scripts/build_release_image.py) 和 [offline_deploy.sh](offline_deploy.sh)。先提交全部已审查变更，确保工作区干净，再以当前完整 Git commit 作为镜像 tag。构建脚本会读取 BuildKit image-manifest/config digest，并为断网发布同时导出：保留最大级别 SLSA provenance 与 SPDX SBOM attestation 的 OCI archive，以及按同一 config digest 固定、可由 `docker load` 恢复的 companion archive。
 
 ```bash
-# 下载三文件证据包
-curl .../manifest
-curl .../signature
-curl .../public-key
+python3 scripts/supply_chain.py check
+python3 scripts/check_deployment.py
 
-# 5 秒独立验签
-openssl pkeyutl -verify \
-  -pubin \
-  -inkey public_key.pem \
-  -sigfile signature.bin \
-  -in manifest.json
-# Signature Verified ✅
+RELEASE_COMMIT="$(git rev-parse HEAD)"
+python3 scripts/build_release_image.py \
+  --image "ghcr.io/lux-liang/jianyuanshield:${RELEASE_COMMIT}" \
+  --push
 ```
 
-</td>
-</tr>
-</table>
-
----
-
-## 八、与现有方案的全面对比
-
-| 能力维度 | 🛡️ **鉴源盾** | 单一水印 | 被动检测 | 区块链存证 |
-|:---|:---:|:---:|:---:|:---:|
-| Deepfake 后仍可溯源 | ✅ LIDMark 语义绑定 | ❌ | ❌ | ❌ |
-| 多模型冗余容灾 | ✅ 4 模型 | ❌ | — | — |
-| 密码学证据链 | ✅ Ed25519（含媒体） | ❌ | ❌ | ✅（不含媒体） |
-| 法规合规 API | ✅ 批量验证 + 报告 | ❌ | ❌ | ❌ |
-| 15 种攻击统一评测 | ✅ | 通常 2–4 种 | — | — |
-| Bootstrap CI 置信区间 | ✅ | 罕见 | — | — |
-| MEA 跨模型攻击矩阵 | ✅ VPSG 原创 | ❌ | — | — |
-| 全终端客户端覆盖 | Web ✅；Android/iOS/小程序/鸿蒙 🚧 | ❌ | ❌ | ❌ |
-| 实时推理 API | ✅ < 2s / 张 | 视方案 | ✅ | ❌ |
-
----
-
-## 九、系统架构
-
-```mermaid
-flowchart TD
-    CLI["🌐 Web（已上线）· 📱 Android · 🍎 iOS · 💬 小程序 · 🌸 鸿蒙（开发中）"]
-    CLI -->|"统一 REST API"| API["⚡ JianYuanShield · FastAPI · 15+ 端点"]
-
-    subgraph MDL ["🏗️ 水印模型适配层"]
-        direction LR
-        L["🔵 LIDMark<br/>152bit 溯源"]
-        K["🟢 KAD-Net<br/>30bit 全场景"]
-        WG["🟡 WaveGuard<br/>频域检测"]
-        SM["🟣 SepMark<br/>30bit 分离"]
-    end
-
-    subgraph OPS ["📊 评测与取证层"]
-        direction LR
-        ATK["⚔️ 15种攻击仿真"]
-        STAT["📊 Bootstrap CI · Holm"]
-        EVD["🔐 Ed25519 证据链"]
-    end
-
-    API --> MDL
-    API --> OPS
-```
-
----
-
-## 十、快速开始
+将脚本输出的 `repository@sha256:...` 写入 `JYS_RELEASE_IMAGE`。三个秘密必须由部署机的 secret manager 落为权限受控的普通文件；Compose 只挂载文件，不接受明文秘密环境变量：
 
 ```bash
-git clone https://github.com/lux-liang/JianYuanShield.git
-cd JianYuanShield
-pip install -r requirements.txt
+export JYS_RELEASE_IMAGE='ghcr.io/lux-liang/jianyuanshield@sha256:<verified-digest>'
+export JYS_WEIGHT_HOST='/absolute/path/to/verified/weights'
+export JYS_MODEL_SOURCE_HOST='/absolute/path/to/reviewed/model-sources'
+export JYS_API_KEY_SECRET_FILE='/secure/path/jys_api_key'
+export JYS_PROVENANCE_SECRET_FILE='/secure/path/jys_provenance_secret'
+export JYS_EVIDENCE_PRIVATE_KEY_FILE='/secure/path/jys_ed25519.pem'
+export JYS_EVIDENCE_PUBLIC_KEY_FINGERPRINT='<reviewed-64-char-sha256-fingerprint>'
+export JYS_CORS_ORIGINS='https://console.example'
 
-# 🚀 启动后端（GPU 推理）
-JYS_INFER_DEVICE=cuda:0 PYTHONPATH=. \
-  uvicorn system.backend.app:app --host 0.0.0.0 --port 8026
-
-# 🌐 启动 Web 前端（访问 http://localhost:8027）
-python -m http.server 8027 --directory system/frontend
+docker compose -f docker-compose.production.yml config --quiet
+docker compose -f docker-compose.production.yml up -d --no-build
 ```
+
+API Key 和来源派生秘密均至少 32 个随机字符；签名公钥指纹通过独立可信通道核对。生产 Compose 强制关闭 demo 与 API schema，镜像按 digest 固定，模型目录只读，根文件系统只读，端口默认仅绑定 `127.0.0.1`。内置最小 gateway 在 8027 提供静态控制台，只把同源 `/api` 与 `/api/*` 转发给固定内部服务 `api:8026`；它丢弃浏览器提交的 `X-API-Key` 并从 Docker secret 服务端注入，不支持开放代理、目录遍历或静态目录列表。长期 API Key 不进入 JavaScript、LocalStorage 或响应。公网场景仍应在 8027 前部署完成用户会话与对象授权的 TLS 入口。不要把 API Key、来源秘密、签名私钥或 GitHub token 写入仓库、镜像、`.env` 或命令历史。
+
+### 国赛断网 bundle
+
+先在干净且已签署 release-core 的发布机上生成双归档和发布记录；两个输出来自同一次 BuildKit 构建：
 
 ```bash
-# 📊 全量统计分析（Bootstrap CI + Holm 校正）
-PYTHONPATH=. python -m system.scripts.run_statistical_analysis
+RELEASE_COMMIT="$(git rev-parse HEAD)"
+python3 scripts/build_release_image.py \
+  --image "ghcr.io/lux-liang/jianyuanshield:${RELEASE_COMMIT}" \
+  --artifact-dir dist/competition-image \
+  --oci-output dist/competition-image/release-image.oci.tar \
+  --load-output dist/competition-image/release-image.docker.tar
 
-# ⚔️  MEA 4×4 矩阵（128 张/格，共 2,048 次实验）
-JYS_INFER_DEVICE=cuda:0 PYTHONPATH=. \
-  python scripts/run_mea_matrix_4x4.py --images-per-cell 128
-
-# 🔐 证据链验签
-curl http://localhost:8026/api/evidence/audit
+bash offline_deploy.sh create \
+  --output /srv/releases/JianYuanShield-competition \
+  --runtime-root /absolute/path/to/JianYuanShield-runtime \
+  --release-dir dist/competition-image \
+  --signing-key /secure/evidence-ed25519.pem \
+  --signer-fingerprint '<登记的 64 位 SHA-256>'
 ```
 
----
+`create` 要求 Git commit/tree 与镜像记录一致、工作区干净、release-core 由外部钉扎 signer 验证通过，并在复制前检查可用磁盘。输出包含镜像双归档、BuildKit metadata、CycloneDX、签名 evidence、正式 reports/assets、权重、模型源码、数据和第三方许可证；不复制 API key、provenance secret 或任何私钥。bundle manifest 精确列出每个普通文件并由同一 Ed25519 key 签名，`SHA256SUMS` 提供现场逐文件复算。
 
-## 十一、核心 API
+现场秘密目录固定包含 `api_key`、`provenance_secret`、`evidence_ed25519.pem`，三者权限均为 `0600`，前两个值至少 32 字符。先独立验签，再用一个从未存在的新状态目录单命令恢复：
 
 ```bash
-# 🔍 单图推理（15 种攻击任选）
-curl -X POST http://server:8026/api/infer/single \
-  -F "file=@photo.jpg" \
-  -F "model=LIDMark" \
-  -F "attack=deepfake_proxy_v1"
+export JYS_BUNDLE=/media/readonly/JianYuanShield-competition
+export JYS_SIGNER_FINGERPRINT='<登记的 64 位 SHA-256>'
 
-# 📦 批量合规验证
-curl -X POST http://server:8026/api/compliance/batch \
-  -F "files=@img1.jpg" -F "files=@img2.jpg" \
-  -F "model=SepMark"
+bash "$JYS_BUNDLE/deployment/offline_deploy.sh" preflight \
+  --bundle "$JYS_BUNDLE" \
+  --signer-fingerprint "$JYS_SIGNER_FINGERPRINT"
 
-# 📊 实时基准数据
-curl http://server:8026/api/benchmark/lidmark-lfw-eval
-curl http://server:8026/api/benchmark/kadnet
-curl http://server:8026/api/benchmark/mea-matrix
-curl http://server:8026/api/benchmark/aggregate
-
-# 🔐 证据链完整性验证
-curl http://server:8026/api/evidence/audit
-# → {"signature_valid": true, "files_covered": 22, "ready_for_demo": true}
+bash "$JYS_BUNDLE/deployment/offline_deploy.sh" restore \
+  --bundle "$JYS_BUNDLE" \
+  --signer-fingerprint "$JYS_SIGNER_FINGERPRINT" \
+  --secret-dir /secure/jys-competition-secrets \
+  --state-dir /var/tmp/jys-competition-session
 ```
 
+`restore` 会再次完成全量 preflight、`docker load`、config-digest image ID 核验、CUDA 实机检查、Compose fail-closed 渲染和健康等待，然后只在 `127.0.0.1:8027` 发布同源控制台。weights/model-sources/data/reports 均只读；assets、provenance state、独立 audit anchor 使用三个新的 project-scoped 卷。只提供 `create`、`preflight`、`restore`、`status`、`stop` 五个正式子命令，不存在 dev/simulation 回退。
+
+### 本地测试
+
+```bash
+python3 -m unittest discover -s tests -v
+python3 scripts/check_system.py
+python3 scripts/check_documentation.py
+python3 scripts/supply_chain.py check
+python3 scripts/check_deployment.py
+```
+
+`requirements.txt` 表达维护区间；Linux x86-64、CPython 3.11、CUDA 12.8 的正式构建只安装带完整 distribution SHA-256 的 `requirements.lock`。确定性 CycloneDX 清单位于 `supply-chain/python-dependencies.cdx.json`，基础镜像、APT snapshot、输入哈希和 SBOM 哈希位于 `supply-chain/build-manifest.json`；任一输入变化而未重生成时，CI 与镜像构建均 fail closed。
+
+## 来源保护示例
+
+```bash
+curl -X POST http://127.0.0.1:8026/api/provenance/protect \
+  -H "X-API-Key: $JYS_API_KEY" \
+  -F "file=@portrait.png;type=image/png" \
+  -F "creator_ref=creator-001" \
+  -F "model=LIDMark"
+```
+
+返回的 `content_id` 用于后续核验：
+
+```bash
+curl -X POST http://127.0.0.1:8026/api/provenance/verify \
+  -H "X-API-Key: $JYS_API_KEY" \
+  -F "file=@received.png;type=image/png" \
+  -F "content_id=<protect 返回值>"
+```
+
+`verified=true` 表示恢复消息达到协议阈值，并匹配指定登记记录；只有权重清单审核、正负样本阈值校准 artifact、事件签名验签和独立固定的签名公钥指纹也全部成功时 `claim_valid=true`。两者都不表示图片“真实”、未被编辑，或满足任何司法采信标准。
+
+## 正式实验最低要求
+
+任何进入答辩主结论的实验必须同时具备：
+
+1. 合法数据来源与不可变 dataset manifest；
+2. 身份不重叠的训练/验证/测试划分；
+3. checkpoint、代码提交和协议 SHA-256；
+4. 原始逐图结果，而非仅汇总表；
+5. 无水印负样本、错误 ID、未知主体和篡改失败路径；
+6. FAR、FRR、ROC/阈值校准，以及恰当的置信区间；
+7. detector、tracer、ID bit、landmark 指标分表报告；
+8. seed 作为层级处理，不把同一批图片的多 seed 结果伪装成独立样本；
+9. 真实换脸模型与 proxy 结果严格分开；
+10. 由 `claims_manifest` 和 Ed25519 evidence bundle 自动放行。
+
+## 当前限制与路线
+
+- 大体积模型权重、数据集和正式结果位于独立 runtime evidence roots；release manifest 以 logical path、SHA-256、精确成员集合和固定签名者把它们与代码快照闭包绑定，运行时门禁据此即时决定主张是否可发布。
+- `deepfake_proxy_v1` 只用于传播管线 smoke；真实人脸交换结论只读取独立的 official SimSwap/LFW n256 评测轨道、流程内 ArcFace 迁移证据、四类对照与签名门禁；ArcFace 不作为独立身份验证器。
+- 合规批检在 blind detector 完成负样本校准前保持不可用。
+- SQLite 适合单机竞赛原型；平台部署应迁移到带审计和对象权限的数据库。
+- Ed25519 当前解决完整性与签名问题；可信时间、密钥托管和法律程序需外部基础设施。
+- Android、Web、小程序需要统一接入 provenance API，并对 simulation 状态做不可移除标识。
+
+实验资源、阶段命令和证据产物统一见 [EXPERIMENT_EXECUTION.md](docs/EXPERIMENT_EXECUTION.md)；安全威胁、现有控制与剩余风险见 [THREAT_MODEL.md](docs/THREAT_MODEL.md)，详细能力边界见 [LIMITATIONS.md](docs/LIMITATIONS.md)，评审口径见 [README_COMPETITION.md](README_COMPETITION.md)。
+
+## 贡献与成果归属
+
+鉴源盾统一集成多种团队研究候选模型与评测组件。正式参赛材料应为每个模型单独提供作者、指导教师既有成果/本届新增工作、许可证、训练日志和提交记录，避免把“平台集成贡献”与“底层算法原创贡献”混为一谈。
+
 ---
 
-<div align="center">
-
----
-
-🛡️ **鉴源盾** · 让每一张图片都有可验证的来源
-
-[![VPSG](https://img.shields.io/badge/新疆大学-VPSG%20实验室-0984e3?style=flat-square)](https://github.com/lux-liang/JianYuanShield)
-[![Law](https://img.shields.io/badge/《人工智能生成合成内容标识办法》-技术落地-e17055?style=flat-square)](https://github.com/lux-liang/JianYuanShield)
-[![Competition](https://img.shields.io/badge/全国大学生信息安全竞赛-作品赛-FFD700?style=flat-square)](https://github.com/lux-liang/JianYuanShield)
-
-[![Platform](https://img.shields.io/badge/平台-Web✅_|_Android🚧_|_iOS🚧_|_小程序🚧_|_鸿蒙🚧-a29bfe?style=flat-square)](https://github.com/lux-liang/JianYuanShield)
-[![Models](https://img.shields.io/badge/模型-LIDMark_|_KAD--Net_|_WaveGuard_|_SepMark-55efc4?style=flat-square)](https://github.com/lux-liang/JianYuanShield)
-
-</div>
+**项目原则：宁可把未完成项标成 blocked，也不让一次不可复核的满分数字损害整套作品的可信度。**

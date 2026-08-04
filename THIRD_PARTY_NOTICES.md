@@ -26,9 +26,8 @@
 
 ## Python、Android 与容器依赖
 
-Python 直接和传递依赖的精确版本、包标识及完整集合记录在 `requirements.lock` 和 `supply-chain/python-dependencies.cdx.json`。Android 依赖由 Gradle 锁定配置及构建产物元数据记录；容器基础镜像由 `supply-chain/build-manifest.json` 的不可变 digest 绑定。发布前应从实际归档重新生成 SBOM，并随包保存各依赖许可证文本；SBOM 中出现组件不表示其作者为鉴源盾背书。
+Android 创作者私钥封装直接使用 `com.google.crypto.tink:tink:1.7.0`（Tink Cryptography API，Google LLC），其 Maven POM 与上游项目声明 Apache License 2.0；发布包须保留相应版权与许可证文本。Python 直接和传递依赖的精确版本、包标识及完整集合记录在 `requirements.lock` 和 `supply-chain/python-dependencies.cdx.json`。其他 Android 依赖由 Gradle 锁定配置及构建产物元数据记录；容器基础镜像由 `supply-chain/build-manifest.json` 的不可变 digest 绑定。发布前应从实际归档重新生成 SBOM，并随包保存各依赖许可证文本；SBOM 中出现组件不表示其作者为鉴源盾背书。
 
 ## 本届作品贡献边界
 
 鉴源盾本届可由仓库实现和证据直接复核的增量包括：来源登记与核验协议、身份隔离评测协议、负控制与阈值标定、MEA 有向冲突实验及风险策略、内容寻址证据闭包、签名与 Claim-as-Code 门禁、跨端产品化和部署安全。LIDMark、KAD-Net、SepMark、WaveGuard、MEA 与 SimSwap 的底层算法、论文与既有成果归其相应作者和权利人所有；平台集成、适配或复现实验不改变该归属。
-
