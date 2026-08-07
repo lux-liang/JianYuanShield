@@ -991,11 +991,14 @@ def _release_evidence_files(
             or summary.get("seed") != protocol_seed
             or sample_count != FORMAL_SAMPLE_COUNTS[expected_method]
             or not isinstance(attack_metrics, dict)
-            or list(attack_metrics) != protocol_attacks
+            or len(attack_metrics) != len(protocol_attacks)
+            or set(attack_metrics) != set(protocol_attacks)
             or any(
                 not isinstance(attack_metrics.get(attack_id), dict)
                 or attack_metrics[attack_id].get("status") != "complete"
-                or attack_metrics[attack_id].get("count") != sample_count
+                or attack_metrics[attack_id].get(
+                    "count", attack_metrics[attack_id].get("row_count")
+                ) != sample_count
                 for attack_id in protocol_attacks
             )
         ):
