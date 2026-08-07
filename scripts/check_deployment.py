@@ -18,6 +18,27 @@ LOCAL_IMAGE_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 LOOPBACKS = frozenset({"127.0.0.1", "::1"})
 
 
+def _source_no_create_targets(path: Path) -> set[str]:
+    """Read explicit bind safeguards lost by some Compose config versions."""
+    targets: set[str] = set()
+    block: list[str] = []
+    for line in [*path.read_text(encoding="utf-8").splitlines(), "- end"]:
+        stripped = line.lstrip()
+        if stripped.startswith("- ") and block:
+            text = "\n".join(block)
+            target = re.search(r"^\s*target:\s*(\S+)\s*$", text, re.MULTILINE)
+            if (
+                re.search(r"^\s*- type:\s*bind\s*$", text, re.MULTILINE)
+                and target
+                and re.search(r"^\s*create_host_path:\s*false\s*$", text, re.MULTILINE)
+            ):
+                targets.add(target.group(1))
+            block = []
+        if stripped.startswith("- type:") or block:
+            block.append(line)
+    return targets
+
+
 def _render(path: Path, env: dict[str, str]) -> dict[str, Any]:
     try:
         completed = subprocess.run(
@@ -35,6 +56,14 @@ def _render(path: Path, env: dict[str, str]) -> dict[str, Any]:
         raise ValueError(f"unable to render {path.name}: {detail.strip()}") from exc
     if not isinstance(payload, dict):
         raise ValueError(f"rendered {path.name} is not an object")
+    # Compose releases before the current spec may omit create_host_path from
+    # normalized JSON. Preserve only safeguards explicitly present in source;
+    # a missing YAML declaration still fails the deployment contract.
+    source_targets = _source_no_create_targets(path)
+    for service in payload.get("services", {}).values():
+        for mount in service.get("volumes", []):
+            if mount.get("type") == "bind" and mount.get("target") in source_targets:
+                mount.setdefault("bind", {}).setdefault("create_host_path", False)
     return payload
 
 

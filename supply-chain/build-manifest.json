@@ -20,7 +20,7 @@
     }
   },
   "deployment": {
-    "checker_sha256": "f16fbdd0ef7be28a098cfa09b0a5c1ad29134c90185e073f44a9a06c9997ddce",
+    "checker_sha256": "3e712c5b109372ad7cc3400f84a660d9e3c11f01cb38d5343eeac855ce7c3844",
     "competition_compose_sha256": "297eb3f5d880707f1d920f3e0fec7cb4bc23496717322804f10ed54f9d8cfab0",
     "development_compose_sha256": "f9674803382e1de0954d84c4ea2361e7e40826a0a29ac2b568700110390a1c83",
     "gateway_sha256": "7ed5dbe9ad58e0638781c76a0140f16b4b140cc829d901f7551e418ff4bbab5a",
