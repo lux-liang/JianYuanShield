@@ -515,7 +515,7 @@ core 签名放行后依次生成协议审计、统计分析、四模型聚合和
 
 WaveGuard 正式基准同时记录 tracer 与 detector 的逐 bit 指标，但 success 仅由 tracer 决定。当前正式 runner 不把 detector 结果表述为经过负样本校准的存在性 ROC/FAR/FRR；此类结论必须另建带无水印、错误消息、跨样本负对照和 calibration/holdout 隔离的独立实验。
 
-KAD-Net 几何同步消融使用 `system/scripts/run_kadnet_geometry_sync_ablation.py`，属于独立 non-claim ablation，不回写主 benchmark，不用 ground-truth geometry 选择候选，也不替换协议主结果。
+KAD-Net 几何同步消融使用 `system/scripts/run_kadnet_geometry_sync_ablation.py`，属于独立 non-claim ablation。主 benchmark 与协议主结果保持独立，候选选择不读取 ground-truth geometry。
 
 HiDDeN 保持独立 diagnostic 轨道。MEA 多重嵌入只在各组成模型的单嵌真实 checkpoint 证据完整后运行；其 LFW 输入必须来自当前 processed tree，不再引用废弃路径。真实平台回传和真实换脸分别使用独立 manifest、attack ID、模型/参数哈希与身份隔离证明，不与 deterministic proxy 混写。
 
