@@ -7,15 +7,15 @@ import numpy as np
 from PIL import Image
 
 from .base import DecodeResult, EmbeddingResult, ModelAdapter
-from system.evaluation.runtime import MODEL_SOURCE_ROOT
+from system.evaluation.runtime import MODEL_SOURCE_ROOT, WEIGHT_ROOT
 
 _HIDDEN_CODE = MODEL_SOURCE_ROOT / "MEA/codes/HiDDeN"
-_HIDDEN_RUN = MODEL_SOURCE_ROOT / "MEA/codes/HiDDeN/runs/hidden_celeba_noise 2026.06.07--23-58-20"
+_HIDDEN_RUN = WEIGHT_ROOT / "mea/HiDDeN/runs/hidden_celeba_noise 2026.06.07--23-58-20"
 _OPTIONS_FILE = _HIDDEN_RUN / "options-and-config.pickle"
 _CHECKPOINT_FILE = _HIDDEN_RUN / "checkpoints" / "hidden_celeba_noise--epoch-300.pyt"
 
 # Fallback to old run if new checkpoint not available
-_OLD_RUN = Path(__file__).resolve().parents[3] / "weights/mea/HiDDeN/runs/train-test-1 2025.07.09--12-49-43"
+_OLD_RUN = WEIGHT_ROOT / "mea/HiDDeN/runs/train-test-1 2025.07.09--12-49-43"
 _OLD_CKPT = _OLD_RUN / "checkpoints" / "train-test-1--epoch-200.pyt"
 
 _ACTIVE_RUN = _HIDDEN_RUN if _OPTIONS_FILE.exists() else _OLD_RUN
@@ -84,7 +84,7 @@ class HiDDeNAdapter(ModelAdapter):
         device = torch.device(device_str if torch.cuda.is_available() else "cpu")
         train_options, hidden_config, noise_config = utils.load_options(str(_ACTIVE_OPTIONS))
         noiser = Noiser(noise_config, device)
-        checkpoint = torch.load(str(_ACTIVE_CKPT), map_location=device)
+        checkpoint = torch.load(str(_ACTIVE_CKPT), map_location=device, weights_only=True)
         net = Hidden(hidden_config, device, noiser, None)
         utils.model_from_checkpoint(net, checkpoint)
         net.encoder_decoder.eval()

@@ -5,6 +5,7 @@ import importlib
 import json
 import os
 import sys
+import tempfile
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
@@ -12,10 +13,13 @@ from pathlib import Path
 from typing import Any
 
 
-ROOT = Path(__file__).resolve().parents[1]
+SCRIPT_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(SCRIPT_PROJECT_ROOT))
+from system.evaluation.runtime import PROJECT_ROOT  # noqa: E402
 
-sys.path.insert(0, str(ROOT))
-os.environ.setdefault("MPLCONFIGDIR", "/tmp/matplotlib")
+
+ROOT = PROJECT_ROOT
+os.environ.setdefault("MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "jianyuanshield-matplotlib"))
 Path(os.environ["MPLCONFIGDIR"]).mkdir(parents=True, exist_ok=True)
 
 

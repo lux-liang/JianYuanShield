@@ -1,0 +1,78 @@
+name: lightweight-quality-gate
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      PYTHONPATH: .
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.11"
+
+      - name: Verify locked supply-chain artifacts
+        run: python scripts/supply_chain.py check
+
+      - name: Compile Python sources
+        run: python -m compileall -q system scripts tests
+
+      - name: Validate tracked JSON
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          for path in sorted(Path('.').rglob('*.json')):
+              if any(part in {'.git', 'build'} for part in path.parts):
+                  continue
+              json.loads(path.read_text(encoding='utf-8'))
+          PY
+
+      - name: Validate claim-as-code documentation
+        run: python scripts/check_documentation.py
+
+      - name: Run dependency-free protocol tests
+        run: python tests/test_protocol.py -v
+
+      - name: Run dependency-free evidence-audit tests
+        run: python tests/test_audit.py -v
+
+      - name: Run dependency supply-chain tests
+        run: |
+          python tests/test_supply_chain.py -v
+          python tests/test_deployment.py -v
+
+      - name: Check shell syntax
+        run: bash -n scripts/*.sh system/scripts/*.sh offline_deploy.sh
+
+      - name: Check browser and mini-program JavaScript
+        run: |
+          while IFS= read -r file; do node --check "$file"; done < <(
+            find system/frontend miniprogram -type f -name '*.js' -print
+          )
+          node miniprogram/scripts/check-trust-gate.js
+
+      - name: Validate Compose contract
+        run: python scripts/check_deployment.py
+
+      - name: Reject tracked credential material
+        run: |
+          if git grep -lE 'g[h]p_|github_[p]at_|^-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----'; then
+            echo 'Tracked credential-like material detected' >&2
+            exit 1
+          fi

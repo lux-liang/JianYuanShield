@@ -3,6 +3,10 @@ from __future__ import annotations
 import os
 import sys
 import threading
+import types
+import hashlib
+import hmac
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -12,16 +16,82 @@ import torch
 from PIL import Image
 from torchvision import transforms
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
-MODEL_SOURCE_ROOT = Path(os.environ.get("JYS_MODEL_SOURCE_ROOT",
-    "/data1/luxliang/work/vpsg_competition_candidates"))
+from system.evaluation.runtime import MODEL_SOURCE_ROOT, WEIGHT_ROOT
+from system.evaluation.attacks import apply_attack
 
 SEPMARK_CODE  = MODEL_SOURCE_ROOT / "MEA/codes/SepMark"
 WAVEGUARD_CODE = MODEL_SOURCE_ROOT / "MEA/codes/WaveGuard"
-SEPMARK_CKPT  = MODEL_SOURCE_ROOT / "weights/mea/SepMark/results/FullFineTuningWithOnlyMessage/models/EC_115.pth"
-WAVEGUARD_CKPT = Path("/data1/luxliang/work/vpsg_competition_candidates/runs/waveguard_jpeg_ft/model_state_7.pth")  # JPEG-finetuned ep7: Q50_err=0.0000
+SEPMARK_CKPT = (
+    WEIGHT_ROOT
+    / "MEA/models/SepMark/results/FullFineTuningWithOnlyMessage/models/EC_108.pth"
+)
+WAVEGUARD_CKPT = (
+    WEIGHT_ROOT
+    / "MEA/models/WaveGuard/exp_highpass/2025.07.24-20.10.50/model_state_16.pth"
+)
+LIDMARK_CKPT = WEIGHT_ROOT / "lidmark/lfw-id-s20260603-128/checkpoint_epoch_20.pth"
+KADNET_CKPT = WEIGHT_ROOT / "KAD-Net/ST/128/models/EC_100.pth"
+
+SEPMARK_CKPT_SHA256 = "433992186176483bd92341fd033cf3c2fa2682f159aea7fe4542c4a6b88b5e55"
+WAVEGUARD_CKPT_SHA256 = "cd093467a834cde47a0abed1d90a3ed62120092a2affcbcb1ed2f7d72b346377"
+LIDMARK_CKPT_SHA256 = "762369c8e4e881c8d72fde08ebaf7fea3fd7a26354aa344aed288cb780ad3436"
+KADNET_CKPT_SHA256 = "3b298493ae3510e73fc85a5fcae2f470d8e6892e9e058aa9cca3a0d8d35f5079"
 
 _lock = threading.Lock()
+
+
+@lru_cache(maxsize=16)
+def _checkpoint_digest(
+    path_text: str,
+    device: int,
+    inode: int,
+    size: int,
+    mtime_ns: int,
+    ctime_ns: int,
+) -> str:
+    """Hash one stable file identity and cache only status probes."""
+
+    del device, inode, size, mtime_ns, ctime_ns
+    digest = hashlib.sha256()
+    with Path(path_text).open("rb") as handle:
+        while chunk := handle.read(1024 * 1024):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _checkpoint_available(path: Path, expected_sha256: str) -> bool:
+    try:
+        stat = path.stat()
+        actual = _checkpoint_digest(
+            str(path.resolve()),
+            stat.st_dev,
+            stat.st_ino,
+            stat.st_size,
+            stat.st_mtime_ns,
+            stat.st_ctime_ns,
+        )
+    except OSError:
+        return False
+    return hmac.compare_digest(actual, expected_sha256)
+
+
+def _load_pinned_checkpoint(
+    path: Path,
+    expected_sha256: str,
+    *,
+    map_location: torch.device,
+) -> Any:
+    """Verify and deserialize the exact same open checkpoint handle."""
+
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        while chunk := handle.read(1024 * 1024):
+            digest.update(chunk)
+        actual = digest.hexdigest()
+        if not hmac.compare_digest(actual, expected_sha256):
+            raise RuntimeError(f"checkpoint SHA-256 mismatch: {path.name}")
+        handle.seek(0)
+        return torch.load(handle, map_location=map_location, weights_only=True)
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -40,97 +110,15 @@ def _to_uint8_rgb(tensor: torch.Tensor) -> np.ndarray:
 
 
 def _apply_attack_rgb(arr: np.ndarray, attack: str) -> np.ndarray:
-    """Apply a named attack to an RGB uint8 image. Returns RGB uint8."""
-    h, w = arr.shape[:2]
-
-    # ── JPEG compression ──────────────────────────────────────────────────────
-    if "jpeg" in attack:
-        quality = 50 if "50" in attack else (70 if "70" in attack else (90 if "90" in attack else 75))
-        ok, buf = cv2.imencode(".jpg", cv2.cvtColor(arr, cv2.COLOR_RGB2BGR),
-                               [int(cv2.IMWRITE_JPEG_QUALITY), quality])
-        if ok:
-            arr = cv2.cvtColor(cv2.imdecode(buf, cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
-
-    # ── WebP compression ──────────────────────────────────────────────────────
-    elif "webp" in attack:
-        quality = 50 if "50" in attack else (70 if "70" in attack else 75)
-        ok, buf = cv2.imencode(".webp", cv2.cvtColor(arr, cv2.COLOR_RGB2BGR),
-                               [int(cv2.IMWRITE_WEBP_QUALITY), quality])
-        if ok:
-            arr = cv2.cvtColor(cv2.imdecode(buf, cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
-
-    # ── Platform simulations ───────────────────────────────────────────────────
-    elif attack == "platform_wechat_v1":
-        # WeChat Moments: cap to 1080p long-edge, then JPEG Q=75
-        long = max(h, w)
-        if long > 1080:
-            scale = 1080.0 / long
-            arr = cv2.resize(arr, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
-        ok, buf = cv2.imencode(".jpg", cv2.cvtColor(arr, cv2.COLOR_RGB2BGR),
-                               [int(cv2.IMWRITE_JPEG_QUALITY), 75])
-        if ok:
-            arr = cv2.cvtColor(cv2.imdecode(buf, cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
-        arr = cv2.resize(arr, (w, h), interpolation=cv2.INTER_LINEAR)
-
-    elif attack == "platform_douyin_v1":
-        # Douyin cover: cap to 720p long-edge, then WebP Q=70
-        long = max(h, w)
-        if long > 720:
-            scale = 720.0 / long
-            arr = cv2.resize(arr, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
-        ok, buf = cv2.imencode(".webp", cv2.cvtColor(arr, cv2.COLOR_RGB2BGR),
-                               [int(cv2.IMWRITE_WEBP_QUALITY), 70])
-        if ok:
-            arr = cv2.cvtColor(cv2.imdecode(buf, cv2.IMREAD_COLOR), cv2.COLOR_BGR2RGB)
-        arr = cv2.resize(arr, (w, h), interpolation=cv2.INTER_LINEAR)
-
-    # ── Geometric attacks ─────────────────────────────────────────────────────
-    if "resize" in attack and "platform" not in attack:
-        small = cv2.resize(arr, (w // 2, h // 2), interpolation=cv2.INTER_AREA)
-        arr = cv2.resize(small, (w, h), interpolation=cv2.INTER_LINEAR)
-
-    if "crop" in attack:
-        # Center crop 80%, then resize back
-        cx, cy = w // 2, h // 2
-        cw, ch = int(w * 0.8), int(h * 0.8)
-        x1, y1 = cx - cw // 2, cy - ch // 2
-        cropped = arr[y1:y1 + ch, x1:x1 + cw]
-        arr = cv2.resize(cropped, (w, h), interpolation=cv2.INTER_LINEAR)
-
-    if "rotate" in attack:
-        angle = float(attack.replace("rotate_", "").replace("rotate", "5"))
-        M = cv2.getRotationMatrix2D((w / 2, h / 2), angle, 1.0)
-        arr = cv2.warpAffine(arr, M, (w, h), flags=cv2.INTER_LINEAR,
-                             borderMode=cv2.BORDER_REFLECT_101)
-
-    # ── Photometric attacks ───────────────────────────────────────────────────
-    if "blur" in attack:
-        arr = cv2.GaussianBlur(arr, (5, 5), 0)
-
-    if "noise" in attack:
-        rng = np.random.default_rng(42)
-        arr = np.clip(arr.astype(np.float32) + rng.normal(0, 3, arr.shape), 0, 255).astype(np.uint8)
-
-    if "brightness" in attack:
-        factor = float(attack.split("_")[-1]) if "_" in attack else 0.85
-        arr = np.clip(arr.astype(np.float32) * factor, 0, 255).astype(np.uint8)
-
-    if "contrast" in attack:
-        factor = float(attack.split("_")[-1]) if "_" in attack else 1.2
-        mean = arr.mean(axis=(0, 1), keepdims=True)
-        arr = np.clip((arr.astype(np.float32) - mean) * factor + mean, 0, 255).astype(np.uint8)
-
-    # ── Deepfake proxy (combined distortions mimicking face-swap artifacts) ───
-    if attack == "deepfake_proxy_v1":
-        # Simulate face-swap pipeline artifacts: resize round-trip + slight blur + color shift
-        small = cv2.resize(arr, (w // 2, h // 2), interpolation=cv2.INTER_AREA)
-        arr = cv2.resize(small, (w, h), interpolation=cv2.INTER_LINEAR)
-        arr = cv2.GaussianBlur(arr, (3, 3), 0)
-        rng = np.random.default_rng(0)
-        shift = rng.integers(-5, 6, (1, 1, 3), dtype=np.int16)
-        arr = np.clip(arr.astype(np.int16) + shift, 0, 255).astype(np.uint8)
-
-    return arr
+    """Apply the shared, protocol-versioned attack implementation."""
+    canonical = {
+        "resize": "resize_0.5x",
+        "noise": "gaussian_noise_sigma_3",
+        "blur": "gaussian_blur_5",
+    }.get(attack, attack)
+    image_id = hashlib.sha256(arr.tobytes()).hexdigest()
+    attacked, _metadata = apply_attack(arr, canonical, image_id=image_id)
+    return attacked
 
 
 def _bit_error(msg: torch.Tensor, decoded: torch.Tensor) -> float:
@@ -157,7 +145,7 @@ class SepMarkAdapter:
 
     def __init__(self) -> None:
         import os as _os
-        _device_str = _os.environ.get("JYS_INFER_DEVICE", "cuda:2")
+        _device_str = _os.environ.get("JYS_INFER_DEVICE", "cuda:0")
         self.device = torch.device(_device_str if torch.cuda.is_available() else "cpu")
         import importlib.util as _ilu, types as _types
         # Register SepMark network as sm_network package to isolate from WaveGuard network
@@ -185,14 +173,18 @@ class SepMarkAdapter:
         enc = DW_Encoder(self.MSG_LEN, attention="se").to(self.device)
         dec_c = DW_Decoder(self.MSG_LEN, attention="se").to(self.device)
         dec_rf = DW_Decoder(self.MSG_LEN, attention="se").to(self.device)
-        state = torch.load(SEPMARK_CKPT, map_location=self.device)
+        state = _load_pinned_checkpoint(
+            SEPMARK_CKPT,
+            SEPMARK_CKPT_SHA256,
+            map_location=self.device,
+        )
 
         def strip(prefix: str) -> dict:
             return {k[len(prefix):]: v for k, v in state.items() if k.startswith(prefix)}
 
-        enc.load_state_dict(strip("encoder."), strict=False)
-        dec_c.load_state_dict(strip("decoder_C."), strict=False)
-        dec_rf.load_state_dict(strip("decoder_RF."), strict=False)
+        enc.load_state_dict(strip("encoder."), strict=True)
+        dec_c.load_state_dict(strip("decoder_C."), strict=True)
+        dec_rf.load_state_dict(strip("decoder_RF."), strict=True)
         self.encoder = enc.eval()
         self.decoder_c = dec_c.eval()
         self.decoder_rf = dec_rf.eval()
@@ -206,7 +198,7 @@ class SepMarkAdapter:
 
     @classmethod
     def available(cls) -> bool:
-        return SEPMARK_CKPT.exists()
+        return _checkpoint_available(SEPMARK_CKPT, SEPMARK_CKPT_SHA256)
 
     def run(self, image_rgb: np.ndarray, attack: str = "clean") -> dict[str, Any]:
         img = Image.fromarray(image_rgb).convert("RGB").resize(
@@ -241,9 +233,11 @@ class SepMarkAdapter:
             "bit_accuracy_c": round(1 - ber_c, 4),
             "ber_rf": round(ber_rf, 4),
             "bit_accuracy_rf": round(1 - ber_rf, 4),
+            "primary_decoder": "decoder_C",
+            "secondary_decoder": "decoder_RF",
             "psnr": round(psnr, 4),
             "ssim": round(ssim, 4),
-            "success": bool((1 - ber_c) >= 0.9 or (1 - ber_rf) >= 0.9),
+            "success": bool((1 - ber_c) >= 0.9),
             "images": {
                 "original": original_u8,
                 "watermarked": encoded_u8,
@@ -262,7 +256,7 @@ class WaveGuardAdapter:
     IMG_SIZE = 256
 
     def __init__(self) -> None:
-        _device_str = os.environ.get("JYS_INFER_DEVICE", "cuda:2")
+        _device_str = os.environ.get("JYS_INFER_DEVICE", "cuda:0")
         self.device = torch.device(_device_str if torch.cuda.is_available() else "cpu")
         old_cwd = Path.cwd()
         try:
@@ -290,14 +284,18 @@ class WaveGuardAdapter:
         enc = Encoder().to(self.device).eval()
         dec_t = Decoder(type="tracer").to(self.device).eval()
         dec_d = Decoder(type="detector").to(self.device).eval()
-        state = torch.load(WAVEGUARD_CKPT, map_location=self.device)
+        state = _load_pinned_checkpoint(
+            WAVEGUARD_CKPT,
+            WAVEGUARD_CKPT_SHA256,
+            map_location=self.device,
+        )
 
         def strip(prefix: str) -> dict:
             return {k[len(prefix):]: v for k, v in state.items() if k.startswith(prefix)}
 
-        enc.load_state_dict(strip("encoder."), strict=False)
-        dec_t.load_state_dict(strip("decoder_t."), strict=False)
-        dec_d.load_state_dict(strip("decoder_d."), strict=False)
+        enc.load_state_dict(strip("encoder."), strict=True)
+        dec_t.load_state_dict(strip("decoder_t."), strict=True)
+        dec_d.load_state_dict(strip("decoder_d."), strict=True)
         self.encoder = enc
         self.decoder_t = dec_t
         self.decoder_d = dec_d
@@ -311,7 +309,7 @@ class WaveGuardAdapter:
 
     @classmethod
     def available(cls) -> bool:
-        return WAVEGUARD_CKPT.exists()
+        return _checkpoint_available(WAVEGUARD_CKPT, WAVEGUARD_CKPT_SHA256)
 
     def _rgb_to_yuv_tensor(self, rgb: np.ndarray) -> torch.Tensor:
         yuv = cv2.cvtColor(rgb.astype(np.uint8), cv2.COLOR_RGB2YUV).astype(np.float32)
@@ -368,7 +366,7 @@ class WaveGuardAdapter:
             "bit_accuracy_detector": round(1 - ber_d, 4),
             "psnr": round(psnr, 4),
             "ssim": round(ssim, 4),
-            "success": bool((1 - ber_t) >= 0.9 or (1 - ber_d) >= 0.9),
+            "success": bool((1 - ber_t) >= 0.9),
             "images": {
                 "original": original_u8,
                 "watermarked": watermarked_u8,
@@ -390,7 +388,7 @@ class LIDMarkAdapter:
     def __init__(self, ckpt_path: Path) -> None:
         import os as _os, sys as _sys
         self._ckpt_path = ckpt_path
-        device_str = _os.environ.get("JYS_INFER_DEVICE", "cuda:2")
+        device_str = _os.environ.get("JYS_INFER_DEVICE", "cuda:0")
         self.device = torch.device(device_str if torch.cuda.is_available() else "cpu")
         lidmark_code = MODEL_SOURCE_ROOT / "LIDMark"
         if str(lidmark_code) not in _sys.path:
@@ -410,19 +408,20 @@ class LIDMarkAdapter:
             cfg.decoder_channels, cfg.decoder_blocks, cfg.watermark_length,
             self.device, ["Identity()"],
         ).to(self.device)
-        state = torch.load(str(ckpt_path), map_location=self.device, weights_only=False)
-        self.model.load_state_dict(state["model_state_dict"], strict=False)
+        state = _load_pinned_checkpoint(
+            ckpt_path,
+            LIDMARK_CKPT_SHA256,
+            map_location=self.device,
+        )
+        self.model.load_state_dict(state["model_state_dict"], strict=True)
         self.model.eval()
         self.wm_length = cfg.watermark_length  # 152
 
     @classmethod
     def _find_ckpt(cls) -> "Path | None":
-        candidates = [
-            MODEL_SOURCE_ROOT / "runs/lidmark/seed_checkpoints/s3/checkpoint_epoch_100.pth",
-            MODEL_SOURCE_ROOT / "runs/lidmark/seed_checkpoints/s1/checkpoint_epoch_100.pth",
-            MODEL_SOURCE_ROOT / "runs/lidmark/seed_checkpoints/s2/checkpoint_epoch_100.pth",
-        ]
-        return next((p for p in candidates if p.exists()), None)
+        if _checkpoint_available(LIDMARK_CKPT, LIDMARK_CKPT_SHA256):
+            return LIDMARK_CKPT
+        return None
 
     @classmethod
     def get(cls) -> "LIDMarkAdapter | None":
@@ -512,12 +511,11 @@ class KADNetAdapter:
     _instance: "KADNetAdapter | None" = None
     MSG_LEN = 30
     IMG_SIZE = 128
-    _RUNS = Path("/data1/luxliang/work/vpsg_competition_candidates/runs/kadnet/results/ST/128")
-    _CODE = Path("/data1/luxliang/work/vpsg_competition_candidates/KAD-Net")
+    _CODE = MODEL_SOURCE_ROOT / "KAD-Net"
 
     def __init__(self, ckpt_path: Path, attn_enc: "str | None", attn_dec: "str | None") -> None:
         import os as _os, sys as _sys
-        device_str = _os.environ.get("JYS_INFER_DEVICE", "cuda:2")
+        device_str = _os.environ.get("JYS_INFER_DEVICE", "cuda:0")
         self.device = torch.device(device_str if torch.cuda.is_available() else "cpu")
         # Clear stale network modules (KAD-Net conflicts with SepMark/WaveGuard 'network' pkg)
         for _mod in list(_sys.modules.keys()):
@@ -526,10 +524,31 @@ class KADNetAdapter:
         kn_str = str(self._CODE)
         if kn_str not in _sys.path:
             _sys.path.insert(0, kn_str)
+        # The official encoder imports Random_Noise, but checkpoint inference
+        # never invokes it. Avoid pulling unpinned deepfake toolchains into the
+        # production API process merely to construct the released ST model.
+        import torch.nn as nn
+        import network
+
+        random_noise_stub = types.ModuleType("network.Random_Noise")
+
+        class RandomNoise(nn.Module):
+            def __init__(self, *_args, **_kwargs) -> None:
+                super().__init__()
+
+            def forward(self, values):
+                return values[0], values[0], values[0]
+
+        random_noise_stub.Random_Noise = RandomNoise
+        _sys.modules["network.Random_Noise"] = random_noise_stub
         from network.ST_EncoderDecoder import ST_Encoder, ST_Decoder
         encoder = ST_Encoder(self.MSG_LEN, attention=attn_enc).to(self.device)
         decoder = ST_Decoder(self.MSG_LEN, attention=attn_dec).to(self.device)
-        state = torch.load(str(ckpt_path), map_location=self.device, weights_only=False)
+        state = _load_pinned_checkpoint(
+            ckpt_path,
+            KADNET_CKPT_SHA256,
+            map_location=self.device,
+        )
         enc_s = {k[len("encoder."):]: v for k, v in state.items() if k.startswith("encoder.")}
         dec_s = {k[len("decoder_C."):]: v for k, v in state.items() if k.startswith("decoder_C.")}
         encoder.load_state_dict(enc_s, strict=True)
@@ -541,19 +560,8 @@ class KADNetAdapter:
 
     @classmethod
     def _find_ckpt(cls) -> "tuple[Path, str | None, str | None] | tuple[None, None, None]":
-        if not cls._RUNS.exists():
-            return None, None, None
-        runs = sorted([d for d in cls._RUNS.iterdir() if d.is_dir()])
-        for run in reversed(runs):
-            ckpts = sorted((run / "models").glob("EC_*.pth"),
-                           key=lambda p: int(p.stem.split("_")[-1]))
-            if ckpts:
-                parts = run.name.split("_")
-                if "GEOM" in parts:
-                    return ckpts[-1], "se", "se"
-                ae = parts[8] if len(parts) > 8 and parts[8] not in ("none", "") else None
-                ad = parts[9] if len(parts) > 9 and parts[9] not in ("none", "") else None
-                return ckpts[-1], ae, ad
+        if _checkpoint_available(KADNET_CKPT, KADNET_CKPT_SHA256):
+            return KADNET_CKPT, "se", "se"
         return None, None, None
 
     @classmethod

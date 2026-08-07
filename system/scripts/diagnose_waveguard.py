@@ -98,7 +98,7 @@ def main() -> int:
     encoder = Encoder().to(device).eval()
     decoder_t = Decoder(type="tracer").to(device).eval()
     decoder_d = Decoder(type="detector").to(device).eval()
-    state = torch.load(args.checkpoint, map_location=device)
+    state = torch.load(args.checkpoint, map_location=device, weights_only=True)
     load_summary: dict[str, Any] = {}
     for prefix, model in [("encoder.", encoder), ("decoder_t.", decoder_t), ("decoder_d.", decoder_d)]:
         sub = {key[len(prefix):]: value for key, value in state.items() if key.startswith(prefix)}

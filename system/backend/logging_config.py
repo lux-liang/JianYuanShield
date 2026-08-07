@@ -4,11 +4,11 @@ import logging
 import sys
 from logging.handlers import RotatingFileHandler
 
-from .config import ROOT
+from .config import REPORTS
 from .settings import settings
 
 
-LOG_DIR = ROOT / "logs"
+LOG_DIR = REPORTS / "_logs"
 LOG_FILE = LOG_DIR / "backend.log"
 LOGGER_NAME = "jianyuanshield.backend"
 

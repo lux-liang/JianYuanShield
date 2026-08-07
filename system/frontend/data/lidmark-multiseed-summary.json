@@ -1,0 +1,104 @@
+{
+  "aggregate": {
+    "g_loss": {
+      "max": 0.1340375565149993,
+      "mean": 0.12791863841952872,
+      "min": 0.11779710911551991,
+      "population_stddev": 0.0060151917274666586
+    },
+    "id_ber": {
+      "max": 9.441087613293051e-05,
+      "mean": 2.8323262839879157e-05,
+      "min": 0.0,
+      "population_stddev": 3.7764350453172205e-05
+    },
+    "landmark_aed": {
+      "max": 1.292799274366788,
+      "mean": 1.2380715120234878,
+      "min": 1.1630190293954579,
+      "population_stddev": 0.042773264131956555
+    },
+    "psnr": {
+      "max": 34.39062175001623,
+      "mean": 33.16596544847748,
+      "min": 32.029243054346736,
+      "population_stddev": 0.7926665843664136
+    }
+  },
+  "all_selected_checkpoints_verified": true,
+  "completed_run_count": 5,
+  "evidence_sha256": "4f8e31c19b21d963fee2a28194b567f3e8e3921e33be0e080f6255c07495bddd",
+  "identity_bit_accuracy": {
+    "mean": 0.9999716767371601,
+    "zero_ber_run_count": 3
+  },
+  "runs": [
+    {
+      "checkpoint_sha256": "4ba7887401331204556dfa375d015662954708d2b17e2a6ac69eb9d5c238e095",
+      "checkpoint_size_bytes": 71130573,
+      "epoch": 97,
+      "run_id": "lidmark-lfw-id-s20260807-128-e100",
+      "selection_sha256": "aee71f36b8adfcfc1882fb4116e6fdf4de088304d663c085baae1d360c294da8",
+      "val": {
+        "g_loss": 0.1340375565149993,
+        "id_ber": 9.441087613293051e-05,
+        "landmark_aed": 1.2597111016962104,
+        "psnr": 32.984156974492834
+      }
+    },
+    {
+      "checkpoint_sha256": "560e637908d312e7dbf7c34883be6b8d22927027ee74a74f21e43543cb9cd965",
+      "checkpoint_size_bytes": 71130573,
+      "epoch": 81,
+      "run_id": "lidmark-lfw-id-s20260808-128-e100",
+      "selection_sha256": "aef796fa7cdafae33c221e539e795b4bb67ed5d5d7d502ad76a49faed289821c",
+      "val": {
+        "g_loss": 0.13263578249248492,
+        "id_ber": 0.0,
+        "landmark_aed": 1.292799274366788,
+        "psnr": 32.029243054346736
+      }
+    },
+    {
+      "checkpoint_sha256": "41307908d40356808c3c11a77c75622d02cf60703f11642ce40772fe91cbe796",
+      "checkpoint_size_bytes": 71130573,
+      "epoch": 87,
+      "run_id": "lidmark-lfw-id-s20260809-128-e100",
+      "selection_sha256": "55e337a3b32221ccdf659a4285508d5949bb3dd0cb1ae46c18a191ee2fc3404b",
+      "val": {
+        "g_loss": 0.12451839510047544,
+        "id_ber": 0.0,
+        "landmark_aed": 1.2323831121727058,
+        "psnr": 32.81779504182476
+      }
+    },
+    {
+      "checkpoint_sha256": "dd1d5aadb3ef132c5894185b5a72e6ad6affdf4693b4c93a26596140f2d3ad12",
+      "checkpoint_size_bytes": 71131704,
+      "epoch": 100,
+      "run_id": "lidmark-lfw-id-s20260812-128-e100",
+      "selection_sha256": "6d615face73506e46e2da580ccbcc9d18df54a98590ef63af4bf137aaba8e855",
+      "val": {
+        "g_loss": 0.13060434887416414,
+        "id_ber": 0.0,
+        "landmark_aed": 1.2424450424862772,
+        "psnr": 33.60801042170683
+      }
+    },
+    {
+      "checkpoint_sha256": "0b6201ad2b268229ed4ee1055f5fb79f434f3a922824f196fcea8c912103c3ec",
+      "checkpoint_size_bytes": 71130573,
+      "epoch": 93,
+      "run_id": "lidmark-lfw-id-s20260813-128-e100",
+      "selection_sha256": "5743485ea0975edbc368b57e0be3cf8a7d7f2279bf0098dfbd6446ca48a4daad",
+      "val": {
+        "g_loss": 0.11779710911551991,
+        "id_ber": 4.720543806646526e-05,
+        "landmark_aed": 1.1630190293954579,
+        "psnr": 34.39062175001623
+      }
+    }
+  ],
+  "schema_version": "jys.lidmark.multiseed-summary.v1",
+  "status": "complete"
+}

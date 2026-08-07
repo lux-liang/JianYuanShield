@@ -1,46 +1,47 @@
 """KAD-Net (ST branch) MEA adapter.
 
 Message: 30-bit watermark (ST_KAD_Net_128_30_... configuration).
-Checkpoint: EC_*.pth from the latest ST training run.
+Checkpoint: the official released ST/128 epoch-100 checkpoint.
 """
 from __future__ import annotations
 
 import sys
+import types
 import numpy as np
 from pathlib import Path
 from PIL import Image
 
 from .base import DecodeResult, EmbeddingResult, ModelAdapter
+from system.evaluation.runtime import MODEL_SOURCE_ROOT, WEIGHT_ROOT
 
-KADNET_CODE = Path("/data1/luxliang/work/vpsg_competition_candidates/KAD-Net")
-KADNET_RUNS = Path("/data1/luxliang/work/vpsg_competition_candidates/runs/kadnet/results/ST/128")
+KADNET_CODE = MODEL_SOURCE_ROOT / "KAD-Net"
+KADNET_CHECKPOINT = WEIGHT_ROOT / "KAD-Net/ST/128/models/EC_100.pth"
+KADNET_CHECKPOINT_SHA256 = (
+    "3b298493ae3510e73fc85a5fcae2f470d8e6892e9e058aa9cca3a0d8d35f5079"
+)
 IMG_SIZE = 128
 MSG_LEN = 30
 
 
-def _latest_run_and_ckpt() -> tuple[Path, Path] | tuple[None, None]:
-    runs = sorted([d for d in KADNET_RUNS.iterdir() if d.is_dir()])
-    for run in reversed(runs):
-        model_dir = run / "models"
-        ckpts = sorted(model_dir.glob("EC_*.pth"),
-                       key=lambda p: int(p.stem.split("_")[-1]))
-        if ckpts:
-            return run, ckpts[-1]
-    return None, None
+def _selected_run_and_checkpoint() -> tuple[Path, Path] | tuple[None, None]:
+    """Return the official epoch-100 checkpoint; never auto-select a newer file."""
+
+    if not KADNET_CHECKPOINT.is_file():
+        return None, None
+    return KADNET_CHECKPOINT.parent.parent, KADNET_CHECKPOINT
 
 
 class KADNetAdapter(ModelAdapter):
     name = "KAD-Net"
     message_length = MSG_LEN
-
-    @property
-    def checkpoint(self) -> str | None:
-        _, ckpt = _latest_run_and_ckpt()
-        return str(ckpt) if ckpt else None
+    checkpoint = str(KADNET_CHECKPOINT)
+    expected_checkpoint_sha256 = KADNET_CHECKPOINT_SHA256
+    checkpoint_selection = "official_released_epoch100"
+    primary_decoder = "ST_Decoder_C"
 
     @property
     def available(self) -> bool:
-        _, ckpt = _latest_run_and_ckpt()
+        _, ckpt = _selected_run_and_checkpoint()
         return ckpt is not None
 
     @property
@@ -52,7 +53,7 @@ class KADNetAdapter(ModelAdapter):
             return
         import torch
 
-        run_dir, ckpt_path = _latest_run_and_ckpt()
+        _run_dir, ckpt_path = _selected_run_and_checkpoint()
         if ckpt_path is None:
             raise RuntimeError("No KAD-Net checkpoint found")
 
@@ -66,13 +67,31 @@ class KADNetAdapter(ModelAdapter):
             if mod in ("network", "config") or mod.startswith("network."):
                 del sys.modules[mod]
 
+        # The official inference core imports Random_Noise even though encode
+        # and decode never call it. Its transitive optional deepfake packages
+        # are not part of the released checkpoint, so expose only the inert
+        # class required to import the checkpoint-backed core.
+        import torch.nn as nn
+        import network
+
+        random_noise_stub = types.ModuleType("network.Random_Noise")
+
+        class RandomNoise(nn.Module):
+            def __init__(self, *_args, **_kwargs) -> None:
+                super().__init__()
+
+            def forward(self, values):
+                return values[0], values[0], values[0]
+
+        random_noise_stub.Random_Noise = RandomNoise
+        sys.modules["network.Random_Noise"] = random_noise_stub
         from network.ST_EncoderDecoder import ST_Encoder, ST_Decoder
 
         import os as _os
-        _dev_str = _os.environ.get("JYS_INFER_DEVICE", "cuda:2")
+        _dev_str = _os.environ.get("JYS_INFER_DEVICE", "cuda:0")
         self._device = torch.device(_dev_str if torch.cuda.is_available() else "cpu")
 
-        state = torch.load(str(ckpt_path), map_location=self._device, weights_only=False)
+        state = torch.load(str(ckpt_path), map_location=self._device, weights_only=True)
         enc_state = {k[len("encoder."):]: v for k, v in state.items() if k.startswith("encoder.")}
         dec_state = {k[len("decoder_C."):]: v for k, v in state.items() if k.startswith("decoder_C.")}
 
@@ -147,5 +166,8 @@ class KADNetAdapter(ModelAdapter):
 
         return DecodeResult(
             bits=bits,
-            metadata={"decoder": "ST_Decoder_C"},
+            metadata={
+                "decoder": self.primary_decoder,
+                "primary_decoder": self.primary_decoder,
+            },
         )

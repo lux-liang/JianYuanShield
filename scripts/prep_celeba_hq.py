@@ -1,132 +1,174 @@
 #!/usr/bin/env python3
-"""Prepare CelebA-HQ images for LIDMark (jpg/index) and KAD-Net (png/00000 format)."""
+"""Prepare CelebA-HQ images for LIDMark and KAD-Net."""
 from __future__ import annotations
 
+import argparse
+import shutil
 import sys
 from pathlib import Path
-from PIL import Image
+
+SCRIPT_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(SCRIPT_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_PROJECT_ROOT))
+
+from system.evaluation.runtime import DATA_ROOT, MODEL_SOURCE_ROOT  # noqa: E402
 
 
-LIDMARK_WM = Path('/data1/luxliang/work/vpsg_competition_candidates/datasets/lidmark_official/watermark_152/celeba-hq/128')
-LIDMARK_IMG = Path('/data1/luxliang/work/vpsg_competition_candidates/datasets/lidmark_official/image/celeba-hq_128')
-KADNET_DIR = Path('/data1/luxliang/work/vpsg_competition_candidates/KAD-Net')
-KADNET_DATASET = Path('/data1/luxliang/work/vpsg_competition_candidates/datasets/celeba_hq_kadnet')
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "extract_dir",
+        nargs="?",
+        type=Path,
+        default=DATA_ROOT / ".staging" / "celeba_hq_extract",
+    )
+    parser.add_argument("size", nargs="?", type=int, default=128)
+    parser.add_argument(
+        "--lidmark-watermark-root",
+        type=Path,
+        default=DATA_ROOT / "lidmark_official" / "watermark_152" / "celeba-hq" / "128",
+    )
+    parser.add_argument(
+        "--lidmark-image-root",
+        type=Path,
+        default=DATA_ROOT / "lidmark_official" / "image" / "celeba-hq_128",
+    )
+    parser.add_argument("--kadnet-model-dir", type=Path, default=MODEL_SOURCE_ROOT / "KAD-Net")
+    parser.add_argument("--kadnet-dataset-root", type=Path, default=DATA_ROOT / "celeba_hq_kadnet")
+    return parser.parse_args()
 
 
 def find_image_source(extract_dir: Path) -> tuple[Path, Path | None]:
-    """Returns (img_dir, attr_anno_path)."""
-    img_dir = None
-    for cand in ['CelebA-HQ-img', 'images', 'img']:
-        d = extract_dir / cand
-        if d.is_dir() and any(d.glob('*.jpg')):
-            img_dir = d
+    """Return the source image directory and optional attribute annotation."""
+    image_dir: Path | None = None
+    for candidate in ("CelebA-HQ-img", "images", "img"):
+        directory = extract_dir / candidate
+        if directory.is_dir() and any(directory.glob("*.jpg")):
+            image_dir = directory
             break
-    if img_dir is None:
-        for p in extract_dir.rglob('*.jpg'):
-            img_dir = p.parent
+    if image_dir is None:
+        first_image = next(extract_dir.rglob("*.jpg"), None)
+        image_dir = first_image.parent if first_image else None
+    if image_dir is None:
+        raise FileNotFoundError(f"No .jpg images found under {extract_dir}")
+
+    annotation = None
+    for candidate in ("CelebAMask-HQ-attribute-anno.txt", "list_attr_celeba.txt"):
+        annotation = next(extract_dir.rglob(candidate), None)
+        if annotation:
             break
-    if img_dir is None:
-        raise FileNotFoundError(f'No .jpg images found under {extract_dir}')
-    
-    # Look for attribute annotation
-    anno = None
-    for cand_name in ['CelebAMask-HQ-attribute-anno.txt', 'list_attr_celeba.txt']:
-        for p in extract_dir.rglob(cand_name):
-            anno = p
-            break
-    return img_dir, anno
+    return image_dir, annotation
 
 
-def prepare_lidmark(src_dir: Path, size: int = 128) -> None:
-    """LIDMark: {idx}.jpg in train/val/test matching watermark npy stems."""
-    print(f'\n--- Preparing LIDMark images (size={size}) ---')
-    for split in ['train', 'val', 'test']:
-        wm_dir = LIDMARK_WM / split
-        out_dir = LIDMARK_IMG / split
-        out_dir.mkdir(parents=True, exist_ok=True)
-        indices = [p.stem for p in wm_dir.glob('*.npy')]
-        ok = skipped = missing = 0
-        for idx in indices:
-            dst = out_dir / f'{idx}.jpg'
-            if dst.exists():
+def prepare_lidmark(
+    source_dir: Path,
+    watermark_root: Path,
+    image_root: Path,
+    size: int,
+) -> None:
+    """Write ``{index}.jpg`` files matching the watermark split manifests."""
+    from PIL import Image
+
+    print(f"\n--- Preparing LIDMark images (size={size}) ---")
+    for split in ("train", "val", "test"):
+        watermark_dir = watermark_root / split
+        output_dir = image_root / split
+        output_dir.mkdir(parents=True, exist_ok=True)
+        indices = [path.stem for path in watermark_dir.glob("*.npy")]
+        created = skipped = missing = 0
+        for index in indices:
+            destination = output_dir / f"{index}.jpg"
+            if destination.exists():
                 skipped += 1
                 continue
-            src = src_dir / f'{idx}.jpg'
-            if not src.exists():
+            source = source_dir / f"{index}.jpg"
+            if not source.is_file():
                 missing += 1
                 continue
-            img = Image.open(src).convert('RGB')
-            img = img.resize((size, size), Image.BICUBIC)
-            img.save(dst, 'JPEG', quality=95)
-            ok += 1
-        print(f'  {split}: resized={ok} skipped={skipped} missing={missing}')
+            with Image.open(source) as image:
+                image.convert("RGB").resize((size, size), Image.Resampling.BICUBIC).save(
+                    destination,
+                    "JPEG",
+                    quality=95,
+                )
+            created += 1
+        print(f"  {split}: resized={created} skipped={skipped} missing={missing}")
 
 
-def prepare_kadnet(src_dir: Path, anno_path: Path | None, size: int = 128) -> None:
-    """KAD-Net: {00000}.png in train_{size}/ and val_{size}/."""
-    print(f'\n--- Preparing KAD-Net images (size={size}) ---')
-    # Train: 0-24178 (indices matching LIDMark train), Val: 24179-27171
-    train_out = KADNET_DATASET / f'train_{size}'
-    val_out = KADNET_DATASET / f'val_{size}'
-    train_out.mkdir(parents=True, exist_ok=True)
-    val_out.mkdir(parents=True, exist_ok=True)
+def prepare_kadnet(
+    source_dir: Path,
+    annotation_path: Path | None,
+    model_dir: Path,
+    dataset_root: Path,
+    size: int,
+) -> None:
+    """Write zero-padded PNG files into KAD-Net train and validation splits."""
+    from PIL import Image
 
-    all_imgs = sorted(src_dir.glob('*.jpg'), key=lambda p: int(p.stem))
-    print(f'  Total source images: {len(all_imgs)}')
-    
-    train_count = val_count = missing = 0
-    for src in all_imgs:
-        idx = int(src.stem)
-        padded = str(idx).zfill(5)
-        if idx < 24179:
-            dst = train_out / f'{padded}.png'
-        elif idx < 27172:
-            dst = val_out / f'{padded}.png'
+    print(f"\n--- Preparing KAD-Net images (size={size}) ---")
+    train_output = dataset_root / f"train_{size}"
+    validation_output = dataset_root / f"val_{size}"
+    train_output.mkdir(parents=True, exist_ok=True)
+    validation_output.mkdir(parents=True, exist_ok=True)
+
+    source_images = sorted(source_dir.glob("*.jpg"), key=lambda path: int(path.stem))
+    print(f"  Total source images: {len(source_images)}")
+    train_count = validation_count = 0
+    for source in source_images:
+        index = int(source.stem)
+        if index < 24179:
+            destination = train_output / f"{index:05d}.png"
+        elif index < 27172:
+            destination = validation_output / f"{index:05d}.png"
         else:
-            continue  # test images not needed for KAD-Net training
-
-        if dst.exists():
             continue
-        img = Image.open(src).convert('RGB')
-        img = img.resize((size, size), Image.BICUBIC)
-        img.save(dst, 'PNG')
-        if idx < 24179:
+        if destination.exists():
+            continue
+        with Image.open(source) as image:
+            image.convert("RGB").resize((size, size), Image.Resampling.BICUBIC).save(destination, "PNG")
+        if index < 24179:
             train_count += 1
         else:
-            val_count += 1
+            validation_count += 1
 
-    print(f'  train_{size}: {train_count} new images')
-    print(f'  val_{size}: {val_count} new images')
-
-    # Copy attribute annotation file
-    anno_dst = KADNET_DIR / 'network/noise_layers/stargan/CelebAMask-HQ-attribute-anno.txt'
-    if anno_path and anno_path.exists() and not anno_dst.exists():
-        anno_dst.parent.mkdir(parents=True, exist_ok=True)
-        import shutil
-        shutil.copy(anno_path, anno_dst)
-        print(f'  Copied attribute annotation to {anno_dst}')
-    elif not anno_path:
-        print(f'  WARNING: No attribute annotation file found in zip.')
-        print(f'  KAD-Net needs: {anno_dst}')
+    print(f"  train_{size}: {train_count} new images")
+    print(f"  val_{size}: {validation_count} new images")
+    annotation_destination = (
+        model_dir / "network" / "noise_layers" / "stargan" / "CelebAMask-HQ-attribute-anno.txt"
+    )
+    if annotation_path and annotation_path.is_file() and not annotation_destination.exists():
+        annotation_destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(annotation_path, annotation_destination)
+        print(f"  Copied attribute annotation to {annotation_destination}")
+    elif not annotation_path:
+        print(f"  WARNING: no attribute annotation found; KAD-Net expects {annotation_destination}")
 
 
 def main() -> None:
-    extract_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path('/tmp/celeba_hq_extract')
-    size = int(sys.argv[2]) if len(sys.argv) > 2 else 128
+    args = parse_args()
+    if args.size <= 0:
+        raise SystemExit("size must be positive")
+    extract_dir = args.extract_dir.expanduser().resolve()
+    print(f"Finding images in {extract_dir} ...")
+    source_dir, annotation_path = find_image_source(extract_dir)
+    print(f"Source: {source_dir} ({sum(1 for _ in source_dir.glob('*.jpg'))} jpg files)")
+    print(f"Attribute annotation: {annotation_path}")
 
-    print(f'Finding images in {extract_dir} ...')
-    src_dir, anno_path = find_image_source(extract_dir)
-    total = sum(1 for _ in src_dir.glob('*.jpg'))
-    print(f'Source: {src_dir} ({total} jpg files)')
-    print(f'Attribute anno: {anno_path}')
+    prepare_lidmark(
+        source_dir,
+        args.lidmark_watermark_root.expanduser().resolve(),
+        args.lidmark_image_root.expanduser().resolve(),
+        args.size,
+    )
+    prepare_kadnet(
+        source_dir,
+        annotation_path,
+        args.kadnet_model_dir.expanduser().resolve(),
+        args.kadnet_dataset_root.expanduser().resolve(),
+        args.size,
+    )
+    print("\nDone. Training launchers remain separate and must be invoked explicitly.")
 
-    prepare_lidmark(src_dir, size)
-    prepare_kadnet(src_dir, anno_path, size)
 
-    print('\nDone. Next steps:')
-    print('  python3 scripts/launch_lidmark_training.py "2, 3" 20260603')
-    print('  python3 scripts/launch_kadnet_training.py "4" 42')
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

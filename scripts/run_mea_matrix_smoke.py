@@ -8,13 +8,13 @@ PROJECT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT))
 
 from system.evaluation.adapters import get_available_adapters, evaluate_double_embedding
-from system.evaluation.runtime import PROJECT_ROOT
+from system.evaluation.runtime import DATA_ROOT, REPORT_ROOT
 import numpy as np
 from PIL import Image
 
 SMOKE_N   = 16
-REPORT    = PROJECT_ROOT / 'system/reports/multi_embedding_matrix'
-IMG_ROOT  = PROJECT_ROOT / 'datasets/lfw_full_upload/unknown'
+REPORT    = REPORT_ROOT / 'multi_embedding_matrix'
+IMG_ROOT  = DATA_ROOT / 'lfw_full_upload/unknown'
 
 
 def load_images(n: int) -> list[np.ndarray]:

@@ -156,7 +156,7 @@
         128,
         128
       ],
-      "adapter_status": "full_benchmark",
+      "adapter_status": "implemented_results_review_required",
       "primary_decoder": "identity"
     },
     "HiDDeN": {
@@ -167,7 +167,7 @@
         1
       ],
       "input_size": "checkpoint_config",
-      "adapter_status": "excluded_broken_checkpoint",
+      "adapter_status": "excluded_checkpoint_diagnostic_required",
       "primary_decoder": "decoder"
     },
     "SepMark": {
@@ -181,7 +181,7 @@
         256,
         256
       ],
-      "adapter_status": "full_benchmark",
+      "adapter_status": "implemented_results_review_required",
       "primary_decoder": "decoder_C",
       "secondary_decoder": "decoder_RF"
     },
@@ -196,16 +196,16 @@
         256,
         256
       ],
-      "adapter_status": "full_benchmark",
-      "primary_decoder": "detector",
-      "secondary_decoder": "tracer"
+      "adapter_status": "implemented_results_review_required",
+      "primary_decoder": "tracer",
+      "secondary_decoder": "detector"
     },
     "KAD-Net": {
       "family": "kolmogorov_arnold_proactive_forensics",
       "native_color_space": "RGB",
       "native_range": "model_config",
       "input_size": "model_config",
-      "adapter_status": "full_benchmark",
+      "adapter_status": "implemented_results_review_required",
       "primary_decoder": "pending"
     }
   },

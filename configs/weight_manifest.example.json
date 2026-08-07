@@ -1,0 +1,20 @@
+{
+  "schema_version": "weight-manifest.v1",
+  "items": [
+    {
+      "model": "LIDMark",
+      "file": "lidmark/seed_checkpoints/s1/checkpoint_epoch_100.pth",
+      "sha256": "replace-with-64-lowercase-hex-characters",
+      "status": "verified",
+      "verification_threshold": 0.9,
+      "calibration_artifact": "lidmark/seed_checkpoints/s1/threshold_calibration.json",
+      "calibration_artifact_sha256": "replace-with-64-lowercase-hex-characters",
+      "calibration_positive_samples": 1000,
+      "calibration_negative_samples": 1000,
+      "calibration_false_accept_rate": 0.001,
+      "reviewed_by": "replace-with-reviewer-id",
+      "reviewed_at": "replace-with-ISO-8601-time",
+      "source_revision": "replace-with-model-source-commit"
+    }
+  ]
+}

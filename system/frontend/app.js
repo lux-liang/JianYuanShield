@@ -10,7 +10,11 @@ function normalizeApiBase(value) {
 
 // Production defaults to the current TLS origin. The gateway owns the user
 // session and injects the server-side API key while proxying /api to 127.0.0.1:8026.
-const API = normalizeApiBase(window.JYS_API_BASE);
+const deployedPathApi = window.location.pathname === "/jys"
+  || window.location.pathname.startsWith("/jys/")
+  ? "/jys/api"
+  : "";
+const API = normalizeApiBase(window.JYS_API_BASE || deployedPathApi);
 const TRUST_CONTRACTS = window.JYSTrustContracts || null;
 
 function apiURL(path) {
@@ -1047,6 +1051,194 @@ function applyRoute() {
 
 window.addEventListener("hashchange", applyRoute);
 applyRoute();
+
+/* ═══ 四章答辩导览：价值 → 闭环 → 实证 → 可信 ═══ */
+
+const DEFENSE_STEPS = [
+  {
+    view: "overview",
+    label: "价值命题",
+    title: "先讲清：鉴源盾构建内容可信身份链",
+    cue: "用“出生登记—传播核验—争议举证”解释完整治理闭环。",
+  },
+  {
+    view: "forensics",
+    label: "系统闭环",
+    title: "再现场跑通一次真实取证链",
+    cue: "从样本输入到主动保护、攻击、盲解码与哈希存证，结果与执行模式分开显示。",
+  },
+  {
+    view: "benchmark",
+    label: "技术实证",
+    title: "用统一协议回答“效果是否可信”",
+    cue: "展示真实换脸、MEA 与身份隔离统计；正式结论由签名证据门禁统一放行。",
+  },
+  {
+    view: "audit",
+    label: "可信收口",
+    title: "最后把主张交给证据验链",
+    cue: "以原始结果、协议、实现哈希、Manifest 和 Ed25519 签名完成可复算收口。",
+  },
+];
+
+let defenseStep = 0;
+
+function renderDefenseGuide() {
+  const guide = document.getElementById("defenseGuide");
+  const step = DEFENSE_STEPS[defenseStep];
+  if (!guide || !step) return;
+  document.getElementById("defenseStepLabel").textContent = `${String(defenseStep + 1).padStart(2, "0")} / ${String(DEFENSE_STEPS.length).padStart(2, "0")} · ${step.label}`;
+  document.getElementById("defenseStepTitle").textContent = step.title;
+  document.getElementById("defenseStepCue").textContent = step.cue;
+  document.getElementById("defenseProgress").style.width = `${((defenseStep + 1) / DEFENSE_STEPS.length) * 100}%`;
+  document.getElementById("defensePrev").disabled = defenseStep === 0;
+  document.getElementById("defenseNext").textContent = defenseStep === DEFENSE_STEPS.length - 1 ? "回到开场" : "下一章";
+  if (window.location.hash !== `#/${step.view}`) window.location.hash = `#/${step.view}`;
+}
+
+function setDefenseGuide(open) {
+  const guide = document.getElementById("defenseGuide");
+  const launch = document.getElementById("defenseLaunch");
+  if (!guide || !launch) return;
+  guide.hidden = !open;
+  launch.setAttribute("aria-expanded", String(open));
+  launch.textContent = open ? "答辩导览进行中" : "开启答辩导览";
+  if (open) renderDefenseGuide();
+}
+
+document.getElementById("defenseLaunch")?.addEventListener("click", () => {
+  const guide = document.getElementById("defenseGuide");
+  if (guide?.hidden) defenseStep = Math.max(0, DEFENSE_STEPS.findIndex((step) => window.location.hash === `#/${step.view}`));
+  setDefenseGuide(Boolean(guide?.hidden));
+});
+document.getElementById("defenseClose")?.addEventListener("click", () => setDefenseGuide(false));
+document.getElementById("defensePrev")?.addEventListener("click", () => {
+  defenseStep = Math.max(0, defenseStep - 1);
+  renderDefenseGuide();
+});
+document.getElementById("defenseNext")?.addEventListener("click", () => {
+  defenseStep = defenseStep === DEFENSE_STEPS.length - 1 ? 0 : defenseStep + 1;
+  renderDefenseGuide();
+});
+window.addEventListener("keydown", (event) => {
+  const guide = document.getElementById("defenseGuide");
+  if (guide?.hidden || !["ArrowLeft", "ArrowRight", "Escape"].includes(event.key)) return;
+  if (event.key === "Escape") return setDefenseGuide(false);
+  defenseStep = event.key === "ArrowRight"
+    ? (defenseStep + 1) % DEFENSE_STEPS.length
+    : Math.max(0, defenseStep - 1);
+  renderDefenseGuide();
+});
+
+/* ═══ 社会背景与政策响应：自动轮播，可手动选择 ═══ */
+
+async function loadTrainingSummary() {
+  const seal = document.getElementById("trainingSeal");
+  try {
+    const response = await fetch("./data/lidmark-multiseed-summary.json", { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const summary = await response.json();
+    if (summary?.status !== "complete" || summary?.all_selected_checkpoints_verified !== true) {
+      throw new Error("evidence gate failed");
+    }
+    const accuracy = Number(summary.identity_bit_accuracy?.mean);
+    const psnr = Number(summary.aggregate?.psnr?.mean);
+    const aed = Number(summary.aggregate?.landmark_aed?.mean);
+    if (![accuracy, psnr, aed].every(Number.isFinite)) throw new Error("invalid metrics");
+    text("trainingAccuracy", `${(accuracy * 100).toFixed(4)}%`);
+    text("trainingPsnr", psnr.toFixed(3));
+    text("trainingAed", aed.toFixed(3));
+    text("trainingZeroBer", `${summary.identity_bit_accuracy.zero_ber_run_count}/${summary.completed_run_count}`);
+    text("trainingDigest", summary.evidence_sha256);
+    seal.textContent = `${summary.completed_run_count} RUNS · HASH VERIFIED`;
+    seal.classList.add("verified");
+    const runs = Array.isArray(summary.runs) ? summary.runs : [];
+    document.getElementById("trainingRuns").innerHTML = runs.map((run) => {
+      const seed = String(run.run_id || "").match(/s(\d+)-/)?.[1] || "unknown";
+      const ber = Number(run.val?.id_ber);
+      return `<div><span>SEED ${escapeHTML(seed)}</span><strong>E${escapeHTML(run.epoch)}</strong><small>BER ${Number.isFinite(ber) ? (ber * 100).toFixed(5) : "--"}%</small></div>`;
+    }).join("");
+  } catch (error) {
+    seal.textContent = "实验摘要暂不可用";
+    seal.classList.add("failed");
+    text("trainingDigest", error instanceof Error ? error.message : "load failed");
+  }
+}
+
+loadTrainingSummary();
+
+const POLICY_STEPS = [
+  {
+    year: "2022",
+    tag: "治理起点",
+    title: "互联网信息服务深度合成管理规定",
+    text: "深度合成服务提供者应对生成或编辑的信息内容采取技术措施添加标识。项目以主动水印与取证记录响应“可识别、可追溯”的技术需求。",
+    source: "https://www.cac.gov.cn/2022-12/11/c_1672221949354811.htm",
+  },
+  {
+    year: "2023",
+    tag: "发展与安全",
+    title: "生成式人工智能服务管理暂行办法",
+    text: "政策同时强调促进生成式人工智能健康发展、规范应用和保护合法权益。项目把技术创新与失败关闭、证据边界共同纳入系统设计。",
+    source: "https://www.cac.gov.cn/2023-07/13/c_1690898327029107.htm",
+  },
+  {
+    year: "2025",
+    tag: "全链路标识",
+    title: "人工智能生成合成内容标识办法",
+    text: "显式标识、文件元数据隐式标识与传播服务责任形成协同要求，并于 2025 年 9 月 1 日施行。项目重点补充跨攻击鲁棒核验和争议证据链。",
+    source: "https://www.cac.gov.cn/2025-03/14/c_1743654685899683.htm",
+  },
+  {
+    year: "JYS",
+    tag: "项目响应",
+    title: "鉴源盾 · 可验证内容身份基础设施",
+    text: "从创作时登记，到传播后盲解码，再到争议时验签；以统一攻击协议检验标识经历压缩、换脸和二次嵌入后的恢复能力。",
+    source: "#/forensics",
+  },
+];
+
+let policyIndex = 0;
+let policyTimer;
+
+function renderPolicy(index) {
+  policyIndex = (index + POLICY_STEPS.length) % POLICY_STEPS.length;
+  const step = POLICY_STEPS[policyIndex];
+  document.querySelectorAll("[data-policy-index]").forEach((button, buttonIndex) => button.classList.toggle("active", buttonIndex === policyIndex));
+  document.getElementById("policyYear").textContent = step.year;
+  document.getElementById("policyTag").textContent = step.tag;
+  document.getElementById("policyDetailTitle").textContent = step.title;
+  document.getElementById("policyDetailText").textContent = step.text;
+  const source = document.getElementById("policySource");
+  source.href = step.source;
+  source.textContent = policyIndex === POLICY_STEPS.length - 1 ? "进入项目演示 →" : "查看官方原文 ↗";
+  if (step.source.startsWith("#")) {
+    source.removeAttribute("target");
+    source.removeAttribute("rel");
+  } else {
+    source.target = "_blank";
+    source.rel = "noopener noreferrer";
+  }
+}
+
+function startPolicyRotation() {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  clearInterval(policyTimer);
+  policyTimer = setInterval(() => renderPolicy(policyIndex + 1), 5200);
+}
+
+document.querySelectorAll("[data-policy-index]").forEach((button) => {
+  button.addEventListener("click", () => {
+    renderPolicy(Number(button.dataset.policyIndex));
+    startPolicyRotation();
+  });
+});
+const policyStage = document.querySelector(".policy-stage");
+policyStage?.addEventListener("mouseenter", () => clearInterval(policyTimer));
+policyStage?.addEventListener("mouseleave", startPolicyRotation);
+policyStage?.addEventListener("focusin", () => clearInterval(policyTimer));
+policyStage?.addEventListener("focusout", startPolicyRotation);
+startPolicyRotation();
 
 /* ═══ 取证时钟 ═══ */
 

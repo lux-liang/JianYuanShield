@@ -6,12 +6,12 @@
   },
   "dependencies": {
     "direct_requirements_path": "requirements.txt",
-    "direct_requirements_sha256": "ac3d80659c98099ab9bbc679e592d61e5c4f9a246bf828f74bff9bffa4b9bfb0",
+    "direct_requirements_sha256": "1e0a39eb8804f997aff91c5b8b0d646f3b7c41bb323348cd533a6c3f9ffaa9f3",
     "install_mode": "pip --require-hashes --only-binary=:all:",
     "lock_command": "uv pip compile requirements.txt --output-file requirements.lock --python-version 3.11 --python-platform x86_64-manylinux_2_28 --torch-backend cu128 --only-binary :all: --generate-hashes --no-annotate",
     "lock_path": "requirements.lock",
-    "lock_sha256": "7237fb4170c722870a664f46c83674ca5e0412da869ae667fbe92f06fa7f02c4",
-    "locked_package_count": 80,
+    "lock_sha256": "683a141b885352f48552b229ccf97537532d630defcadc49ce4695e89edefff6",
+    "locked_package_count": 83,
     "target": {
       "accelerator": "cuda12.8",
       "architecture": "x86_64",
@@ -20,7 +20,7 @@
     }
   },
   "deployment": {
-    "checker_sha256": "f16fbdd0ef7be28a098cfa09b0a5c1ad29134c90185e073f44a9a06c9997ddce",
+    "checker_sha256": "3e712c5b109372ad7cc3400f84a660d9e3c11f01cb38d5343eeac855ce7c3844",
     "competition_compose_sha256": "297eb3f5d880707f1d920f3e0fec7cb4bc23496717322804f10ed54f9d8cfab0",
     "development_compose_sha256": "f9674803382e1de0954d84c4ea2361e7e40826a0a29ac2b568700110390a1c83",
     "gateway_sha256": "7ed5dbe9ad58e0638781c76a0140f16b4b140cc829d901f7551e418ff4bbab5a",
@@ -55,7 +55,7 @@
   "sbom": {
     "format": "CycloneDX",
     "path": "supply-chain/python-dependencies.cdx.json",
-    "sha256": "4a0d3cae76357dfbe5ec8fc2b9fe3404e0846eda8b3e08e75201ad3870b725b3",
+    "sha256": "33a39d2573547e5bde8c5e2f2c82c1e4f70ee487128dc3988e7350d0ff7970c9",
     "spec_version": "1.6"
   },
   "schema_version": "jianyuanshield-supply-chain.v1",

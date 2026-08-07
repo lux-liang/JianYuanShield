@@ -102,6 +102,9 @@ page {
 .seg-item { padding: 14rpx 28rpx; border-radius: 999rpx; font-size: 24rpx; color: var(--ink-2); background: var(--card); border: 1rpx solid var(--line-2); transition: all .2s; }
 .seg-item.active { color: #fff; font-weight: 700; border-color: transparent; background: var(--primary); box-shadow: 0 6rpx 16rpx rgba(3,105,161,.3); }
 .seg-item:active { transform: scale(.96); }
+.seg-item.disabled { opacity: .48; border-style: dashed; }
+.seg-item.disabled:active { transform: none; }
+.seg-reason { display: block; max-width: 250rpx; margin-top: 4rpx; font-size: 18rpx; line-height: 1.25; opacity: .76; white-space: normal; }
 
 /* ─── 选图区 ─── */
 .pick { position: relative; width: 100%; height: 360rpx; border-radius: 22rpx; border: 2rpx dashed var(--line-2); background: var(--surface); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14rpx; color: var(--ink-2); transition: border-color .25s, background .25s; overflow: hidden; }
@@ -152,6 +155,20 @@ page {
 .badge.warn { background: #fdf2e3; color: #b45309; border-color: #f6d9a8; }
 .badge.risk { background: #fdeaea; color: #b91c1c; border-color: #f4c2c2; }
 .badge.info { background: #e6f3fb; color: #0369a1; border-color: #b9ddf2; }
+
+/* ─── 可信模式 / 隐私提示 ─── */
+.trust-strip { display: flex; flex-direction: column; gap: 6rpx; margin: 16rpx 0; padding: 18rpx 20rpx; border-radius: 16rpx; border: 2rpx solid var(--line-2); background: var(--surface); }
+.trust-strip.ok { border-color: #86d6a2; background: #e8f7ee; color: #166534; }
+.trust-strip.warn { border-color: #f0bd69; background: #fdf2e3; color: #92400e; }
+.trust-strip.risk { border-color: #ef9a9a; background: #fdeaea; color: #991b1b; }
+.trust-mode { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 23rpx; font-weight: 800; letter-spacing: .5rpx; }
+.trust-claim { font-size: 22rpx; font-weight: 650; }
+.privacy-box { margin-top: 14rpx; padding: 18rpx 20rpx; border-radius: 16rpx; border: 1rpx solid #f0bd69; background: #fff8eb; color: #7c4a0a; font-size: 21rpx; line-height: 1.65; }
+.privacy-box.safe { border-color: #b9ddf2; background: #edf8ff; color: #075985; }
+.privacy-box.risk { border-color: #f4b4b4; background: #fff1f1; color: #991b1b; }
+.privacy-check { display: flex; align-items: flex-start; gap: 12rpx; }
+.privacy-check checkbox { flex: 0 0 auto; margin-top: 3rpx; transform: scale(.82); transform-origin: left top; }
+.privacy-check text { flex: 1; }
 
 /* ─── 行 / 状态 / 折叠 ─── */
 .row { display: flex; align-items: center; justify-content: space-between; gap: 14rpx; margin: 14rpx 0; }

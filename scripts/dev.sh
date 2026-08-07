@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="${JYS_PROJECT_ROOT:-$SCRIPT_PROJECT_ROOT}"
 
 if [[ -f "$ROOT/.env" ]]; then
   set -a
@@ -64,8 +65,10 @@ fi
 if port_open 127.0.0.1 "$FRONTEND_PORT"; then
   echo "frontend port $FRONTEND_PORT is already in use; reusing existing frontend"
 else
-  echo "starting frontend: http://127.0.0.1:$FRONTEND_PORT"
-  (cd "$ROOT/system/frontend" && "$PYTHON" -m http.server "$FRONTEND_PORT" --bind "$FRONTEND_HOST") &
+  echo "starting same-origin gateway: http://127.0.0.1:$FRONTEND_PORT"
+  JYS_GATEWAY_UPSTREAM="http://127.0.0.1:$BACKEND_PORT" \
+  JYS_GATEWAY_STATIC_ROOT="$ROOT/system/frontend" \
+    "$PYTHON" "$ROOT/system/gateway.py" --host "$FRONTEND_HOST" --port "$FRONTEND_PORT" &
   FRONTEND_PID="$!"
 fi
 
@@ -74,4 +77,17 @@ echo "open: http://127.0.0.1:$FRONTEND_PORT"
 echo "api:  http://127.0.0.1:$BACKEND_PORT"
 echo "press Ctrl-C to stop services started by this script"
 
-wait
+# Treat the frontend and backend as one supervised unit. If either child exits,
+# cleanup terminates the sibling and systemd can restart the complete service.
+if [[ -n "$BACKEND_PID" && -n "$FRONTEND_PID" ]]; then
+  wait -n "$BACKEND_PID" "$FRONTEND_PID"
+elif [[ -n "$BACKEND_PID" ]]; then
+  wait "$BACKEND_PID"
+elif [[ -n "$FRONTEND_PID" ]]; then
+  wait "$FRONTEND_PID"
+else
+  while port_open 127.0.0.1 "$BACKEND_PORT" && port_open 127.0.0.1 "$FRONTEND_PORT"; do
+    sleep 2
+  done
+  exit 1
+fi

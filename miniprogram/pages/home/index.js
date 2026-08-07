@@ -1,221 +1,586 @@
-// 单页立方体：取证/证据/我的/关于 = 4 个面，底部导航旋转切面
-const { uploadFile, request, fmtErr, API_BASE } = require('../../utils/request');
+// 单页立方体：来源保护/证据审计/我的/关于 = 4 个面，底部导航旋转切面。
+const { uploadFile, request, fmtErr } = require('../../utils/request');
+const { apiConfigStatus, apiHeaders, buildApiUrl } = require('../../utils/config');
+const { resultTrust } = require('../../utils/trust');
 const { pct, scoreClass, fixed, pickAcc } = require('../../utils/format');
+const { MODEL_ORDER, validateModelStatus } = require('../../utils/model-status');
 const history = require('../../utils/history');
 
-const MODELS = ['SepMark', 'WaveGuard'];
 const ATTACKS = [
   { v: 'clean', t: '无攻击' }, { v: 'jpeg50', t: 'JPEG50' }, { v: 'jpeg70', t: 'JPEG70' },
   { v: 'resize', t: '缩放' }, { v: 'noise', t: '噪声' }, { v: 'blur', t: '模糊' },
 ];
-const IMG_LABELS = { original: '原图', watermarked: '含水印', attacked: '被攻击', heatmap: '热力图', diff: '残差' };
-const VERDICT = {
-  compliant: { cls: 'ok', text: '✔ 合规水印已验证' },
-  degraded: { cls: 'warn', text: '⚠ 水印降级（攻击后残留）' },
-  no_watermark: { cls: 'risk', text: '✘ 未检测到合规水印' },
+const IMG_LABELS = {
+  original: '原图', watermarked: '含水印', attacked: '攻击模拟图', heatmap: '热力图', protected: '已登记保护图',
 };
-const STEPS = ['样本输入', '主动水印', '攻击链', '提取取证', '哈希存证'];
+const STEPS = ['选择内容', '保护登记', '受控传播', '登记核验', '可信门禁'];
 const NAVS = [
-  { k: '取证', ic: '/assets/tab-forensics.png', on: '/assets/tab-forensics-on.png' },
-  { k: '证据', ic: '/assets/tab-evidence.png', on: '/assets/tab-evidence-on.png' },
+  { k: '保护', ic: '/assets/tab-forensics.png', on: '/assets/tab-forensics-on.png' },
+  { k: '审计', ic: '/assets/tab-evidence.png', on: '/assets/tab-evidence-on.png' },
   { k: '我的', ic: '/assets/tab-profile.png', on: '/assets/tab-profile-on.png' },
   { k: '关于', ic: '/assets/tab-about.png', on: '/assets/tab-about-on.png' },
 ];
 
-function ts(t) { const d = new Date(t); const p = (n) => String(n).padStart(2, '0'); return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; }
+function ts(value) {
+  const date = new Date(value);
+  const pad = (number) => String(number).padStart(2, '0');
+  return `${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function writeProtectedPng(encoded, contentId) {
+  return new Promise((resolve, reject) => {
+    if (!encoded) { resolve(''); return; }
+    const safeId = /^[a-f0-9]{32}$/.test(contentId || '') ? contentId : String(Date.now());
+    const filePath = `${wx.env.USER_DATA_PATH}/jys-protected-${safeId}.png`;
+    wx.getFileSystemManager().writeFile({
+      filePath,
+      data: encoded,
+      encoding: 'base64',
+      success: () => resolve(filePath),
+      fail: reject,
+    });
+  });
+}
+
+function removeGeneratedProtected(path) {
+  if (!path) return;
+  const prefix = `${wx.env.USER_DATA_PATH}/jys-protected-`;
+  if (String(path).indexOf(prefix) !== 0) return;
+  try { wx.getFileSystemManager().unlink({ filePath: path }); } catch (e) {}
+}
+
+function provenanceEvidence(result, trust, scenario) {
+  const value = result || {};
+  return {
+    scenario,
+    mode: trust.mode,
+    declared_claim_valid: trust.declaredClaimValid,
+    result_provenance: trust.resultProvenance || null,
+    effective_citeable: trust.citeable,
+    gate_reason: trust.gateReason,
+    expected_provenance: trust.expectedProvenance || null,
+    content_id: value.content_id || null,
+    event_id: value.event_id || null,
+    task_id: value.task_id || null,
+    model: value.model || null,
+    creator_ref: value.creator_ref || null,
+    verified: typeof value.verified === 'boolean' ? value.verified : null,
+    bit_accuracy: value.bit_accuracy == null ? null : value.bit_accuracy,
+    success_threshold: value.success_threshold == null ? null : value.success_threshold,
+    evidence_status: value.evidence_status || null,
+    evidence_signature: value.evidence_signature || null,
+    original_sha256: value.original_sha256 || null,
+    protected_sha256: value.protected_sha256 || null,
+    observed_sha256: value.observed_sha256 || null,
+  };
+}
+
+function resultMetadata(result) {
+  const value = Object.assign({}, result || {});
+  delete value.artifacts_b64;
+  if (value.protected_image) {
+    value.protected_image = { url: value.protected_image.url || '' };
+  }
+  return value;
+}
 
 Page({
   data: {
-    // 立方体
-    navs: NAVS, rotIdx: 0, rot: 0,
-    showSplash: false,
-    // 取证
-    health: 'syncing', steps: STEPS, models: MODELS, attacks: ATTACKS,
-    model: 'SepMark', attack: 'jpeg50', imgPath: '', loading: false, step: 1,
-    result: null, imgs: [], accText: '—', accClass: 'muted', psnrText: '—',
-    verdict: null, modeText: '', modeClass: 'warn', taskId: '',
-    evidenceText: '', showEvidence: false, posterPath: '', error: '', scrollTo: '',
-    // 证据
+    navs: NAVS, rotIdx: 0, rot: 0, showSplash: false,
+    health: 'syncing', healthText: '…', apiConfigError: '', steps: STEPS,
+    models: MODEL_ORDER.map((name) => ({ name, provenanceReady: false, shortReason: '状态核验中' })), attacks: ATTACKS,
+    model: '', modelReady: false, modelStatusText: '正在核验 checkpoint 登记、校准与签名清单', modelStatusClass: 'warn',
+    attack: 'jpeg50', imgPath: '', loading: false, loadingAction: '', step: 1,
+    creatorRef: '', contentId: '', verifyImgPath: '', verifyImageGenerated: false, verifyUploadConsent: false,
+    result: null, resultScenario: '', resultTitle: '', resultNote: '', imgs: [], showMetrics: false,
+    metricPrimaryLabel: 'Bit Accuracy', metricSecondaryLabel: 'PSNR',
+    accText: '—', accClass: 'muted', psnrText: '—', verdict: null,
+    modeText: '', modeClass: 'warn', provenanceText: '', gateReasonText: '',
+    claimText: '', claimClass: 'risk', claimValid: false, declaredClaimValid: false, taskId: '',
+    uploadConsent: false, isBuiltInSample: false,
+    evidenceText: '', showEvidence: false, posterPath: '', error: '', localArtifactError: '', scrollTo: '',
     sigOk: false, sigText: '连接中', fp: '', blocking: 0, findings: [], demoReady: false, claimsReady: false, auditErr: '',
-    // 我的
     user: { avatar: '', nick: '' }, list: [], editing: false,
-    // 首次强制登录
     needLogin: false, tmpAvatar: '', tmpNick: '',
-    // 平台合规批量（内联在证据面）
     cFiles: [], cLoading: false, cSum: null, cRows: [], cModel: 'SepMark',
-    // 关于
     wmModels: [
-      { n: 'LIDMark', d: '空间域·152bit 关键点 · 语义绑定，Deepfake 后仍可溯源', t: '原创' },
-      { n: 'KAD-Net', d: '空间域·KAN+SE · 30bit · 全场景', t: '' },
-      { n: 'WaveGuard', d: '频域·DTCWT · 抗平台压缩', t: '' },
-      { n: 'SepMark', d: '频域·分离子带 · 30bit', t: '' },
+      { n: 'LIDMark', d: '第三方底层模型 · 项目负责协议适配、评测与证据验链', t: '第三方模型' },
+      { n: 'KAD-Net', d: '第三方底层模型 · 项目负责可信注册、校准与系统集成', t: '第三方模型' },
+      { n: 'WaveGuard', d: '第三方底层模型 · 项目负责统一攻击协议与基线复核', t: '第三方模型' },
+      { n: 'SepMark', d: '第三方底层模型 · 项目负责统一适配、负控制与证据门禁', t: '第三方模型' },
     ],
     regs: [
-      { c: '第六条', d: '隐式标识（不可见水印）' }, { c: '第七条', d: '稳健抗干扰，传播后可识别' },
-      { c: '第八条', d: '支持监管机构溯源查验' }, { c: '第十二条', d: '建立内容可信体系' },
+      { c: '第六条', d: '隐式标识方向的技术对应探索' },
+      { c: '第七条', d: '抗干扰能力需以正式基准报告证明' },
+      { c: '第八条', d: '为授权查验流程提供技术接口' },
+      { c: '第十二条', d: '内容可信体系的研究型实现' },
     ],
   },
 
   onLoad() {
     const app = getApp();
     if (app && app.globalData && !app.globalData.splashShown) this.setData({ showSplash: true });
-    const u = wx.getStorageSync('jys_user') || { avatar: '', nick: '' };
-    if (!u.avatar || !u.nick) this.setData({ needLogin: true, tmpAvatar: u.avatar || '', tmpNick: u.nick || '' });
+    const user = wx.getStorageSync('jys_user') || { avatar: '', nick: '' };
+    if (!user.avatar || !user.nick) {
+      this.setData({ needLogin: true, tmpAvatar: user.avatar || '', tmpNick: user.nick || '' });
+    } else {
+      this.setData({ user, creatorRef: user.nick });
+    }
     this.checkHealth();
     this.loadAudit();
   },
 
-  /* ── 首次强制登录 ── */
-  onObAvatar(e) {
-    const url = e.detail.avatarUrl;
-    wx.getFileSystemManager().saveFile({ tempFilePath: url, success: (r) => this.setData({ tmpAvatar: r.savedFilePath }), fail: () => this.setData({ tmpAvatar: url }) });
+  onObAvatar(event) {
+    const url = event.detail.avatarUrl;
+    wx.getFileSystemManager().saveFile({
+      tempFilePath: url,
+      success: (result) => this.setData({ tmpAvatar: result.savedFilePath }),
+      fail: () => this.setData({ tmpAvatar: url }),
+    });
   },
-  onObNick(e) { this.setData({ tmpNick: e.detail.value }); },
+  onObNick(event) { this.setData({ tmpNick: event.detail.value }); },
   obSubmit() {
-    if (!this.data.tmpAvatar || !this.data.tmpNick) { wx.showToast({ title: '请设置头像和昵称', icon: 'none' }); return; }
-    const u = { avatar: this.data.tmpAvatar, nick: this.data.tmpNick };
-    wx.setStorageSync('jys_user', u);
-    this.setData({ user: u, needLogin: false, rotIdx: 0, rot: 0 });
+    if (!this.data.tmpAvatar || !this.data.tmpNick) {
+      wx.showToast({ title: '请设置头像和昵称', icon: 'none' }); return;
+    }
+    const user = { avatar: this.data.tmpAvatar, nick: this.data.tmpNick };
+    wx.setStorageSync('jys_user', user);
+    this.setData({ user, creatorRef: user.nick, needLogin: false, rotIdx: 0, rot: 0 });
   },
   onShow() {
-    const u = wx.getStorageSync('jys_user') || { avatar: '', nick: '' };
-    this.setData({ user: u });
+    const user = wx.getStorageSync('jys_user') || { avatar: '', nick: '' };
+    const next = { user };
+    if (!this.data.creatorRef && user.nick) next.creatorRef = user.nick;
+    this.setData(next);
     this.refreshHistory();
+    this.loadModelStatus();
   },
+  onUnload() { removeGeneratedProtected(this.data.verifyImageGenerated ? this.data.verifyImgPath : ''); },
 
-  /* ── 立方体导航 ── */
-  switchFace(e) {
-    const idx = Number(e.currentTarget.dataset.i);
+  switchFace(event) {
+    const idx = Number(event.currentTarget.dataset.i);
     this.setData({ rotIdx: idx, rot: -idx * 90 });
   },
-  onSplashDone() { const app = getApp(); if (app && app.globalData) app.globalData.splashShown = true; this.setData({ showSplash: false }); },
-  onTap(e) { const fx = this.selectComponent('#tapfx'); if (fx && e && e.detail && e.detail.x != null) fx.burst(e.detail.x, e.detail.y); },
+  onSplashDone() {
+    const app = getApp();
+    if (app && app.globalData) app.globalData.splashShown = true;
+    this.setData({ showSplash: false });
+  },
+  onTap(event) {
+    const fx = this.selectComponent('#tapfx');
+    if (fx && event && event.detail && event.detail.x != null) fx.burst(event.detail.x, event.detail.y);
+  },
 
-  /* ── 取证 ── */
-  checkHealth() { request('/api/health').then((d) => this.setData({ health: d && d.ok ? 'ok' : 'bad' })).catch(() => this.setData({ health: 'bad' })); },
-  onSelectModel(e) { this.setData({ model: e.currentTarget.dataset.v }); },
-  onSelectAttack(e) { this.setData({ attack: e.currentTarget.dataset.v }); },
+  checkHealth() {
+    const cfg = apiConfigStatus();
+    if (!cfg.ok) {
+      this.setData({ health: 'bad', healthText: '未配置', apiConfigError: cfg.message }); return;
+    }
+    request('/api/health')
+      .then((value) => this.setData({
+        health: value && value.ok ? 'ok' : 'bad',
+        healthText: value && value.ok ? '在线' : '异常',
+        apiConfigError: '',
+      }))
+      .catch((error) => this.setData({ health: 'bad', healthText: '离线', apiConfigError: fmtErr(error) }));
+  },
+  loadModelStatus() {
+    request('/api/models/status').then((payload) => {
+      const validated = validateModelStatus(payload);
+      const current = validated.options.find((item) => item.name === this.data.model && item.provenanceReady);
+      const model = current ? current.name : (validated.preferredModel || '');
+      const blocked = validated.options
+        .filter((item) => !item.provenanceReady)
+        .map((item) => item.name + '：' + item.reason)
+        .join('；');
+      this.setData({
+        models: validated.options,
+        model,
+        modelReady: !!model,
+        modelStatusText: model
+          ? '默认 ' + model + ' · registered + calibrated + trusted；禁用项：' + (blocked || '无')
+          : '不可保护：无 provenance-ready 模型 · ' + blocked,
+        modelStatusClass: model ? 'safe' : 'risk',
+      });
+    }).catch((error) => this.setData({
+      models: MODEL_ORDER.map((name) => ({ name, provenanceReady: false, shortReason: '状态不可验证' })),
+      model: '',
+      modelReady: false,
+      modelStatusText: '不可保护：' + fmtErr(error),
+      modelStatusClass: 'risk',
+    }));
+  },
+  onSelectModel(event) {
+    const model = event.currentTarget.dataset.v;
+    const option = this.data.models.find((item) => item.name === model);
+    if (!option || !option.provenanceReady) {
+      wx.showToast({ title: (option && option.reason) || '模型未通过可信门禁', icon: 'none' }); return;
+    }
+    this.setData({ model, modelReady: true });
+  },
+  onSelectAttack(event) { this.setData({ attack: event.currentTarget.dataset.v }); },
+  onCreatorRef(event) { this.setData({ creatorRef: event.detail.value }); },
+  onContentId(event) { this.setData({ contentId: String(event.detail.value || '').trim().toLowerCase() }); },
   chooseImage() {
-    wx.chooseMedia({ count: 1, mediaType: ['image'], sourceType: ['album', 'camera'], sizeType: ['compressed'],
-      success: (res) => this.setData({ imgPath: res.tempFiles[0].tempFilePath, result: null, error: '', step: 2 }) });
+    wx.chooseMedia({
+      count: 1, mediaType: ['image'], sourceType: ['album', 'camera'], sizeType: ['compressed'],
+      success: (result) => {
+        removeGeneratedProtected(this.data.verifyImageGenerated ? this.data.verifyImgPath : '');
+        this.setData({
+          imgPath: result.tempFiles[0].tempFilePath,
+          contentId: '', verifyImgPath: '', verifyImageGenerated: false,
+          result: null, error: '', localArtifactError: '',
+          step: 1, uploadConsent: false, verifyUploadConsent: false, isBuiltInSample: false,
+        });
+      },
+    });
+  },
+  chooseVerifyImage() {
+    wx.chooseMedia({
+      count: 1, mediaType: ['image'], sourceType: ['album', 'camera'], sizeType: ['original'],
+      success: (result) => {
+        removeGeneratedProtected(this.data.verifyImageGenerated ? this.data.verifyImgPath : '');
+        this.setData({
+          verifyImgPath: result.tempFiles[0].tempFilePath,
+          verifyImageGenerated: false, verifyUploadConsent: false, error: '', step: 3,
+        });
+      },
+    });
+  },
+  onUploadConsent(event) {
+    this.setData({ uploadConsent: (event.detail.value || []).indexOf('accepted') !== -1 });
+  },
+  onVerifyUploadConsent(event) {
+    this.setData({ verifyUploadConsent: (event.detail.value || []).indexOf('accepted') !== -1 });
   },
   useSample() {
     wx.showLoading({ title: '载入样本…' });
     request('/api/samples').then((list) => {
-      const s = Array.isArray(list) && list[0]; if (!s) throw { message: '无内置样本' };
-      return new Promise((resolve, reject) => wx.downloadFile({ url: API_BASE + '/api/samples/' + s.id + '/image',
-        success: (r) => (r.statusCode === 200 ? resolve(r.tempFilePath) : reject({ message: '样本下载失败' })), fail: reject }));
-    }).then((tmp) => { wx.hideLoading(); this.setData({ imgPath: tmp, result: null, error: '', step: 2 }); })
-      .catch((e) => { wx.hideLoading(); wx.showToast({ title: fmtErr(e), icon: 'none' }); });
+      const sample = Array.isArray(list) && list[0];
+      if (!sample) throw { message: '无内置样本' };
+      return new Promise((resolve, reject) => wx.downloadFile({
+        url: buildApiUrl('/api/samples/' + encodeURIComponent(sample.id) + '/image'),
+        header: apiHeaders(),
+        success: (result) => (result.statusCode === 200 ? resolve(result.tempFilePath) : reject({ message: '样本下载失败' })),
+        fail: reject,
+      }));
+    }).then((tempPath) => {
+      wx.hideLoading();
+      removeGeneratedProtected(this.data.verifyImageGenerated ? this.data.verifyImgPath : '');
+      this.setData({
+        imgPath: tempPath, contentId: '', verifyImgPath: '', verifyImageGenerated: false,
+        result: null, error: '', localArtifactError: '',
+        step: 1, uploadConsent: false, verifyUploadConsent: false, isBuiltInSample: true,
+      });
+    }).catch((error) => {
+      wx.hideLoading(); wx.showToast({ title: fmtErr(error), icon: 'none' });
+    });
   },
+  canUploadPrimary() {
+    if (!this.data.imgPath) { wx.showToast({ title: '请先选择图片', icon: 'none' }); return false; }
+    if (!this.data.isBuiltInSample && !this.data.uploadConsent) {
+      wx.showModal({ title: '请先确认上传用途', content: '请阅读并勾选图片上传与服务端处理提示。', showCancel: false });
+      return false;
+    }
+    return true;
+  },
+
+  protectContent() {
+    if (!this.data.modelReady || !this.data.model) {
+      wx.showModal({ title: '模型不可发布', content: this.data.modelStatusText, showCancel: false }); return;
+    }
+    if (!this.canUploadPrimary()) return;
+    const creatorRef = String(this.data.creatorRef || '').trim();
+    if (!creatorRef || creatorRef.length > 128) {
+      wx.showToast({ title: '请填写 1–128 字符的创作者标识', icon: 'none' }); return;
+    }
+    this.setData({ loading: true, loadingAction: 'protect', error: '', localArtifactError: '', result: null, step: 2, scrollTo: '' });
+    uploadFile('/api/provenance/protect', this.data.imgPath, { creator_ref: creatorRef, model: this.data.model })
+      .then((result) => {
+        const protectedImage = result.protected_image || {};
+        return writeProtectedPng(protectedImage.png_base64, result.content_id)
+          .then((path) => ({ result, path, localError: '' }))
+          .catch(() => ({ result, path: '', localError: '保护图已由后端生成，但写入本地核验文件失败；可从相册另选传播图。' }));
+      })
+      .then(({ result, path, localError }) => {
+        if (this.data.verifyImageGenerated && this.data.verifyImgPath !== path) {
+          removeGeneratedProtected(this.data.verifyImgPath);
+        }
+        this.setData({
+          contentId: result.content_id || '',
+          verifyImgPath: path,
+          verifyImageGenerated: !!path,
+          verifyUploadConsent: !!path,
+          localArtifactError: localError,
+          step: 2,
+        });
+        this.renderProvenanceResult(result, 'protect', path);
+      })
+      .catch((error) => this.setData({ loading: false, loadingAction: '', error: fmtErr(error), step: 1 }));
+  },
+
+  verifyContent() {
+    const contentId = String(this.data.contentId || '').trim().toLowerCase();
+    if (!/^[a-f0-9]{32}$/.test(contentId)) {
+      wx.showToast({ title: '请输入 32 位登记内容 ID', icon: 'none' }); return;
+    }
+    if (!this.data.verifyImgPath) {
+      wx.showToast({ title: '请选择待核验的传播图片', icon: 'none' }); return;
+    }
+    if (!this.data.verifyUploadConsent) {
+      wx.showModal({ title: '请先确认上传用途', content: '请确认拥有待核验图片的处理权限。', showCancel: false });
+      return;
+    }
+    this.setData({ loading: true, loadingAction: 'verify', error: '', result: null, step: 4, scrollTo: '' });
+    uploadFile('/api/provenance/verify', this.data.verifyImgPath, { content_id: contentId })
+      .then((result) => this.renderProvenanceResult(result, 'verify'))
+      .catch((error) => this.setData({ loading: false, loadingAction: '', error: fmtErr(error), step: 3 }));
+  },
+
   runInfer() {
-    if (!this.data.imgPath) { wx.showToast({ title: '请先选择图片', icon: 'none' }); return; }
-    this.setData({ loading: true, error: '', step: 3, result: null, scrollTo: '' });
-    uploadFile('/api/infer/single', this.data.imgPath, { model: this.data.model, attack: this.data.attack, return_b64: 'true' })
-      .then((r) => this.renderResult(r)).catch((e) => this.setData({ loading: false, error: fmtErr(e), step: 2 }));
+    if (!this.canUploadPrimary()) return;
+    this.setData({ loading: true, loadingAction: 'infer', error: '', result: null, step: 1, scrollTo: '' });
+    uploadFile('/api/infer/single', this.data.imgPath, {
+      model: this.data.model, attack: this.data.attack, return_b64: 'true',
+    }).then((result) => this.renderInferenceResult(result))
+      .catch((error) => this.setData({ loading: false, loadingAction: '', error: fmtErr(error), step: 1 }));
   },
-  renderResult(r) {
-    const b64 = r.artifacts_b64 || {};
-    const imgs = ['original', 'watermarked', 'attacked', 'heatmap'].filter((k) => b64[k]).map((k) => ({ key: k, label: IMG_LABELS[k], src: 'data:image/png;base64,' + b64[k] }));
-    const m = r.metrics || {}; const acc = pickAcc(m); const comp = r.compliance || {};
-    const verdict = VERDICT[comp.verdict] || { cls: 'info', text: comp.verdict || '—' };
-    const sha = (r.evidence && r.evidence.sha256) || {}; const isReal = r.mode === 'real_checkpoint';
+
+  renderInferenceResult(result) {
+    const b64 = result.artifacts_b64 || {};
+    const imgs = ['original', 'watermarked', 'attacked', 'heatmap']
+      .filter((key) => b64[key])
+      .map((key) => ({ key, label: IMG_LABELS[key], src: 'data:image/png;base64,' + b64[key] }));
+    const metrics = result.metrics || {};
+    const accuracy = pickAcc(metrics);
+    const trust = resultTrust(result, 'infer_single');
+    const verdict = { cls: 'risk', text: '单样本工程评估 · 不可引用' };
+    const evidence = provenanceEvidence(result, trust, 'infer_single');
+    evidence.metrics = metrics;
+    evidence.warnings = result.warnings || [];
     this.setData({
-      loading: false, step: 5, result: r, imgs,
-      accText: pct(acc), accClass: scoreClass(acc), psnrText: m.psnr != null ? fixed(m.psnr) + ' dB' : '—',
-      verdict, modeText: isReal ? '✔ 真实模型' : '⚠ 模拟模式', modeClass: isReal ? 'ok' : 'warn', taskId: r.task_id || '',
-      evidenceText: JSON.stringify({ task_id: r.task_id, model: r.model, attack: r.attack, metrics: m, compliance: comp, sha256: sha }, null, 2),
+      loading: false, loadingAction: '', step: 1, result: resultMetadata(result), resultScenario: 'infer_single',
+      resultTitle: '模型评估结果（不可作来源结论）',
+      resultNote: '本结果仅说明一次“嵌入→攻击模拟→解码”的工程表现；即使执行真实检查点，也不得用于证明既有图片来源、平台合规或司法取证。',
+      imgs, showMetrics: true, metricPrimaryLabel: '单样本 Bit Accuracy', metricSecondaryLabel: 'PSNR',
+      accText: pct(accuracy), accClass: scoreClass(accuracy),
+      psnrText: metrics.psnr != null ? fixed(metrics.psnr) + ' dB' : '—', verdict,
+      modeText: trust.modeText, modeClass: trust.modeClass, provenanceText: trust.provenanceText,
+      gateReasonText: trust.gateReasonText, claimText: trust.claimText, claimClass: trust.claimClass,
+      claimValid: trust.citeable, declaredClaimValid: trust.declaredClaimValid, taskId: result.task_id || '',
+      evidenceText: JSON.stringify(evidence, null, 2), posterPath: '', showEvidence: false,
     });
     setTimeout(() => this.setData({ scrollTo: 'resultCard' }), 60);
-    history.add({ imgPath: this.data.imgPath, model: r.model, attack: r.attack, accText: pct(acc), accClass: scoreClass(acc), verdictText: verdict.text, verdictCls: verdict.cls });
+    history.add({
+      imgPath: this.data.imgPath, model: result.model, attack: result.attack,
+      accText: pct(accuracy), accClass: scoreClass(accuracy), scenario: 'infer_single', payload: result,
+    }).then(() => this.refreshHistory());
   },
-  toggleEvidence() { this.setData({ showEvidence: !this.data.showEvidence }); },
-  reset() { this.setData({ result: null, imgPath: '', step: 1, error: '', showEvidence: false, posterPath: '' }); },
-  goMea() { wx.navigateTo({ url: '/pages/mea/index' }); },
-  goCompliance() { this.setData({ rotIdx: 1, rot: -90 }); }, // 旋转到证据面（合规已内联）
 
-  /* ── 平台合规批量（内联） ── */
-  cSelModel(e) { this.setData({ cModel: e.currentTarget.dataset.v }); },
+  renderProvenanceResult(result, scenario, localProtectedPath) {
+    const trust = resultTrust(result, scenario);
+    const imgs = localProtectedPath
+      ? [{ key: 'protected', label: IMG_LABELS.protected, src: localProtectedPath }]
+      : [];
+    const accuracy = scenario === 'verify' ? result.bit_accuracy : null;
+    let verdict;
+    if (scenario === 'protect') {
+      verdict = trust.citeable
+        ? { cls: 'ok', text: '保护登记已签名绑定 · 可引用' }
+        : { cls: 'risk', text: '保护记录已创建 · 当前不可引用' };
+    } else if (trust.citeable) {
+      verdict = result.verified === true
+        ? { cls: 'ok', text: '登记水印匹配 · 结果可引用' }
+        : { cls: 'warn', text: '登记水印未通过 · 结果可引用' };
+    } else {
+      verdict = { cls: 'risk', text: '核验响应未通过可信门禁 · 不可引用' };
+    }
+    const note = trust.citeable
+      ? '该结果只可引用为本次已登记保护/核验事件的技术记录；签名与模型绑定不自动等同于司法采信、监管认定或平台合规。'
+      : '本响应未同时满足 real_checkpoint、claim_valid=true 与场景对应的登记来源，禁止作来源、合规或取证结论。';
+    this.setData({
+      loading: false, loadingAction: '', step: scenario === 'protect' ? 2 : 5,
+      result: resultMetadata(result), resultScenario: scenario,
+      resultTitle: scenario === 'protect' ? '来源保护登记结果' : '登记来源核验结果',
+      resultNote: note, imgs, showMetrics: scenario === 'verify',
+      metricPrimaryLabel: '核验 Bit Accuracy', metricSecondaryLabel: '通过阈值',
+      accText: accuracy == null ? '—' : pct(accuracy), accClass: scoreClass(accuracy),
+      psnrText: result.success_threshold == null ? '—' : pct(result.success_threshold), verdict,
+      modeText: trust.modeText, modeClass: trust.modeClass, provenanceText: trust.provenanceText,
+      gateReasonText: trust.gateReasonText, claimText: trust.claimText, claimClass: trust.claimClass,
+      claimValid: trust.citeable, declaredClaimValid: trust.declaredClaimValid,
+      taskId: result.event_id || result.content_id || '',
+      evidenceText: JSON.stringify(provenanceEvidence(result, trust, scenario), null, 2),
+      posterPath: '', showEvidence: false,
+    });
+    setTimeout(() => this.setData({ scrollTo: 'resultCard' }), 60);
+    history.add({
+      imgPath: scenario === 'verify' ? this.data.verifyImgPath : this.data.imgPath,
+      model: result.model, attack: scenario === 'protect' ? '保护登记' : '登记核验',
+      accText: accuracy == null ? '—' : pct(accuracy), accClass: scoreClass(accuracy),
+      scenario, payload: result,
+    }).then(() => this.refreshHistory());
+  },
+
+  toggleEvidence() { this.setData({ showEvidence: !this.data.showEvidence }); },
+  reset() {
+    removeGeneratedProtected(this.data.verifyImageGenerated ? this.data.verifyImgPath : '');
+    this.setData({
+      result: null, resultScenario: '', imgPath: '', contentId: '', verifyImgPath: '', verifyImageGenerated: false,
+      step: 1, error: '', localArtifactError: '', showEvidence: false, posterPath: '',
+      uploadConsent: false, verifyUploadConsent: false, isBuiltInSample: false,
+    });
+  },
+  goMea() { wx.navigateTo({ url: '/pages/mea/index' }); },
+  goCompliance() { this.setData({ rotIdx: 1, rot: -90 }); },
+
+  cSelModel(event) { this.setData({ cModel: event.currentTarget.dataset.v }); },
   cChoose() {
-    wx.chooseMedia({ count: 9, mediaType: ['image'], sourceType: ['album'], sizeType: ['compressed'],
-      success: (r) => this.setData({ cFiles: r.tempFiles.map((f) => f.tempFilePath), cSum: null, cRows: [] }) });
+    wx.chooseMedia({
+      count: 9, mediaType: ['image'], sourceType: ['album'], sizeType: ['compressed'],
+      success: (result) => this.setData({ cFiles: result.tempFiles.map((file) => file.tempFilePath), cSum: null, cRows: [] }),
+    });
   },
   cRun() {
     const files = this.data.cFiles;
     if (!files.length) { wx.showToast({ title: '请先选择图片', icon: 'none' }); return; }
-    this.setData({ cLoading: true, cSum: null, cRows: [] });
-    const LABEL = { compliant: '✔ 合规', degraded: '⚠ 降级', no_watermark: '✘ 无水印', error: '失败' };
-    const CLS = { compliant: 'ok', degraded: 'warn', no_watermark: 'risk', error: 'risk' };
-    Promise.all(files.map((fp) =>
-      uploadFile('/api/infer/single', fp, { model: this.data.cModel, attack: 'clean', return_b64: 'false' })
-        .then((r) => {
-          const m = r.metrics || {};
-          const acc = m.bit_accuracy_c != null ? m.bit_accuracy_c : (m.bit_accuracy_detector != null ? m.bit_accuracy_detector : m.bit_accuracy);
-          const v = (r.compliance || {}).verdict;
-          return { src: fp, verdict: v, accText: acc != null ? pct(acc) : '—', cls: CLS[v] || 'info', label: LABEL[v] || v };
-        })
-        .catch(() => ({ src: fp, verdict: 'error', accText: '—', cls: 'risk', label: '失败' }))
-    )).then((rows) => {
-      const compliant = rows.filter((r) => r.verdict === 'compliant').length;
-      const degraded = rows.filter((r) => r.verdict === 'degraded').length;
-      const no_wm = rows.filter((r) => r.verdict === 'no_watermark').length;
-      this.setData({ cLoading: false, cRows: rows, cSum: { total: rows.length, compliant, degraded, no_wm, rate: pct(rows.length ? compliant / rows.length : 0, 0) } });
-    }).catch(() => this.setData({ cLoading: false }));
+    // infer/single 不是既有图片盲检；能力上线前不上传、不计算、不猜测。
+    const rows = files.map((src) => ({
+      src, verdict: 'assessment_unavailable', accText: '未上传', cls: 'risk', label: '不可判定',
+    }));
+    this.setData({
+      cLoading: false, cRows: rows,
+      cSum: {
+        total: rows.length, assessed: 0, unavailable: rows.length, rate: '不可判定',
+        modeText: 'UNAVAILABLE · 盲检能力未实现',
+        claimText: 'CLAIM INVALID · 未产生合规结论',
+      },
+    });
+    wx.showModal({
+      title: '当前不可判定',
+      content: '当前后端仅支持嵌入后解码评估，不具备对既有图片的通用盲检能力。本次所选图片未上传。',
+      showCancel: false,
+    });
   },
-  onShareAppMessage() { return { title: '寻源路 · AIGC 图像水印溯源演示', path: '/pages/home/index' }; },
+  onShareAppMessage() { return { title: '寻源路 · 已登记内容来源核验演示', path: '/pages/home/index' }; },
 
-  /* ── 证据 ── */
   loadAudit() {
-    request('/api/evidence/audit').then((a) => {
-      const sig = a.signature || {};
-      this.setData({ sigOk: !!sig.verified, sigText: sig.verified ? 'Ed25519 已验签' : (sig.status || '未生成'),
-        fp: (sig.public_key_fingerprint_sha256 || '').slice(0, 24), blocking: (a.blocking_findings || []).length,
-        findings: (a.findings || []).map((f) => ({ code: f.code, msg: f.message, sev: f.severity })),
-        demoReady: !!a.ready_for_demo, claimsReady: !!a.ready_for_claims, auditErr: '' });
-    }).catch((e) => this.setData({ auditErr: fmtErr(e), sigText: '不可用' }));
+    request('/api/evidence/audit').then((audit) => {
+      const signature = audit.signature || {};
+      this.setData({
+        sigOk: !!signature.verified,
+        sigText: signature.verified ? 'Ed25519 已验签' : (signature.status || '未生成'),
+        fp: (signature.public_key_fingerprint_sha256 || '').slice(0, 24),
+        blocking: (audit.blocking_findings || []).length,
+        findings: (audit.findings || []).map((finding) => ({ code: finding.code, msg: finding.message, sev: finding.severity })),
+        demoReady: !!audit.ready_for_demo, claimsReady: !!audit.ready_for_claims, auditErr: '',
+      });
+    }).catch((error) => this.setData({ auditErr: fmtErr(error), sigText: '不可用' }));
   },
 
-  /* ── 我的 ── */
-  refreshHistory() { const raw = history.load(); this.setData({ list: raw.map((x) => Object.assign({}, x, { timeText: ts(x.t) })) }); },
-  onChooseAvatar(e) {
-    const url = e.detail.avatarUrl;
-    const save = (p) => { const u = Object.assign({}, this.data.user, { avatar: p }); this.setData({ user: u }); wx.setStorageSync('jys_user', u); };
-    wx.getFileSystemManager().saveFile({ tempFilePath: url, success: (r) => save(r.savedFilePath), fail: () => save(url) });
+  refreshHistory() {
+    const raw = history.load();
+    this.setData({ list: raw.map((value) => Object.assign({}, value, {
+      timeText: ts(value.t),
+      contentIdText: value.contentId ? value.contentId.slice(0, 10) + '…' : '',
+    })) });
+  },
+  onChooseAvatar(event) {
+    const url = event.detail.avatarUrl;
+    const save = (path) => {
+      const user = Object.assign({}, this.data.user, { avatar: path });
+      this.setData({ user }); wx.setStorageSync('jys_user', user);
+    };
+    wx.getFileSystemManager().saveFile({
+      tempFilePath: url,
+      success: (result) => save(result.savedFilePath),
+      fail: () => save(url),
+    });
   },
   startEdit() { this.setData({ editing: true }); },
-  onNick(e) { const u = Object.assign({}, this.data.user, { nick: e.detail.value }); this.setData({ user: u, editing: false }); wx.setStorageSync('jys_user', u); },
-  clearHistory() { wx.showModal({ title: '清空历史', content: '确定清空全部检测记录？', success: (m) => { if (m.confirm) { history.clear(); this.refreshHistory(); } } }); },
+  onNick(event) {
+    const user = Object.assign({}, this.data.user, { nick: event.detail.value });
+    this.setData({ user, editing: false }); wx.setStorageSync('jys_user', user);
+  },
+  clearHistory() {
+    wx.showModal({
+      title: '清空历史', content: '确定清空全部本地任务记录？',
+      success: (modal) => { if (modal.confirm) { history.clear(); this.refreshHistory(); } },
+    });
+  },
 
-  /* 生成 / 保存海报 */
+  saveProtectedImage() {
+    if (!this.data.verifyImageGenerated || !this.data.verifyImgPath) return;
+    wx.saveImageToPhotosAlbum({
+      filePath: this.data.verifyImgPath,
+      success: () => wx.showToast({ title: '保护图已保存' }),
+      fail: (error) => {
+        if (/deny|authorize|auth/.test((error && error.errMsg) || '')) {
+          wx.showModal({
+            title: '需要相册权限', content: '请在设置中允许“保存到相册”',
+            success: (modal) => { if (modal.confirm) wx.openSetting(); },
+          });
+        } else wx.showToast({ title: '保存失败', icon: 'none' });
+      },
+    });
+  },
+
   generatePoster() {
-    const r = this.data.result; if (!r) return;
+    const result = this.data.result;
+    if (!result) return;
     wx.showLoading({ title: '生成中…' });
-    wx.createSelectorQuery().in(this).select('#posterCanvas').fields({ node: true, size: true }).exec((res) => {
-      if (!res || !res[0] || !res[0].node) { wx.hideLoading(); wx.showToast({ title: '画布未就绪', icon: 'none' }); return; }
-      const canvas = res[0].node; const ctx = canvas.getContext('2d');
-      const info = (wx.getWindowInfo && wx.getWindowInfo()) || wx.getSystemInfoSync(); const dpr = (info && info.pixelRatio) || 2;
-      const W = 600, H = 920; canvas.width = W * dpr; canvas.height = H * dpr; ctx.scale(dpr, dpr);
-      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
-      ctx.fillStyle = '#0369a1'; ctx.fillRect(0, 0, W, 10);
-      ctx.textAlign = 'left';
-      ctx.fillStyle = '#0b2a45'; ctx.font = 'bold 46px sans-serif'; ctx.fillText('寻源路', 44, 100);
-      ctx.fillStyle = '#5a6b81'; ctx.font = '24px sans-serif'; ctx.fillText('AIGC 图像水印主动溯源', 44, 140);
-      const vy = 200; ctx.strokeStyle = '#e3eaf3'; ctx.lineWidth = 2; ctx.strokeRect(44, vy, W - 88, 270);
-      ctx.fillStyle = '#5a6b81'; ctx.font = '24px sans-serif'; ctx.fillText('Bit Accuracy', 76, vy + 56);
-      ctx.fillStyle = '#0369a1'; ctx.font = 'bold 100px sans-serif'; ctx.fillText(this.data.accText, 72, vy + 165);
-      ctx.fillStyle = '#0b2a45'; ctx.font = '30px sans-serif'; ctx.fillText((this.data.verdict && this.data.verdict.text) || '', 76, vy + 230);
+    wx.createSelectorQuery().in(this).select('#posterCanvas').fields({ node: true, size: true }).exec((response) => {
+      if (!response || !response[0] || !response[0].node) {
+        wx.hideLoading(); wx.showToast({ title: '画布未就绪', icon: 'none' }); return;
+      }
+      const canvas = response[0].node;
+      const ctx = canvas.getContext('2d');
+      const info = (wx.getWindowInfo && wx.getWindowInfo()) || wx.getSystemInfoSync();
+      const dpr = (info && info.pixelRatio) || 2;
+      const width = 600; const height = 920;
+      canvas.width = width * dpr; canvas.height = height * dpr; ctx.scale(dpr, dpr);
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, width, height);
+      ctx.fillStyle = '#0369a1'; ctx.fillRect(0, 0, width, 10);
+      ctx.textAlign = 'left'; ctx.fillStyle = '#0b2a45'; ctx.font = 'bold 46px sans-serif'; ctx.fillText('寻源路', 44, 100);
+      ctx.fillStyle = '#5a6b81'; ctx.font = '24px sans-serif'; ctx.fillText('已登记内容来源核验 · 技术记录卡', 44, 140);
+      const panelY = 200;
+      ctx.strokeStyle = '#e3eaf3'; ctx.lineWidth = 2; ctx.strokeRect(44, panelY, width - 88, 270);
       ctx.fillStyle = '#5a6b81'; ctx.font = '24px sans-serif';
-      ctx.fillText('模型 ' + (r.model || '-') + '   攻击 ' + (r.attack || '-'), 44, 550);
-      ctx.fillText('模式 ' + (r.mode || '-'), 44, 592); ctx.fillText('PSNR ' + this.data.psnrText, 44, 634);
-      ctx.fillText('任务 ' + (r.task_id || '-'), 44, 676);
-      ctx.fillStyle = '#0369a1'; ctx.font = '22px sans-serif'; ctx.fillText('主动水印 · 深度伪造溯源 · Ed25519 证据链', 44, 850);
-      ctx.fillStyle = '#93a3b8'; ctx.font = '20px sans-serif'; ctx.fillText('新疆大学 VPSG · 技术演示作品', 44, 884);
-      wx.canvasToTempFilePath({ canvas, success: (out) => { this.setData({ posterPath: out.tempFilePath }); wx.hideLoading(); }, fail: () => { wx.hideLoading(); wx.showToast({ title: '生成失败', icon: 'none' }); } });
+      ctx.fillText(this.data.showMetrics ? this.data.metricPrimaryLabel : '结果场景', 76, panelY + 56);
+      ctx.fillStyle = '#0369a1'; ctx.font = this.data.showMetrics ? 'bold 88px sans-serif' : 'bold 34px sans-serif';
+      ctx.fillText(this.data.showMetrics ? this.data.accText : (this.data.resultTitle || '-').slice(0, 18), 72, panelY + 155);
+      ctx.fillStyle = '#0b2a45'; ctx.font = '26px sans-serif';
+      ctx.fillText(((this.data.verdict && this.data.verdict.text) || '').slice(0, 25), 76, panelY + 225);
+      ctx.fillStyle = '#5a6b81'; ctx.font = '22px sans-serif';
+      ctx.fillText('模型 ' + (result.model || '-'), 44, 550);
+      ctx.fillText('模式 ' + (result.mode || '-'), 44, 590);
+      ctx.fillText('来源 ' + String(result.result_provenance || '-').slice(0, 36), 44, 630);
+      ctx.fillText('记录 ' + String(result.event_id || result.content_id || result.task_id || '-').slice(0, 36), 44, 670);
+      ctx.fillText('后端 claim_valid ' + (this.data.declaredClaimValid ? 'TRUE' : 'FALSE'), 44, 710);
+      ctx.fillStyle = this.data.claimValid ? '#0369a1' : '#dc2626'; ctx.font = 'bold 22px sans-serif';
+      ctx.fillText(this.data.claimValid ? '三元可信门禁通过 · 本事件结果可引用' : '可信门禁未通过 · 禁止作来源/合规/取证结论', 44, 842);
+      ctx.fillStyle = '#93a3b8'; ctx.font = '19px sans-serif';
+      ctx.fillText('签名完整性不自动等同司法采信或监管认定', 44, 880);
+      wx.canvasToTempFilePath({
+        canvas,
+        success: (output) => { this.setData({ posterPath: output.tempFilePath }); wx.hideLoading(); },
+        fail: () => { wx.hideLoading(); wx.showToast({ title: '生成失败', icon: 'none' }); },
+      });
     });
   },
   savePoster() {
     if (!this.data.posterPath) return;
-    wx.saveImageToPhotosAlbum({ filePath: this.data.posterPath, success: () => wx.showToast({ title: '已保存到相册' }),
-      fail: (e) => { if (/deny|authorize|auth/.test((e && e.errMsg) || '')) { wx.showModal({ title: '需要相册权限', content: '请在设置中允许“保存到相册”', success: (m) => { if (m.confirm) wx.openSetting(); } }); } else { wx.showToast({ title: '保存失败', icon: 'none' }); } } });
+    wx.saveImageToPhotosAlbum({
+      filePath: this.data.posterPath,
+      success: () => wx.showToast({ title: '已保存到相册' }),
+      fail: (error) => {
+        if (/deny|authorize|auth/.test((error && error.errMsg) || '')) {
+          wx.showModal({
+            title: '需要相册权限', content: '请在设置中允许“保存到相册”',
+            success: (modal) => { if (modal.confirm) wx.openSetting(); },
+          });
+        } else wx.showToast({ title: '保存失败', icon: 'none' });
+      },
+    });
   },
 });

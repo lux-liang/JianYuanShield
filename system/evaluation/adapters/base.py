@@ -45,9 +45,9 @@ class ModelAdapter(ABC):
             raise ValueError(f"{self.name}: expected HxWx3 uint8 RGB image, got {image.shape}/{image.dtype}")
 
     def validate_message(self, message: np.ndarray) -> np.ndarray:
-        bits = np.asarray(message, dtype=np.uint8).reshape(-1)
-        if bits.size != self.message_length:
-            raise ValueError(f"{self.name}: expected {self.message_length} bits, got {bits.size}")
-        if not np.isin(bits, [0, 1]).all():
+        raw = np.asarray(message).reshape(-1)
+        if raw.size != self.message_length:
+            raise ValueError(f"{self.name}: expected {self.message_length} bits, got {raw.size}")
+        if not np.isin(raw, [0, 1]).all():
             raise ValueError(f"{self.name}: message must contain only 0/1")
-        return bits
+        return raw.astype(np.uint8, copy=False)

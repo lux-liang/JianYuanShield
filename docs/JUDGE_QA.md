@@ -1,93 +1,61 @@
-# 评委问答
+# 评委高压问答（证据一致版）
 
 ## 这是普通 Deepfake 检测吗？
 
-不是。系统强调主动取证：在内容传播前嵌入可恢复信息，并在攻击后评估能否恢复来源与水印。
+不是。鉴源盾是主动来源核验：发布前嵌入并登记来源凭证，传播后按 `content_id` 执行 decode-only 核验。它不对任意未知图片作“真/假”分类。
 
-## 这些模型是否只是外部开源项目？
+## 你们究竟证明了什么来源关系？
 
-不是。LIDMark、MEA、WaveGuard、KAD-Net 均属于本团队原创技术体系，经指导教师同意在鉴源盾中统一集成。鉴源盾新增了统一协议评测、证据审计、交互闭环和报告体系。
+保护接口为每份内容生成唯一消息，将其与请求方声明的应用侧 `creator_ref`、内容哈希、模型和 checkpoint 哈希登记。核验接口回答观测内容能否匹配这条预登记记录。`creator_ref` 不等于自然人身份认证，当前共享 API Key 也不建立租户、对象所有权或认证会话；这些关系必须由部署方的 IdP、租户边界和对象授权另行提供。
 
-## 哪些结果是真实 checkpoint？
+## 核验时会不会先嵌入再检测，造成自证成功？
 
-SepMark、WaveGuard 均使用真实 checkpoint，完成 13,233 张 LFW 全量评测。LIDMark 已完成 3 个独立 seed（20260603/04/05）的正式 checkpoint 训练，每 seed 评测 512 张，3-seed 合并 95% CI 为 [99.94%, 100%]。KAD-Net 已在服务器独立训练 100 epoch，完成 512 张 LFW 评测，clean/jpeg/noise/resize 全部 100%。HiDDeN checkpoint 损坏（精度≈50%），已从正式评测中剔除。
+不会。正式来源核验只调用 adapter `decode`。旧批量接口曾把 embed-then-decode 误作合规检测，现已 fail-closed 返回 `capability_unavailable`，直到盲检模型完成负样本校准。
 
-## 为什么 HiDDeN 指标不高还要展示？
+## 没有模型权重时系统会怎样？
 
-这是信息安全评测的价值：同样是真实 checkpoint、同样是真实 LFW 数据和攻击链路，HiDDeN 在当前域上恢复接近随机，说明公开 watermark checkpoint 不能直接假定可迁移。SepMark 在同一条件下明显更稳，构成强弱对照。
+provenance 正式接口返回 503，不生成来源结论。单图 UI 演示可以运行确定性 simulation，但响应强制 `claim_valid=false`，不得生成正式证书或科研结论。
 
-## 当前最适合答辩的模型是哪一个？
+## MEA 的创新在哪里？
 
-四模型均已完成正式 checkpoint 评测，按场景推荐如下：
+MEA 把后嵌入水印视为对先嵌来源凭证的覆盖攻击，分别测第一消息保留率、第二消息成功率和两阶段视觉损失。矩阵失败本身是红队发现；我们不会把红叉包装成防御成功。
 
-- **LIDMark（首推）**：3-seed 正式训练，LFW 1,536 张，ID 比特精度 99.97–99.98%，95% CI 全部 ≥ 99.88%。语义绑定（人脸关键点+用户 ID）是本组独创技术亮点，竞赛辨识度最高。
-- **KAD-Net（算法精度首推）**：独立训练 100ep，LFW 512 张，clean/jpeg50/jpeg70/resize/noise 全部 **100%**。CVPR 2026 方向，展示团队前沿研究实力。几何增强微调进行中（EP17/50）；EP16 中间结果：crop=71.2%，rotate=39.8%，较原始 33%/30% 显著改善。
-- **WaveGuard**：JPEG STE 7ep 微调后，LFW 512 张 JPEG Q=50 tracer 比特精度 **100%**（CI=[100%,100%]），完全修复原 37.3% 问题；JPEG70/noise/resize 同样 100%。
-- **SepMark**：LFW 13,233 张，decoder_RF clean=91.19%（CI=[90.90%, 91.48%]），原 decoder_C=87.74%；RF 解码器是本组重新训练的改进版本。
+## 不同模型消息长度不同，能直接比较吗？
 
-## 为什么 WaveGuard 有多个接近 100% 的指标？
+不能简单比较。正式矩阵登记 LIDMark/KAD-Net/SepMark/WaveGuard 的 16/30/128/30 bit、主 decoder 与协议成功阈值；原始 bit accuracy 只作诊断。部署选择使用以各模型协议阈值为中心的归一化 margin、协议成功率和攻击后质量聚类下界，detector、tracer、ID bit、landmark 指标仍分别报告。
 
-当前结果来自真实 checkpoint 全量推理。我们已完成严格权重加载以及错误消息、无嵌入图像负对照：正确消息为 100%，两个负对照约为随机水平，因此没有发现明显消息泄漏。但现有攻击偏弱，仍不能直接宣称绝对领先。
+## 为什么 256 张图不能按 256 个独立样本算置信区间？
 
-## 为什么要做 MEA？
+因为它们只有 217 个身份，24 个身份重复，重复簇涉及 63 张图，最大簇有 10 张。v2 策略先在身份内求均值、再对身份等权，以固定 seed 做 20,000 次 cluster bootstrap；单侧 Bonferroni 固定族覆盖 4 个候选 × 4 个攻击者 × 6 个指标，共 96 项，并把选择后报告纳入同一族。现场响应会显示身份审计、每比较 alpha、选择稳定率和旧 i.i.d. / 新 cluster 消融。
 
-MEA 多重嵌入攻击体现信息安全攻防：攻击者可以通过二次嵌入或平台水印覆盖原始取证信号，导致溯源失败。
+## 目前 Deepfake 实验是真实换脸吗？
 
-## 结果是否做了统计显著性分析？
+是独立的真实换脸评测轨道。正式主张固定使用官方 SimSwap commit `bd7b7686a17f41dd11cfcd5d82f7e4c5eb94b780`、官方 generator/ArcFace 权重和 LFW n256 身份不重叠 pair；64 对只用于阈值 calibration，192 对 holdout 报告 TAR/FAR、Wilson 95% 区间、流程内身份迁移及 PSNR/SSIM。KAD-Net holdout TAR 为 191/192（0.99479167，95% 下界 0.97109250）；unwatermarked、wrong-message、cross-record 三类负控分别都是 0/192，单控制 Wilson 95% FAR 上界均为 0.01961515。pooled 0/576 与上界 0.00662502 只作为相关控制的描述统计，不称为 576 次独立试验。条件分组由 raw rows 复算：KAD-Net 在 clean-migrated 子集为 160/161、clean 与 watermarked 均 migrated 子集为 153/154；SepMark 对应为 151/161 和 150/159。同一 ArcFace checkpoint 同时用于 SimSwap source identity conditioning 和 cosine migration measurement，所以这些是流程内迁移证据，不是独立身份验证器结果。1024 条模型结果、1792 条嵌入、176 个可视化资产与 implementation hash 一并进入 release-core。`deepfake_proxy_v1` 保留为传播管线 smoke，不与该轨道混写。
 
-已对 13,233 张逐图配对结果生成 Bootstrap 置信区间、配对符号翻转检验、效应量和 Holm 多重比较校正。LIDMark 的置信区间来自 3 个独立 seed（共 1,536 张），同时捕捉图像采样和训练随机性不确定性。SepMark、WaveGuard 目前仍为单 seed，区间仅反映图像采样不确定性；如需 between-seed 方差，需补充重训。
+## README 中的性能数字如何获得发布资格？
 
-## 报告如何防篡改？
+主张状态不由 README 文案决定。大体积 checkpoint、数据 manifest、逐图结果、实验上下文和视觉资产位于 runtime evidence roots，release manifest 以 logical path 与 SHA-256 将其闭包绑定到当前代码；`/api/claims` 现场执行逐行复算、精确成员检查和固定签名者验签。official-SimSwap/LFW n256 数字来自已经完成的固定实验闭包，其可发布状态仍由这条机器门禁即时决定。
 
-系统使用 Ed25519 对 canonical evidence manifest 签名，当前覆盖协议、诊断、统计、报告和 checkpoint 等 19 个文件。前端可下载 manifest、签名和公钥，修改任意已覆盖文件都会触发 `content_mismatch`。
+## Ed25519 签名能否直接证明法律效力？
 
-## KAD-Net 的当前评测状态？
+不等于。它证明指定密钥签过 canonical record，并可检测内容篡改。司法采信还涉及身份、取证程序、可信时间、密钥托管和外部信任锚。我们准确称其为“完整性签名记录”。
 
-KAD-Net 已完成服务器独立训练（100 epoch）和正式集成。LFW 512 张全量评测结果：
-- clean / jpeg / jpeg50 / jpeg70 / resize / noise：全部 **100%**（或 99.97%）
-- 几何增强微调中（EP17/50）；EP16 中间：crop_center_0.8 ≈ **71.2%**，rotate_5 ≈ **39.8%**（EP50 完成后更新）
+## 公钥和签名一起被替换怎么办？
 
-MEA 矩阵显示 KAD-Net 与 WaveGuard 兼容性最佳（KAD→WG: 100% | 100%，WG→KAD: 100% | 100%）。
+仅靠本机文件无法防止整套替换。正式部署必须把公钥指纹固定到独立客户端、发布页或监管侧，并使用 HSM/密钥服务。系统响应会给出公钥指纹，便于外部固定。
 
----
+## 如何避免上传图片攻击系统？
 
-## WaveGuard 在 JPEG-50 压缩下成功率为什么只有 37%，而 JPEG-70 是 99%？
+服务校验真实格式、MIME、字节数、像素数和批量数量；生产模式要求 API Key；GPU 默认单并发并设超时；checkpoint 只读挂载并用安全加载；容器非 root 且移除 Linux capabilities。
 
-**完整解释**（已做梯度实验验证）：
+## 统计结果如何保证严谨？
 
-WaveGuard 使用 DTCWT（双树复小波变换）频域嵌入水印。JPEG 压缩对不同频段的量化阈值不同：
-- WaveGuard 主要使用**高频子带**（LH/HL/HH）嵌入信息
-- 高频子带的 JPEG 量化阈值约在 q≈60-65 处
-- 原始权重 q=50 时高频子带被量化，成功率 37.3%；已通过 JPEG STE 7ep 微调修复至 **100%**
-- q=70 时高频子带受到保护 → 成功率 99.6%
+正式结果必须保存逐图记录，按相同指标和相同样本做配对；seed 作为层级处理，不能把同一批图片在多个 seed 下重复计作互相独立的样本。共享同一 pair 的多个负控也不能合并后冒充独立试验：pooled FAR 可以描述，区间推断按每类负控的 192 个 pair 分开报告。阈值只在 calibration split 上用正负样本选择，再在隔离 holdout 报告 TAR、FAR、FRR 与区间。
 
-我们对 50 张图像做了 q=40→90 的梯度实验，结论一致（q=60: 93%, q=70: 99.7%）。
+## 四个模型都是本届学生原创吗？
 
-**修复状态**：已通过 JPEG STE 微调修复，Q=40-70 全范围 tracer 比特精度 100%。主流平台（q=75-85）从未受影响。
+不能仅凭平台集成作此结论。申报材料会逐模型列出作者、实验室既有成果、本届新增贡献、许可证、提交记录和训练日志。平台层的 provenance、MEA 治理、claims gate 和安全工程可由本仓库审计。
 
----
+## 当前最强的竞争力是什么？
 
-## HiDDeN 的失效是域偏移还是别的原因？
-
-**确认是 checkpoint 本身损坏**，而非域偏移。
-
-我们做了闭环验证：对 CelebA-HQ 人脸图像（与训练域相似）做编码→解码，理论上应该接近 100% accuracy，实测仅 **49.6%（随机水平）**。
-
-根本原因：checkpoint 文件为 `epoch-200.pyt`，但原始训练配置 `number_of_epochs=100`，说明训练被非标准地延长，过程中很可能发生了梯度发散。训练数据来自已不可访问的 AutoDL 平台，无法复现。
-
-**这反而证明了鉴源盾的价值**：系统通过双层门禁（`ready_for_demo / ready_for_claims`）自动识别出 HiDDeN 的失效，并标记为 ⚠️ 待复核状态，而不是把失效结果暴露给用户。
-
----
-
-## 为什么要用 3 个 seed 并行训练 LIDMark？
-
-单 seed 的 Bootstrap CI 只反映图像采样不确定性，不能排除训练随机性带来的结果偏差。3 个独立 seed 可以：
-1. 计算跨 seed 均值和方差，证明结果稳定性
-2. 通过 Holm 多重比较校正，控制误报率
-3. 向评委展示团队的科学性严谨程度——"我们知道一次实验不够，所以主动做了三次"
-
----
-
-## 系统能在没有网络的情况下运行吗？
-
-目前正在准备 Docker 离线部署包。核心模型权重（SepMark/WaveGuard/LIDMark/KAD-Net）在答辩前会打包到镜像中，支持无网络启动。
+项目把主动来源记录匹配、多水印红队评测和科研声明门禁组织成同一个可审计系统，同时展示算法能力、声明主体引用、记录完整性、攻击面和证据边界。

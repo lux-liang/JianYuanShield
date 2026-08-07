@@ -76,7 +76,7 @@ def main() -> int:
     device = torch.device(args.device if torch.cuda.is_available() and args.device.startswith("cuda") else "cpu")
     _, config, noise_config = utils.load_options(args.options)
     model = Hidden(config, device, Noiser(noise_config, device), None)
-    checkpoint = torch.load(args.checkpoint, map_location=device)
+    checkpoint = torch.load(args.checkpoint, map_location=device, weights_only=True)
     checkpoint_keys = set(checkpoint.keys()) if isinstance(checkpoint, dict) else set()
     utils.model_from_checkpoint(model, checkpoint)
     model.encoder_decoder.eval()

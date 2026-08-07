@@ -21,18 +21,26 @@ def _metric_value(value: Any) -> Any:
     return number if number is not None else value
 
 
+def _metric_tree(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {str(key): _metric_tree(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_metric_tree(item) for item in value]
+    return _metric_value(value)
+
+
 def _normalize_attack_record(attack: str, values: dict[str, Any]) -> dict[str, Any]:
     metrics: dict[str, Any] = {}
     for key, value in values.items():
-        if key in {"status", "count", "attack", "attack_type"}:
+        if key in {"status", "count", "row_count", "attack", "attack_type"}:
             continue
-        if isinstance(value, (int, float, str)) and value not in ("", None):
-            metrics[key] = _metric_value(value)
+        if isinstance(value, (int, float, str, dict, list)) and value not in ("", None):
+            metrics[key] = _metric_tree(value)
 
     return {
         "attack": attack,
         "status": values.get("status", "unknown"),
-        "count": _metric_value(values.get("count")),
+        "count": _metric_value(values.get("count", values.get("row_count"))),
         "metrics": metrics,
     }
 
@@ -75,8 +83,11 @@ def normalize_benchmark(
     num_images = _first_present(
         [
             summary.get("num_images"),
+            summary.get("sample_count"),
             summary.get("images"),
             summary.get("requested_images"),
+            progress.get("total_samples"),
+            progress.get("processed_samples"),
             progress.get("num_images"),
             progress.get("processed_images"),
             progress.get("completed_images"),
