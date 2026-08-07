@@ -12,7 +12,7 @@
 
 **创作者持钥证明 · 四模型主动水印 · AIGC 双重标识 · 自包含来源凭证 · 防回滚审计 · 签名撤销 · MEA 4×4 红队评测**
 
-[核心创新](#核心创新) · [实验结果](#已完成的正式实验) · [快速开始](#快速开始) · [API](#核心-api) · [离线部署](#国赛离线部署) · [技术报告](docs/TECHNICAL_REPORT.md)
+[主叙事](docs/COMPETITION_STORY.md) · [演示分镜](docs/DEMO_STORYBOARD.md) · [证据索引](docs/EVIDENCE_INDEX.md) · [核心创新](#核心创新) · [实验结果](#已完成的正式实验) · [快速开始](#快速开始) · [API](#核心-api) · [技术报告](docs/TECHNICAL_REPORT.md)
 
 </div>
 
