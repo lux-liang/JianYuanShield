@@ -123,7 +123,11 @@ assert.ok(mea.includes('assertPolicyResponse(payload, threats, profile)'), 'MEA 
 assert.ok(mea.includes('evidence.signature_verified !== true'), 'MEA collaboration must require a verified release signature');
 assert.ok(mea.includes('evidence.signer_pinned !== true'), 'MEA collaboration must require signer pinning');
 assert.ok(mea.includes('evidence.policy_sha256'), 'MEA collaboration must bind the signed policy bytes');
-assert.ok(mea.includes('simultaneous_lcb'), 'MEA collaboration must display confidence-adjusted metrics');
+assert.ok(
+  mea.includes('expected_source_protocol_normalized_margin_cluster_lcb')
+    && mea.includes('worst_case_source_protocol_normalized_margin_cluster_lcb'),
+  'MEA collaboration must display confidence-adjusted metrics',
+);
 
 [
   ['一键取证', homeView],
