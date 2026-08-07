@@ -9,12 +9,37 @@
 [![Evidence](https://img.shields.io/badge/evidence-Ed25519-0f766e)](system/backend/signing.py)
 [![GB 45438](https://img.shields.io/badge/GB%2045438--2025-aligned-b45309)](system/backend/aigc_labeling.py)
 [![CI](https://img.shields.io/badge/CI-fail--closed-475569)](.github/workflows/quality.yml)
+[![Tests](https://img.shields.io/badge/tests-345%20passed-16a34a)](tests)
+[![GPU Scale](https://img.shields.io/badge/SimSwap%20GPU-n%3D1024-7c3aed)](docs/GPU_SCALE_EXPERIMENT_20260807.md)
 
 **创作者持钥证明 · 四模型主动水印 · AIGC 双重标识 · 自包含来源凭证 · 防回滚审计 · 签名撤销 · MEA 4×4 红队评测**
 
-[主叙事](docs/COMPETITION_STORY.md) · [演示分镜](docs/DEMO_STORYBOARD.md) · [证据索引](docs/EVIDENCE_INDEX.md) · [核心创新](#核心创新) · [实验结果](#已完成的正式实验) · [快速开始](#快速开始) · [API](#核心-api) · [技术报告](docs/TECHNICAL_REPORT.md)
+**[在线演示](http://81.70.178.203/jys/)** · [三分钟答辩](docs/DEFENSE_SCRIPT_3MIN.md) · [国一对标卡](docs/NATIONAL_FIRST_SCORECARD.md) · [证据索引](docs/EVIDENCE_INDEX.md) · [核心创新](#核心创新) · [正式实验](#已完成的正式实验) · [快速开始](#快速开始)
 
 </div>
+
+> **一句话定位**：鉴源盾不是又一个孤立的水印算法，而是把创作时登记、传播后核验和争议时举证连成一条可运行、可复算、可验签的数字内容身份链。
+
+## 为什么现在需要鉴源盾
+
+生成合成内容治理正在从“事后识别风险”走向“生成、导出、传播全链路标识”。政策要求解决的是内容标识和平台责任，工程系统还需要继续回答：标识经历压缩、缩放、换脸或二次嵌入后还能否恢复，发生争议时结论能否被独立验证。
+
+| 时间 | 治理信号 | 对项目的技术要求 |
+|---|---|---|
+| 2022 | 《互联网信息服务深度合成管理规定》提出对生成或编辑内容采取技术措施添加标识 | 内容需要可识别、记录可追溯 |
+| 2023 | 《生成式人工智能服务管理暂行办法》强调促进发展、规范应用和保护合法权益 | 创新能力与安全边界同时落地 |
+| 2025 | 《人工智能生成合成内容标识办法》推动显式标识、隐式标识和传播责任协同 | 标识需要贯穿生成、导出与传播环节 |
+| 鉴源盾 | 主动水印 + 来源凭证 + 攻击评测 + 签名审计 | 补齐跨攻击鲁棒核验与争议举证闭环 |
+
+对应官方文件：[深度合成管理规定](https://www.cac.gov.cn/2022-12/11/c_1672221949354811.htm) · [生成式人工智能服务管理暂行办法](https://www.cac.gov.cn/2023-07/13/c_1690898327029107.htm) · [生成合成内容标识办法](https://www.cac.gov.cn/2025-03/14/c_1743654685899683.htm)
+
+### 一条内容的三段式生命线
+
+```text
+01 出生登记                 02 传播核验                    03 争议举证
+创作者持钥 + 主动水印  →   压缩/缩放/换脸/二次嵌入  →   原始结果 + 协议 + 实现哈希
+内容 ID + 签名凭证          盲解码 + 登记匹配              Manifest + Ed25519 验签
+```
 
 ## 项目简介
 
@@ -149,6 +174,8 @@ created_at / expires_at
 
 ## 已完成的正式实验
 
+> 页面数字不从 README 手工反向驱动系统。正式性能主张必须经过 `claims_manifest`、原始证据、实现哈希、release-core 和固定签名者共同放行；门禁不通过时，前端只显示 `review_required` 或 `blocked`。
+
 ### official SimSwap / ArcFace / LFW n=256
 
 固定实验包含 256 个身份不重叠 pair，其中 64 个只用于 calibration，192 个只用于 holdout；共生成 1,024 条四模型结果、1,792 条身份嵌入和 176 个视觉资产，覆盖 registered-positive、unwatermarked、wrong-message、cross-record 四类控制。
@@ -191,6 +218,12 @@ created_at / expires_at
 SepMark 的身份聚类同步下界：期望归一化 margin 0.84338599、最差归一化 margin 0.64088408、最差协议成功率 0.56973886、最差攻击后 PSNR 23.39670398 dB、最差 SSIM 0.63663706；选择稳定率为 1.0。策略由 `/api/collaboration/recommend` 对签名矩阵实时复算，不是前端写死的推荐卡。
 
 完整方法、硬件、置信区间和边界见 [技术报告](docs/TECHNICAL_REPORT.md) 与 [评测协议](docs/EVALUATION_PROTOCOL.md)。
+
+### H100 扩大规模验证：official SimSwap / ArcFace / LFW n=1024
+
+2026-08-07 在 NVIDIA H100 80GB 上完成额外规模验证：1024 个身份隔离 pair，固定划分为 256 calibration 与 768 holdout；四模型共生成 4096/4096 条结果和 7168/7168 条 ArcFace 身份嵌入，`identity_overlap=0`、`error_rows=0`。
+
+该轨道被明确标记为 `custom_real_run`，用于规模稳定性验证和下一版协议评审。在完成独立验证、正式 profile 纳入、Manifest 覆盖与 Ed25519 签名前，**不会替换当前已签名 n256 release-core，也不用于新增性能领先性主张**。运行范围、失败关闭过程和内容哈希见 [GPU 规模实验记录](docs/GPU_SCALE_EXPERIMENT_20260807.md)。
 
 ## 三端产品闭环
 
