@@ -22,10 +22,15 @@ if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
 
 from system.evaluation.run_metadata import build_run_metadata  # noqa: E402
-from system.evaluation.runtime import MODEL_SOURCE_ROOT, PROJECT_ROOT  # noqa: E402
+from system.evaluation.runtime import (  # noqa: E402
+    ASSET_ROOT,
+    DATA_ROOT,
+    MODEL_SOURCE_ROOT,
+    REPORT_ROOT,
+    WEIGHT_ROOT,
+)
 
 
-ROOT = PROJECT_ROOT
 HIDDEN_CODE = MODEL_SOURCE_ROOT / "MEA/codes/HiDDeN"
 sys.path.insert(0, str(HIDDEN_CODE))
 
@@ -36,7 +41,7 @@ from noise_layers.noiser import Noiser  # noqa: E402
 
 # New 300-epoch CelebA training (BER≈0.021 on val); falls back to old run if missing
 _HIDDEN_NEW_RUN = MODEL_SOURCE_ROOT / "MEA/codes/HiDDeN/runs/hidden_celeba_noise 2026.06.07--23-58-20"
-_HIDDEN_OLD_RUN = ROOT / "weights/mea/HiDDeN/runs/train-test-1 2025.07.09--12-49-43"
+_HIDDEN_OLD_RUN = WEIGHT_ROOT / "mea/HiDDeN/runs/train-test-1 2025.07.09--12-49-43"
 _ACTIVE_RUN = _HIDDEN_NEW_RUN if (_HIDDEN_NEW_RUN / "options-and-config.pickle").exists() else _HIDDEN_OLD_RUN
 DEFAULT_OPTIONS = _ACTIVE_RUN / "options-and-config.pickle"
 DEFAULT_CHECKPOINT = _ACTIVE_RUN / "checkpoints" / (
@@ -44,9 +49,9 @@ DEFAULT_CHECKPOINT = _ACTIVE_RUN / "checkpoints" / (
     if _ACTIVE_RUN == _HIDDEN_NEW_RUN
     else "train-test-1--epoch-200.pyt"
 )
-DEFAULT_IMAGE_ROOT = ROOT / "datasets/lfw_full_upload/unknown"
-REPORT_DIR = ROOT / "system/reports/hidden_lfw_full_benchmark"
-ASSET_DIR = ROOT / "system/assets/real_hidden_benchmark"
+DEFAULT_IMAGE_ROOT = DATA_ROOT / "lfw_full_upload/unknown"
+REPORT_DIR = REPORT_ROOT / "hidden_lfw_full_benchmark"
+ASSET_DIR = ASSET_ROOT / "real_hidden_benchmark"
 
 
 def expand_attacks(attacks: Iterable[str]) -> list[str]:
@@ -165,7 +170,7 @@ def save_artifacts(image_id: str, attack: str, original: torch.Tensor, encoded: 
     Image.fromarray(encoded_arr).save(paths["encoded"])
     Image.fromarray(attacked_arr).save(paths["attacked"])
     Image.fromarray(heat).save(paths["heatmap"])
-    return {k: f"/artifacts/real_hidden_benchmark/{image_id}/{attack}/{v.name}" for k, v in paths.items()}
+    return {k: f"/api/artifacts/real_hidden_benchmark/{image_id}/{attack}/{v.name}" for k, v in paths.items()}
 
 
 def metric_pair(reference: torch.Tensor, candidate: torch.Tensor) -> tuple[float, float]:
@@ -222,8 +227,8 @@ def make_grid(rows_csv: Path, output: Path, max_items: int = 8) -> None:
         return
     tiles = []
     for row in entries:
-        enc_path = ROOT / "system/assets" / row["artifact_encoded"].replace("/artifacts/", "")
-        heat_path = ROOT / "system/assets" / row["artifact_heatmap"].replace("/artifacts/", "")
+        enc_path = ASSET_ROOT / row["artifact_encoded"].replace("/api/artifacts/", "")
+        heat_path = ASSET_ROOT / row["artifact_heatmap"].replace("/api/artifacts/", "")
         if enc_path.exists() and heat_path.exists():
             tiles.extend([Image.open(enc_path).convert("RGB"), Image.open(heat_path).convert("RGB")])
     if not tiles:
@@ -257,7 +262,7 @@ def main() -> None:
 
     train_options, hidden_config, noise_config = utils.load_options(args.options_file)
     noiser = Noiser(noise_config, device)
-    checkpoint = torch.load(args.checkpoint_file, map_location=device)
+    checkpoint = torch.load(args.checkpoint_file, map_location=device, weights_only=True)
     hidden_net = Hidden(hidden_config, device, noiser, None)
     utils.model_from_checkpoint(hidden_net, checkpoint)
     hidden_net.encoder_decoder.eval()
@@ -278,7 +283,9 @@ def main() -> None:
         "decoder_channels": hidden_config.decoder_channels,
         "device": str(device),
     }
-    (ROOT / "system/reports/real_hidden/hidden_config_summary.json").write_text(
+    config_summary_path = REPORT_ROOT / "real_hidden" / "hidden_config_summary.json"
+    config_summary_path.parent.mkdir(parents=True, exist_ok=True)
+    config_summary_path.write_text(
         json.dumps(config_summary, indent=2, ensure_ascii=False), encoding="utf-8"
     )
 

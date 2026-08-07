@@ -8,7 +8,13 @@ PROJECT_DIR = Path(__file__).resolve().parents[2]
 if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
 
-from system.evaluation.runtime import DATA_ROOT, MODEL_SOURCE_ROOT, REPORT_ROOT, WEIGHT_ROOT  # noqa: E402
+from system.evaluation.runtime import (  # noqa: E402
+    DATA_ROOT,
+    MODEL_SOURCE_ROOT,
+    PROJECT_ROOT,
+    REPORT_ROOT,
+    WEIGHT_ROOT,
+)
 
 
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
@@ -65,7 +71,7 @@ def main() -> int:
         "smoke_checkpoints": [str(path) for path in smoke_checkpoints],
         "deepfake_assets": deepfake_assets,
         "blockers": blockers,
-        "training_config": str(PROJECT_DIR / "configs" / "lidmark_training.v1.json"),
+        "training_config": str(PROJECT_ROOT / "configs" / "lidmark_training.v1.json"),
         "required_next_actions": [
             "Add the licensed CelebA-HQ images with filenames matching the official watermark files.",
             "Record dataset provenance/license and verify identity-disjoint train/val/test splits.",

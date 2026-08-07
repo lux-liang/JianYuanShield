@@ -17,15 +17,21 @@ if str(PROJECT_DIR) not in sys.path:
     sys.path.insert(0, str(PROJECT_DIR))
 
 from system.evaluation.run_metadata import build_run_metadata  # noqa: E402
-from system.evaluation.runtime import MODEL_SOURCE_ROOT, PROJECT_ROOT  # noqa: E402
+from system.backend.utils import atomic_write_json  # noqa: E402
+from system.evaluation.runtime import (  # noqa: E402
+    ASSET_ROOT,
+    DATA_ROOT,
+    MODEL_SOURCE_ROOT,
+    REPORT_ROOT,
+    WEIGHT_ROOT,
+)
 
 
-ROOT = PROJECT_ROOT
 CODE = MODEL_SOURCE_ROOT / "MEA/codes/WaveGuard"
-CKPT = ROOT / "weights/mea/WaveGuard/exp_highpass/2025.07.24-20.10.50/model_state_16.pth"
-IMAGE = ROOT / "datasets/lfw_full_upload/unknown/lfw_00000.jpg"
-REPORT = ROOT / "system/reports/waveguard_lfw_benchmark/single_smoke.json"
-ASSET = ROOT / "system/assets/waveguard_single_smoke"
+CKPT = WEIGHT_ROOT / "mea/WaveGuard/exp_highpass/2025.07.24-20.10.50/model_state_16.pth"
+IMAGE = DATA_ROOT / "lfw_full_upload/unknown/lfw_00000.jpg"
+REPORT = REPORT_ROOT / "smoke/waveguard_single/single_smoke.json"
+ASSET = ASSET_ROOT / "waveguard_single_smoke"
 
 
 def yuv_tensor_from_image(path: Path, device: torch.device, size: int = 256) -> torch.Tensor:
@@ -74,6 +80,12 @@ def bit_error(message: torch.Tensor, decoded: torch.Tensor) -> float:
     return float((message.detach().cpu().gt(0) != decoded.detach().cpu().gt(0)).float().mean().item())
 
 
+def write_report(report: dict[str, object]) -> None:
+    """Persist smoke evidence without mutating the formal benchmark summary."""
+
+    atomic_write_json(REPORT, report)
+
+
 def main() -> None:
     ASSET.mkdir(parents=True, exist_ok=True)
     REPORT.parent.mkdir(parents=True, exist_ok=True)
@@ -97,7 +109,7 @@ def main() -> None:
     encoder = Encoder().to(device).eval()
     decoder_t = Decoder(type="tracer").to(device).eval()
     decoder_d = Decoder(type="detector").to(device).eval()
-    state = torch.load(CKPT, map_location=device)
+    state = torch.load(CKPT, map_location=device, weights_only=True)
     load_summary = {}
     for prefix, model in [("encoder.", encoder), ("decoder_t.", decoder_t), ("decoder_d.", decoder_d)]:
         sub = {k[len(prefix):]: v for k, v in state.items() if k.startswith(prefix)}
@@ -174,12 +186,7 @@ def main() -> None:
             command=sys.argv,
         ),
     }
-    REPORT.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
-    summary_path = ROOT / "system/reports/waveguard_lfw_benchmark/summary.json"
-    existing = json.loads(summary_path.read_text(encoding="utf-8")) if summary_path.exists() else {}
-    existing["single_image_smoke"] = report
-    existing["status"] = "single_smoke_ok"
-    summary_path.write_text(json.dumps(existing, indent=2, ensure_ascii=False), encoding="utf-8")
+    write_report(report)
     print(json.dumps(report, indent=2, ensure_ascii=False))
 
 
