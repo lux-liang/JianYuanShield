@@ -10,7 +10,11 @@ function normalizeApiBase(value) {
 
 // Production defaults to the current TLS origin. The gateway owns the user
 // session and injects the server-side API key while proxying /api to 127.0.0.1:8026.
-const API = normalizeApiBase(window.JYS_API_BASE);
+const deployedPathApi = window.location.pathname === "/jys"
+  || window.location.pathname.startsWith("/jys/")
+  ? "/jys/api"
+  : "";
+const API = normalizeApiBase(window.JYS_API_BASE || deployedPathApi);
 const TRUST_CONTRACTS = window.JYSTrustContracts || null;
 
 function apiURL(path) {
