@@ -1,0 +1,10 @@
+{
+  "checkpoint_sha256": "560e637908d312e7dbf7c34883be6b8d22927027ee74a74f21e43543cb9cd965",
+  "checkpoint_size_bytes": 71130573,
+  "run_id": "lidmark-lfw-id-s20260808-128-e100",
+  "schema_version": "jys.lidmark.evaluation-inputs.v1",
+  "selected_epoch": 81,
+  "selection_sha256": "5911dc803889f40daa1a742d94e573d19545a65172c0d60e80071464e53b1a66",
+  "training_config_sha256": "11e693fcfb210afd81f82a5bbc527bc2a8352c5c463163285580a53f38ebfc0e",
+  "training_seed": 20260808
+}
