@@ -909,6 +909,80 @@ button, input, select { font: inherit; }
 
 /* ═══ 概览 · 状态卡 ═══ */
 
+/* ═══ 概览 · 国一叙事主线 ═══ */
+
+.story-panel {
+  display: grid;
+  grid-template-columns: minmax(250px, .72fr) minmax(0, 1.55fr);
+  gap: 24px;
+  padding: 22px;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--r);
+  background:
+    linear-gradient(115deg, rgba(52, 211, 153, .11), transparent 42%),
+    var(--bg1);
+}
+
+.story-intro { display: grid; align-content: center; gap: 10px; }
+.story-intro h3 { margin: 0; font-size: clamp(20px, 2.2vw, 29px); line-height: 1.32; }
+.story-kicker { margin: 0; color: var(--accent); font-size: 12px; line-height: 1.65; }
+
+.story-journey { display: grid; gap: 9px; margin: 0; padding: 0; list-style: none; }
+.story-journey li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: rgba(5, 10, 18, .55);
+}
+.story-journey li:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: 32px;
+  bottom: -10px;
+  width: 1px;
+  height: 10px;
+  background: var(--accent-line);
+}
+.story-no { color: var(--accent); font: 700 14px/1 var(--mono); }
+.story-journey div { display: grid; gap: 4px; }
+.story-journey b { font-size: 14px; }
+.story-journey small { color: var(--muted); font-size: 11px; line-height: 1.55; }
+.story-journey a { color: var(--accent); font: 600 11px/1 var(--mono); text-decoration: none; white-space: nowrap; }
+.story-journey a::after { content: " →"; }
+
+.judge-map {
+  display: grid;
+  grid-template-columns: minmax(230px, .62fr) minmax(0, 1.5fr);
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--bg1);
+}
+.judge-map-head { padding: 7px; }
+.judge-map-head h3 { margin: 10px 0 7px; font-size: 17px; }
+.judge-map-head p { margin: 0; color: var(--muted); font-size: 11px; line-height: 1.65; }
+.judge-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.judge-grid a {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  color: var(--text);
+  text-decoration: none;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+.judge-grid a:hover { border-color: var(--accent-line); background: var(--accent-dim); transform: translateY(-1px); }
+.judge-grid span { color: var(--accent); font: 600 10px/1 var(--mono); letter-spacing: .14em; }
+.judge-grid strong { font-size: 13px; line-height: 1.45; }
+.judge-grid small { color: var(--faint); font-size: 10px; line-height: 1.4; }
+
 .summary-row {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
@@ -1781,6 +1855,11 @@ pre {
   .summary-row { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
+@media (max-width: 980px) {
+  .story-panel,
+  .judge-map { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 1080px) {
   .app-shell { grid-template-columns: 1fr; }
 
@@ -1906,8 +1985,15 @@ pre {
 
   /* 内容栅格全部单列 / 双列 */
   .hero-grid,
+  .story-panel,
+  .judge-map,
   .module-list,
   .demo-form { grid-template-columns: 1fr; }
+
+  .judge-grid { grid-template-columns: 1fr; }
+  .story-panel { padding: 16px; }
+  .story-journey li { grid-template-columns: 32px minmax(0, 1fr); }
+  .story-journey a { grid-column: 2; }
 
   .summary-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
