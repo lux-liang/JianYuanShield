@@ -19,6 +19,7 @@ from system.scripts import run_lidmark_lfw_benchmark as benchmark
 
 class LIDMarkBenchmarkTests(unittest.TestCase):
     def setUp(self) -> None:
+        benchmark.configure_input_expectations(None)
         self.protocol = load_protocol()
         self.attacks = benchmark.resolve_attacks(self.protocol)
 
@@ -208,6 +209,27 @@ class LIDMarkBenchmarkTests(unittest.TestCase):
         jpeg["parameters"]["quality"] = 49
         with self.assertRaisesRegex(ValueError, "parameter drift"):
             benchmark.resolve_attacks(drifted)
+
+    def test_candidate_manifest_is_explicit_and_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            manifest = root / "inputs.json"
+            payload = {
+                "schema_version": benchmark.INPUT_MANIFEST_SCHEMA,
+                "selection_sha256": "a" * 64,
+                "checkpoint_sha256": "b" * 64,
+                "checkpoint_size_bytes": 71,
+                "selected_epoch": 93,
+                "training_config_sha256": "c" * 64,
+                "training_seed": 20260813,
+            }
+            manifest.write_text(json.dumps(payload), encoding="utf-8")
+            benchmark.configure_input_expectations(manifest)
+            self.assertEqual(benchmark.input_expectation("selected_epoch", 20), 93)
+            payload["checkpoint_sha256"] = "unsafe"
+            manifest.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "SHA-256"):
+                benchmark.configure_input_expectations(manifest)
 
     def test_identity_disjoint_proof_rejects_overlap_and_non_test_selection(self) -> None:
         splits = {
