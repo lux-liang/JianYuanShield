@@ -53,6 +53,7 @@ android/*.keystore
 # Secrets and runtime state
 .env
 .deployed_commit
+dist/
 
 # Third-party model repos (large, not tracked)
 KAD-Net/
