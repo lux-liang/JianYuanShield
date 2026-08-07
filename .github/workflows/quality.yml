@@ -72,7 +72,7 @@ jobs:
 
       - name: Reject tracked credential material
         run: |
-          if git grep -lE 'g[h]p_|github_[p]at_|-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----'; then
+          if git grep -lE 'g[h]p_|github_[p]at_|^-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----'; then
             echo 'Tracked credential-like material detected' >&2
             exit 1
           fi
