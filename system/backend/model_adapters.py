@@ -12,14 +12,9 @@ from typing import Any
 
 import cv2
 import numpy as np
+import torch
 from PIL import Image
-
-try:
-    import torch
-    from torchvision import transforms
-except (ImportError, OSError):
-    torch = None  # type: ignore[assignment]
-    transforms = None  # type: ignore[assignment]
+from torchvision import transforms
 
 from system.evaluation.runtime import MODEL_SOURCE_ROOT, WEIGHT_ROOT
 from system.evaluation.attacks import apply_attack
@@ -43,12 +38,6 @@ LIDMARK_CKPT_SHA256 = "762369c8e4e881c8d72fde08ebaf7fea3fd7a26354aa344aed288cb78
 KADNET_CKPT_SHA256 = "3b298493ae3510e73fc85a5fcae2f470d8e6892e9e058aa9cca3a0d8d35f5079"
 
 _lock = threading.Lock()
-
-
-def _torch_runtime_available() -> bool:
-    """Allow evidence-only web nodes to start without the GPU inference stack."""
-
-    return torch is not None and transforms is not None
 
 
 @lru_cache(maxsize=16)
@@ -209,9 +198,7 @@ class SepMarkAdapter:
 
     @classmethod
     def available(cls) -> bool:
-        return _torch_runtime_available() and _checkpoint_available(
-            SEPMARK_CKPT, SEPMARK_CKPT_SHA256
-        )
+        return _checkpoint_available(SEPMARK_CKPT, SEPMARK_CKPT_SHA256)
 
     def run(self, image_rgb: np.ndarray, attack: str = "clean") -> dict[str, Any]:
         img = Image.fromarray(image_rgb).convert("RGB").resize(
@@ -322,9 +309,7 @@ class WaveGuardAdapter:
 
     @classmethod
     def available(cls) -> bool:
-        return _torch_runtime_available() and _checkpoint_available(
-            WAVEGUARD_CKPT, WAVEGUARD_CKPT_SHA256
-        )
+        return _checkpoint_available(WAVEGUARD_CKPT, WAVEGUARD_CKPT_SHA256)
 
     def _rgb_to_yuv_tensor(self, rgb: np.ndarray) -> torch.Tensor:
         yuv = cv2.cvtColor(rgb.astype(np.uint8), cv2.COLOR_RGB2YUV).astype(np.float32)
@@ -434,8 +419,6 @@ class LIDMarkAdapter:
 
     @classmethod
     def _find_ckpt(cls) -> "Path | None":
-        if not _torch_runtime_available():
-            return None
         if _checkpoint_available(LIDMARK_CKPT, LIDMARK_CKPT_SHA256):
             return LIDMARK_CKPT
         return None
@@ -577,8 +560,6 @@ class KADNetAdapter:
 
     @classmethod
     def _find_ckpt(cls) -> "tuple[Path, str | None, str | None] | tuple[None, None, None]":
-        if not _torch_runtime_available():
-            return None, None, None
         if _checkpoint_available(KADNET_CKPT, KADNET_CKPT_SHA256):
             return KADNET_CKPT, "se", "se"
         return None, None, None
