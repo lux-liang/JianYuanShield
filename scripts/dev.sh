@@ -65,8 +65,10 @@ fi
 if port_open 127.0.0.1 "$FRONTEND_PORT"; then
   echo "frontend port $FRONTEND_PORT is already in use; reusing existing frontend"
 else
-  echo "starting frontend: http://127.0.0.1:$FRONTEND_PORT"
-  (cd "$ROOT/system/frontend" && "$PYTHON" -m http.server "$FRONTEND_PORT" --bind "$FRONTEND_HOST") &
+  echo "starting same-origin gateway: http://127.0.0.1:$FRONTEND_PORT"
+  JYS_GATEWAY_UPSTREAM="http://127.0.0.1:$BACKEND_PORT" \
+  JYS_GATEWAY_STATIC_ROOT="$ROOT/system/frontend" \
+    "$PYTHON" "$ROOT/system/gateway.py" --host "$FRONTEND_HOST" --port "$FRONTEND_PORT" &
   FRONTEND_PID="$!"
 fi
 
