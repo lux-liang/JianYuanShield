@@ -122,8 +122,9 @@ def _load_dataset_manifest(path: Path | None, sample_count: Any) -> bool:
     if not isinstance(payload, dict):
         return False
     files = payload.get("files")
+    schema_version = payload.get("schema_version")
     if (
-        payload.get("schema_version") != "dataset-manifest.v1"
+        schema_version not in {"dataset-manifest.v1", "waveguard-dataset-manifest.v1"}
         or payload.get("sample_count") != sample_count
         or not isinstance(files, list)
         or len(files) != sample_count
@@ -131,7 +132,7 @@ def _load_dataset_manifest(path: Path | None, sample_count: Any) -> bool:
     ):
         return False
     paths = [item.get("path") for item in files if isinstance(item, dict)]
-    return (
+    files_valid = (
         len(paths) == sample_count
         and len(set(paths)) == sample_count
         and all(
@@ -146,6 +147,30 @@ def _load_dataset_manifest(path: Path | None, sample_count: Any) -> bool:
             for item in files
         )
     )
+    if not files_valid or schema_version == "dataset-manifest.v1":
+        return files_valid
+
+    distribution = payload.get("identity_distribution")
+    if (
+        not isinstance(distribution, list)
+        or payload.get("unique_identity_count") != len(distribution)
+        or payload.get("identity_distribution_sha256") != _canonical_sha256(distribution)
+    ):
+        return False
+    declared: Counter[str] = Counter()
+    for item in distribution:
+        if (
+            not isinstance(item, dict)
+            or not isinstance(item.get("identity_sha256"), str)
+            or not _SHA256_RE.fullmatch(item["identity_sha256"])
+            or not isinstance(item.get("image_count"), int)
+            or item["image_count"] <= 0
+            or item["identity_sha256"] in declared
+        ):
+            return False
+        declared[item["identity_sha256"]] = item["image_count"]
+    observed = Counter(item.get("identity_sha256") for item in files)
+    return declared == observed and sum(declared.values()) == sample_count
 
 
 def _dataset_manifest_bindings(path: Path | None) -> dict[str, str | None]:

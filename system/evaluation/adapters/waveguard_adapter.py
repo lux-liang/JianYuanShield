@@ -4,9 +4,15 @@ import numpy as np
 from PIL import Image
 
 from .base import DecodeResult, EmbeddingResult, ModelAdapter
-from system.evaluation.runtime import MODEL_SOURCE_ROOT, PROJECT_ROOT
+from system.evaluation.runtime import WEIGHT_ROOT
 
-CKPT = PROJECT_ROOT / 'weights/mea/WaveGuard/exp_highpass/2025.07.24-20.10.50/model_state_16.pth'
+CKPT = (
+    WEIGHT_ROOT
+    / 'MEA/models/WaveGuard/exp_highpass/2025.07.24-20.10.50/model_state_16.pth'
+)
+CHECKPOINT_SHA256 = (
+    'cd093467a834cde47a0abed1d90a3ed62120092a2affcbcb1ed2f7d72b346377'
+)
 MSG_LEN = 30
 IMG_SIZE = 256
 
@@ -15,6 +21,10 @@ class WaveGuardModelAdapter(ModelAdapter):
     name = 'WaveGuard'
     message_length = MSG_LEN
     checkpoint = str(CKPT)
+    expected_checkpoint_sha256 = CHECKPOINT_SHA256
+    checkpoint_selection = 'fixed_content_addressed_epoch16'
+    primary_decoder = 'tracer'
+    secondary_decoder = 'detector'
 
     def __init__(self) -> None:
         from system.backend.model_adapters import WaveGuardAdapter as _WA
@@ -70,8 +80,19 @@ class WaveGuardModelAdapter(ModelAdapter):
         with torch.no_grad():
             u_atk = yuv_t[:,[1]]
             lp2, hp2 = a.DTCWT.images_U_dtcwt_with_low(u_atk)
+            sel_t = torch.index_select(hp2[1], 2, a.indices_dec_t)[:,:,:,:,:,0].squeeze(1)
             sel_d = torch.index_select(hp2[1], 2, a.indices_dec_d)[:,:,:,:,:,0].squeeze(1)
-            dec_d = a.decoder_d(sel_d)
+            decoded_t = a.decoder_t(sel_t)
+            decoded_d = a.decoder_d(sel_d)
 
-        bits = (dec_d.detach().cpu()[0].numpy() > 0).astype(np.uint8)
-        return DecodeResult(bits=bits, metadata={'decoder': 'detector'})
+        bits_t = (decoded_t.detach().cpu()[0].numpy() > 0).astype(np.uint8)
+        bits_d = (decoded_d.detach().cpu()[0].numpy() > 0).astype(np.uint8)
+        return DecodeResult(
+            bits=bits_t,
+            metadata={
+                'decoder': self.primary_decoder,
+                'primary_decoder': self.primary_decoder,
+                'secondary_decoder': self.secondary_decoder,
+                'secondary_bits': bits_d.tolist(),
+            },
+        )

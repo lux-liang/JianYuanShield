@@ -4,9 +4,15 @@ import numpy as np
 from PIL import Image
 
 from .base import DecodeResult, EmbeddingResult, ModelAdapter
-from system.evaluation.runtime import MODEL_SOURCE_ROOT, PROJECT_ROOT
+from system.evaluation.runtime import WEIGHT_ROOT
 
-CKPT = PROJECT_ROOT / 'weights/mea/SepMark/results/FullFineTuningWithOnlyMessage/models/EC_115.pth'
+CKPT = (
+    WEIGHT_ROOT
+    / "MEA/models/SepMark/results/FullFineTuningWithOnlyMessage/models/EC_108.pth"
+)
+CHECKPOINT_SHA256 = (
+    "433992186176483bd92341fd033cf3c2fa2682f159aea7fe4542c4a6b88b5e55"
+)
 MSG_LEN = 128
 IMG_SIZE = 256
 
@@ -15,6 +21,10 @@ class SepMarkModelAdapter(ModelAdapter):
     name = 'SepMark'
     message_length = MSG_LEN
     checkpoint = str(CKPT)
+    expected_checkpoint_sha256 = CHECKPOINT_SHA256
+    checkpoint_selection = "frozen_same_sample_epoch108"
+    primary_decoder = "decoder_C"
+    secondary_decoder = "decoder_RF"
 
     def __init__(self) -> None:
         from system.backend.model_adapters import SepMarkAdapter as _SA
@@ -30,7 +40,7 @@ class SepMarkModelAdapter(ModelAdapter):
 
     def encode(self, image: np.ndarray, message: np.ndarray) -> EmbeddingResult:
         import torch
-        from system.backend.model_adapters import _to_tensor_rgb, _to_uint8_rgb, SEPMARK_CKPT
+        from system.backend.model_adapters import _to_tensor_rgb, _to_uint8_rgb
         self.validate_image(image)
         bits = self.validate_message(message)
         adapter = self._adapter
@@ -67,8 +77,13 @@ class SepMarkModelAdapter(ModelAdapter):
             decoded_rf = adapter.decoder_rf(tensor)
         bits_c = (decoded_c.detach().cpu()[0].numpy() > 0).astype(np.uint8)
         bits_rf = (decoded_rf.detach().cpu()[0].numpy() > 0).astype(np.uint8)
-        # Use decoder_RF as primary (more robust)
+        # Protocol v1 freezes decoder_C as the primary recovery decoder.
         return DecodeResult(
-            bits=bits_rf,
-            metadata={'decoder': 'decoder_RF', 'decoder_c_bits': bits_c.tolist()},
+            bits=bits_c,
+            metadata={
+                'decoder': self.primary_decoder,
+                'primary_decoder': self.primary_decoder,
+                'secondary_decoder': self.secondary_decoder,
+                'secondary_bits': bits_rf.tolist(),
+            },
         )
