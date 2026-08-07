@@ -4,17 +4,29 @@ HiDDeN Round-Trip Test: encode → decode on same image (no noise).
 If this fails, checkpoint is broken. If it succeeds, LFW result = domain shift.
 """
 import sys, os, json, time, numpy as np, torch
+from pathlib import Path
 
-HIDDEN_CODE = "/data1/luxliang/work/vpsg_competition_candidates/MEA/codes/HiDDeN"
-CKPT = ("/data1/luxliang/work/vpsg_competition_candidates/weights/mea/HiDDeN"
-        "/runs/train-test-1 2025.07.09--12-49-43/checkpoints/train-test-1--epoch-200.pyt")
-OPTIONS = ("/data1/luxliang/work/vpsg_competition_candidates/weights/mea/HiDDeN"
-           "/runs/train-test-1 2025.07.09--12-49-43/options-and-config.pickle")
+SCRIPT_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(SCRIPT_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_PROJECT_ROOT))
+
+from system.evaluation.runtime import (  # noqa: E402
+    ASSET_ROOT,
+    DATA_ROOT,
+    MODEL_SOURCE_ROOT,
+    REPORT_ROOT,
+    WEIGHT_ROOT,
+)
+
+HIDDEN_CODE = MODEL_SOURCE_ROOT / "MEA" / "codes" / "HiDDeN"
+HIDDEN_RUN = WEIGHT_ROOT / "mea" / "HiDDeN" / "runs" / "train-test-1 2025.07.09--12-49-43"
+CKPT = HIDDEN_RUN / "checkpoints" / "train-test-1--epoch-200.pyt"
+OPTIONS = HIDDEN_RUN / "options-and-config.pickle"
 # Use CelebA-HQ images — closer to face training distribution than w-sub
-IMG_DIR = "/data1/luxliang/work/vpsg_competition_candidates/datasets/celeba_hq_lidmark/val"
-OUT_JSON = "/data1/luxliang/work/vpsg_competition_candidates/system/reports/diagnostics/hidden_roundtrip.json"
+IMG_DIR = DATA_ROOT / "celeba_hq_lidmark" / "val"
+OUT_JSON = REPORT_ROOT / "diagnostics" / "hidden_roundtrip.json"
 
-sys.path.insert(0, HIDDEN_CODE)
+sys.path.insert(0, str(HIDDEN_CODE))
 os.chdir(HIDDEN_CODE)
 
 import utils
@@ -28,7 +40,7 @@ device = torch.device("cuda:0")
 print("[HiDDeN] Loading checkpoint & config...")
 train_options, hidden_config, noise_config = utils.load_options(OPTIONS)
 noiser = Noiser(noise_config, torch.device("cuda:0"))
-checkpoint = torch.load(CKPT, map_location=device)
+checkpoint = torch.load(CKPT, map_location=device, weights_only=True)
 hidden_net = Hidden(hidden_config, device, noiser, None)
 utils.model_from_checkpoint(hidden_net, checkpoint)
 hidden_net.encoder_decoder.eval()
@@ -38,9 +50,11 @@ print(f"[HiDDeN] H={H} W={W} message_length={hidden_config.message_length}")
 
 # Find test images (try CelebA-HQ val, fallback to LFW benchmark)
 img_paths = []
-for d in [IMG_DIR,
-          "/data1/luxliang/work/vpsg_competition_candidates/datasets/celeba_hq_kadnet/val_128",
-          "/data1/luxliang/work/vpsg_competition_candidates/system/assets/lfw_benchmark"]:
+for d in [
+        IMG_DIR,
+        DATA_ROOT / "celeba_hq_kadnet" / "val_128",
+        ASSET_ROOT / "lfw_benchmark",
+]:
     if os.path.isdir(d):
         exts = {".jpg", ".jpeg", ".png"}
         for f in sorted(os.listdir(d)):

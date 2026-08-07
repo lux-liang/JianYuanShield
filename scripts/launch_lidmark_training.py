@@ -1,74 +1,133 @@
 #!/usr/bin/env python3
-"""Update LIDMark config paths and launch training on specified GPUs."""
+"""Validate paths, update a LIDMark training config, and launch training."""
 from __future__ import annotations
 
+import argparse
 import os
 import subprocess
 import sys
 from pathlib import Path
 
-import yaml
+SCRIPT_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(SCRIPT_PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_PROJECT_ROOT))
+
+from system.evaluation.runtime import DATA_ROOT, MODEL_SOURCE_ROOT  # noqa: E402
 
 
-LIDMARK_DIR = Path('/data1/luxliang/work/vpsg_competition_candidates/LIDMark')
-LOG_DIR = Path('/data1/luxliang/work/vpsg_competition_candidates/runs/lidmark')
-CFG_PATH = LIDMARK_DIR / 'configurations/train_distortions.yaml'
-
-IMG_ROOT = '/data1/luxliang/work/vpsg_competition_candidates/datasets/lidmark_official/image/celeba-hq_128'
-WM_ROOT = '/data1/luxliang/work/vpsg_competition_candidates/datasets/lidmark_official/watermark_152/celeba-hq'
-
-
-def patch_config(gpu_ids: str = '2, 3', seed: int = 20260603) -> None:
-    with open(CFG_PATH) as f:
-        cfg = yaml.safe_load(f)
-    cfg['img_size'] = 128
-    cfg['img_path'] = IMG_ROOT
-    cfg['wm_path'] = WM_ROOT
-    cfg['gpu_ids'] = gpu_ids
-    cfg['seed'] = seed
-    cfg['epochs'] = 100
-    cfg['batch_size'] = 32
-    cfg['validation'] = {'enable': True, 'save_count': 16}
-    cfg['resume'] = {'enable': False, 'epoch': 0}
-    with open(CFG_PATH, 'w') as f:
-        yaml.dump(cfg, f, default_flow_style=False, allow_unicode=True)
-    print(f'Config patched: img_size=128, gpu_ids={gpu_ids}, seed={seed}')
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("gpu_ids", nargs="?", default="2, 3")
+    parser.add_argument("seed", nargs="?", type=int, default=20260603)
+    parser.add_argument("--model-dir", type=Path, default=MODEL_SOURCE_ROOT / "LIDMark")
+    parser.add_argument("--config", type=Path)
+    parser.add_argument("--run-dir", type=Path, default=MODEL_SOURCE_ROOT / "runs" / "lidmark")
+    parser.add_argument(
+        "--image-root",
+        type=Path,
+        default=DATA_ROOT / "lidmark_official" / "image" / "celeba-hq_128",
+    )
+    parser.add_argument(
+        "--watermark-root",
+        type=Path,
+        default=DATA_ROOT / "lidmark_official" / "watermark_152" / "celeba-hq",
+    )
+    parser.add_argument("--epochs", type=int, default=100)
+    parser.add_argument("--batch-size", type=int, default=32)
+    parser.add_argument("--dry-run", action="store_true", help="Validate and print paths without editing or launching.")
+    return parser.parse_args()
 
 
-def check_data_ready() -> bool:
-    for split in ['train', 'val', 'test']:
-        d = Path(IMG_ROOT) / split
-        if not d.is_dir() or not any(d.glob('*.jpg')):
-            print(f'ERROR: {d} not ready')
-            return False
-    return True
+def patch_config(
+    config_path: Path,
+    *,
+    image_root: Path,
+    watermark_root: Path,
+    gpu_ids: str,
+    seed: int,
+    epochs: int,
+    batch_size: int,
+) -> None:
+    import yaml
+
+    with config_path.open("r", encoding="utf-8") as handle:
+        cfg = yaml.safe_load(handle) or {}
+    cfg["img_size"] = 128
+    cfg["img_path"] = str(image_root)
+    cfg["wm_path"] = str(watermark_root)
+    cfg["gpu_ids"] = gpu_ids
+    cfg["seed"] = seed
+    cfg["epochs"] = epochs
+    cfg["batch_size"] = batch_size
+    cfg["validation"] = {"enable": True, "save_count": 16}
+    cfg["resume"] = {"enable": False, "epoch": 0}
+    with config_path.open("w", encoding="utf-8") as handle:
+        yaml.safe_dump(cfg, handle, default_flow_style=False, allow_unicode=True, sort_keys=False)
+    print(f"Config patched: {config_path}")
+
+
+def check_data_ready(image_root: Path, watermark_root: Path) -> bool:
+    ready = True
+    for split in ("train", "val", "test"):
+        image_dir = image_root / split
+        watermark_dir = watermark_root / "128" / split
+        if not image_dir.is_dir() or not any(image_dir.glob("*.jpg")):
+            print(f"ERROR: image split is not ready: {image_dir}", file=sys.stderr)
+            ready = False
+        if not watermark_dir.is_dir() or not any(watermark_dir.glob("*.npy")):
+            print(f"ERROR: watermark split is not ready: {watermark_dir}", file=sys.stderr)
+            ready = False
+    return ready
 
 
 def main() -> None:
-    gpu_ids = sys.argv[1] if len(sys.argv) > 1 else '2, 3'
-    seed = int(sys.argv[2]) if len(sys.argv) > 2 else 20260603
+    args = parse_args()
+    model_dir = args.model_dir.expanduser().resolve()
+    config_path = (args.config or model_dir / "configurations" / "train_distortions.yaml").expanduser().resolve()
+    run_dir = args.run_dir.expanduser().resolve()
+    image_root = args.image_root.expanduser().resolve()
+    watermark_root = args.watermark_root.expanduser().resolve()
 
-    if not check_data_ready():
-        sys.exit('Run prep_celeba_hq.py first.')
+    if args.epochs <= 0 or args.batch_size <= 0:
+        raise SystemExit("--epochs and --batch-size must be positive")
+    if not model_dir.is_dir():
+        raise SystemExit(f"LIDMark source directory not found: {model_dir}")
+    if not config_path.is_file():
+        raise SystemExit(f"LIDMark config not found: {config_path}")
+    if not check_data_ready(image_root, watermark_root):
+        raise SystemExit("Dataset is incomplete; run prep_celeba_hq.py first.")
 
-    LOG_DIR.mkdir(parents=True, exist_ok=True)
-    log_file = LOG_DIR / f'train_seed{seed}.log'
+    command = [sys.executable, "main.py", "train_distortions", "--res", "128"]
+    log_file = run_dir / f"train_seed{args.seed}.log"
+    if args.dry_run:
+        print(f"Validated LIDMark launch: cwd={model_dir}, log={log_file}, command={' '.join(command)}")
+        return
 
-    patch_config(gpu_ids=gpu_ids, seed=seed)
-
-    cmd = [sys.executable, 'main.py', 'train_distortions', '--res', str(128)]
-    print(f'Launching: {" ".join(cmd)}')
-    print(f'Log: {log_file}')
-
-    with open(log_file, 'w') as log:
-        proc = subprocess.Popen(
-            cmd, cwd=str(LIDMARK_DIR),
-            stdout=log, stderr=subprocess.STDOUT,
-            start_new_session=True
+    run_dir.mkdir(parents=True, exist_ok=True)
+    patch_config(
+        config_path,
+        image_root=image_root,
+        watermark_root=watermark_root,
+        gpu_ids=args.gpu_ids,
+        seed=args.seed,
+        epochs=args.epochs,
+        batch_size=args.batch_size,
+    )
+    env = {**os.environ, "JYS_LIDMARK_CONFIG": str(config_path)}
+    print(f"Launching: {' '.join(command)}")
+    print(f"Log: {log_file}")
+    with log_file.open("w", encoding="utf-8") as log:
+        process = subprocess.Popen(
+            command,
+            cwd=model_dir,
+            stdout=log,
+            stderr=subprocess.STDOUT,
+            env=env,
+            start_new_session=True,
         )
-    print(f'LIDMark training started. PID={proc.pid}')
-    print(f'Monitor: tail -f {log_file}')
+    print(f"LIDMark training started. PID={process.pid}")
+    print(f"Monitor: tail -f {log_file}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
