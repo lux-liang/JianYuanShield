@@ -98,8 +98,23 @@
           <div class="top-meta">
             <span class="clock" id="clock" aria-hidden="true">--:--:--</span>
             <span class="clock-sub">PROVENANCE · MEA · CLAIM-AS-CODE · ED25519</span>
+            <button class="defense-launch" id="defenseLaunch" type="button" aria-expanded="false" aria-controls="defenseGuide">开启答辩导览</button>
           </div>
         </header>
+
+        <aside class="defense-guide" id="defenseGuide" hidden aria-label="答辩导览">
+          <div class="defense-progress"><i id="defenseProgress"></i></div>
+          <div class="defense-guide-copy">
+            <span id="defenseStepLabel">01 / 04 · 价值命题</span>
+            <strong id="defenseStepTitle">先讲清：鉴源盾不是单点算法</strong>
+            <small id="defenseStepCue">用“出生登记—传播核验—争议举证”解释完整治理闭环。</small>
+          </div>
+          <div class="defense-guide-actions">
+            <button id="defensePrev" type="button" aria-label="上一个答辩章节">上一章</button>
+            <button id="defenseNext" type="button">下一章</button>
+            <button id="defenseClose" type="button" aria-label="关闭答辩导览">退出</button>
+          </div>
+        </aside>
 
         <!-- 实时证据流 ticker：横向滚动各模块状态 / 就绪度 / 审计 / 签名（悬停暂停）-->
         <div class="ticker" id="evidenceTicker" aria-label="实时证据流" aria-live="off">

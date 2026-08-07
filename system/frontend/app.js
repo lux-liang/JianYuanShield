@@ -1052,6 +1052,84 @@ function applyRoute() {
 window.addEventListener("hashchange", applyRoute);
 applyRoute();
 
+/* ═══ 四章答辩导览：价值 → 闭环 → 实证 → 可信 ═══ */
+
+const DEFENSE_STEPS = [
+  {
+    view: "overview",
+    label: "价值命题",
+    title: "先讲清：鉴源盾不是单点算法",
+    cue: "用“出生登记—传播核验—争议举证”解释完整治理闭环。",
+  },
+  {
+    view: "forensics",
+    label: "系统闭环",
+    title: "再现场跑通一次真实取证链",
+    cue: "从样本输入到主动保护、攻击、盲解码与哈希存证，结果与执行模式分开显示。",
+  },
+  {
+    view: "benchmark",
+    label: "技术实证",
+    title: "用统一协议回答“效果是否可信”",
+    cue: "展示真实换脸、MEA 与身份隔离统计；弱对照和未放行结果不冒充正式结论。",
+  },
+  {
+    view: "audit",
+    label: "可信收口",
+    title: "最后把主张交给证据验链",
+    cue: "以原始结果、协议、实现哈希、Manifest 和 Ed25519 签名完成可复算收口。",
+  },
+];
+
+let defenseStep = 0;
+
+function renderDefenseGuide() {
+  const guide = document.getElementById("defenseGuide");
+  const step = DEFENSE_STEPS[defenseStep];
+  if (!guide || !step) return;
+  document.getElementById("defenseStepLabel").textContent = `${String(defenseStep + 1).padStart(2, "0")} / ${String(DEFENSE_STEPS.length).padStart(2, "0")} · ${step.label}`;
+  document.getElementById("defenseStepTitle").textContent = step.title;
+  document.getElementById("defenseStepCue").textContent = step.cue;
+  document.getElementById("defenseProgress").style.width = `${((defenseStep + 1) / DEFENSE_STEPS.length) * 100}%`;
+  document.getElementById("defensePrev").disabled = defenseStep === 0;
+  document.getElementById("defenseNext").textContent = defenseStep === DEFENSE_STEPS.length - 1 ? "回到开场" : "下一章";
+  if (window.location.hash !== `#/${step.view}`) window.location.hash = `#/${step.view}`;
+}
+
+function setDefenseGuide(open) {
+  const guide = document.getElementById("defenseGuide");
+  const launch = document.getElementById("defenseLaunch");
+  if (!guide || !launch) return;
+  guide.hidden = !open;
+  launch.setAttribute("aria-expanded", String(open));
+  launch.textContent = open ? "答辩导览进行中" : "开启答辩导览";
+  if (open) renderDefenseGuide();
+}
+
+document.getElementById("defenseLaunch")?.addEventListener("click", () => {
+  const guide = document.getElementById("defenseGuide");
+  if (guide?.hidden) defenseStep = Math.max(0, DEFENSE_STEPS.findIndex((step) => window.location.hash === `#/${step.view}`));
+  setDefenseGuide(Boolean(guide?.hidden));
+});
+document.getElementById("defenseClose")?.addEventListener("click", () => setDefenseGuide(false));
+document.getElementById("defensePrev")?.addEventListener("click", () => {
+  defenseStep = Math.max(0, defenseStep - 1);
+  renderDefenseGuide();
+});
+document.getElementById("defenseNext")?.addEventListener("click", () => {
+  defenseStep = defenseStep === DEFENSE_STEPS.length - 1 ? 0 : defenseStep + 1;
+  renderDefenseGuide();
+});
+window.addEventListener("keydown", (event) => {
+  const guide = document.getElementById("defenseGuide");
+  if (guide?.hidden || !["ArrowLeft", "ArrowRight", "Escape"].includes(event.key)) return;
+  if (event.key === "Escape") return setDefenseGuide(false);
+  defenseStep = event.key === "ArrowRight"
+    ? (defenseStep + 1) % DEFENSE_STEPS.length
+    : Math.max(0, defenseStep - 1);
+  renderDefenseGuide();
+});
+
 /* ═══ 取证时钟 ═══ */
 
 function tickClock() {
