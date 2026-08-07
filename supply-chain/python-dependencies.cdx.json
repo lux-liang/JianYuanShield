@@ -115,11 +115,25 @@
       "version": "0.16.0"
     },
     {
+      "bom-ref": "pkg:pypi/httpcore2@2.9.1",
+      "name": "httpcore2",
+      "purl": "pkg:pypi/httpcore2@2.9.1",
+      "type": "library",
+      "version": "2.9.1"
+    },
+    {
       "bom-ref": "pkg:pypi/httptools@0.8.0",
       "name": "httptools",
       "purl": "pkg:pypi/httptools@0.8.0",
       "type": "library",
       "version": "0.8.0"
+    },
+    {
+      "bom-ref": "pkg:pypi/httpx2@2.9.1",
+      "name": "httpx2",
+      "purl": "pkg:pypi/httpx2@2.9.1",
+      "type": "library",
+      "version": "2.9.1"
     },
     {
       "bom-ref": "pkg:pypi/idna@3.18",
@@ -521,6 +535,13 @@
       "version": "3.4.0"
     },
     {
+      "bom-ref": "pkg:pypi/truststore@0.10.4",
+      "name": "truststore",
+      "purl": "pkg:pypi/truststore@0.10.4",
+      "type": "library",
+      "version": "0.10.4"
+    },
+    {
       "bom-ref": "pkg:pypi/typing-extensions@4.16.0",
       "name": "typing-extensions",
       "purl": "pkg:pypi/typing-extensions@4.16.0",
@@ -582,7 +603,9 @@
         "pkg:pypi/fonttools@4.63.0",
         "pkg:pypi/fsspec@2026.7.0",
         "pkg:pypi/h11@0.16.0",
+        "pkg:pypi/httpcore2@2.9.1",
         "pkg:pypi/httptools@0.8.0",
+        "pkg:pypi/httpx2@2.9.1",
         "pkg:pypi/idna@3.18",
         "pkg:pypi/imageio@2.37.4",
         "pkg:pypi/jinja2@3.1.6",
@@ -640,6 +663,7 @@
         "pkg:pypi/torchvision@0.23.0+cu128",
         "pkg:pypi/tqdm@4.70.0",
         "pkg:pypi/triton@3.4.0",
+        "pkg:pypi/truststore@0.10.4",
         "pkg:pypi/typing-extensions@4.16.0",
         "pkg:pypi/typing-inspection@0.4.2",
         "pkg:pypi/uvicorn@0.52.1",
@@ -715,7 +739,15 @@
     },
     {
       "dependsOn": [],
+      "ref": "pkg:pypi/httpcore2@2.9.1"
+    },
+    {
+      "dependsOn": [],
       "ref": "pkg:pypi/httptools@0.8.0"
+    },
+    {
+      "dependsOn": [],
+      "ref": "pkg:pypi/httpx2@2.9.1"
     },
     {
       "dependsOn": [],
@@ -947,6 +979,10 @@
     },
     {
       "dependsOn": [],
+      "ref": "pkg:pypi/truststore@0.10.4"
+    },
+    {
+      "dependsOn": [],
       "ref": "pkg:pypi/typing-extensions@4.16.0"
     },
     {
@@ -980,7 +1016,7 @@
     "properties": [
       {
         "name": "jianyuanshield:requirements-lock-sha256",
-        "value": "7237fb4170c722870a664f46c83674ca5e0412da869ae667fbe92f06fa7f02c4"
+        "value": "683a141b885352f48552b229ccf97537532d630defcadc49ce4695e89edefff6"
       }
     ],
     "tools": {
@@ -993,7 +1029,7 @@
       ]
     }
   },
-  "serialNumber": "urn:uuid:50207222-947b-58a8-a759-830987fd075f",
+  "serialNumber": "urn:uuid:f3ba6c1e-f4d1-5678-a224-763a516c1940",
   "specVersion": "1.6",
   "version": 1
 }

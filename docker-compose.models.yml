@@ -1,0 +1,22 @@
+services:
+  api:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - type: bind
+        source: ${JYS_WEIGHT_HOST:?Set JYS_WEIGHT_HOST to the verified checkpoint directory}
+        target: /app/weights
+        read_only: true
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ${JYS_MODEL_SOURCE_HOST:?Set JYS_MODEL_SOURCE_HOST to the reviewed model-source directory}
+        target: /app/model-sources
+        read_only: true
+        bind:
+          create_host_path: false

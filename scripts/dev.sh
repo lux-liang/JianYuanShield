@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SCRIPT_PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ROOT="${JYS_PROJECT_ROOT:-$SCRIPT_PROJECT_ROOT}"
 
 if [[ -f "$ROOT/.env" ]]; then
   set -a
