@@ -20,7 +20,6 @@ if str(PROJECT_DIR) not in sys.path:
 from system.evaluation.run_metadata import sha256_file  # noqa: E402
 from system.evaluation.runtime import REPORT_ROOT, logical_path, resolve_logical_path  # noqa: E402
 from system.backend.utils import atomic_write_bytes, atomic_write_json  # noqa: E402
-from system.backend.signing import verify_evidence_bundle  # noqa: E402
 
 
 DEFAULT_OUT = REPORT_ROOT / "protocol_audit"
@@ -440,6 +439,10 @@ def write_report(
 
 
 def main() -> int:
+    # Keep dependency-free CSV analysis importable in lightweight CI. The
+    # cryptographic dependency is required only for the executable audit path.
+    from system.backend.signing import verify_evidence_bundle
+
     parser = argparse.ArgumentParser(description="Audit existing benchmark CSV files without rerunning models.")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUT)
     args = parser.parse_args()
