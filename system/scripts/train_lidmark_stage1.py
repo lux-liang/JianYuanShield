@@ -103,8 +103,8 @@ def build_stage1_config(
         raise ValueError("LIDMark Stage-1 uses the preregistered batch size 64")
     if epochs < 1 or num_workers < 0:
         raise ValueError("epochs must be positive and num-workers must be non-negative")
-    if image_size not in (128, 256):
-        raise ValueError("image-size must be 128 or 256")
+    if image_size != 128:
+        raise ValueError("LIDMark Stage-1 currently supports image-size 128 only")
     if physical_gpu < 0:
         raise ValueError("physical-gpu must be non-negative")
     if not re.fullmatch(r"[0-9a-f]{40}", source_commit):
@@ -227,8 +227,8 @@ def validate_stage1_config(config: Mapping[str, Any]) -> None:
         raise ValueError("LIDMark Stage-1 requires batch_size=64")
     if int(config["watermark_length"]) != 152:
         raise ValueError("LIDMark Stage-1 requires watermark_length=152")
-    if int(config["img_size"]) not in (128, 256):
-        raise ValueError("img_size must be 128 or 256")
+    if int(config["img_size"]) != 128:
+        raise ValueError("LIDMark Stage-1 currently supports img_size 128 only")
     if int(config["epochs"]) < 1:
         raise ValueError("epochs must be positive")
     if config["train_transform"] != "resize_normalize_no_crop":
@@ -689,7 +689,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--epochs", type=int, default=20)
     parser.add_argument("--num-workers", type=int, default=4)
-    parser.add_argument("--image-size", type=int, choices=(128, 256), default=128)
+    parser.add_argument("--image-size", type=int, choices=(128,), default=128)
     parser.add_argument("--expected-physical-gpu", type=int, default=2)
     parser.add_argument("--source-commit", default=DEFAULT_SOURCE_COMMIT)
     return parser.parse_args(argv)
