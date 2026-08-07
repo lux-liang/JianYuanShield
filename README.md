@@ -11,6 +11,7 @@
 [![CI](https://img.shields.io/badge/CI-fail--closed-475569)](.github/workflows/quality.yml)
 [![Tests](https://img.shields.io/badge/tests-345%20passed-16a34a)](tests)
 [![GPU Scale](https://img.shields.io/badge/SimSwap%20GPU-n%3D1024-7c3aed)](docs/GPU_SCALE_EXPERIMENT_20260807.md)
+[![LIDMark](https://img.shields.io/badge/LIDMark-5%20seeds%20verified-059669)](docs/LIDMARK_MULTISEED_EXPERIMENT_20260808.md)
 
 **创作者持钥证明 · 四模型主动水印 · AIGC 双重标识 · 自包含来源凭证 · 防回滚审计 · 签名撤销 · MEA 4×4 红队评测**
 
@@ -175,6 +176,14 @@ created_at / expires_at
 ## 已完成的正式实验
 
 > 所有正式性能主张均由 `claims_manifest`、原始证据、实现哈希、release-core 和固定签名者共同放行；页面与报告读取同一份机器可验证结论。
+
+### LIDMark 身份载荷 · 五种子独立训练
+
+| 训练闭包 | 身份比特准确率 | 图像质量 | 关键点偏移 | 完整性 |
+|---:|---:|---:|---:|---|
+| 5 × 100 Epoch | **99.997168%** | **33.166 dB PSNR** | **1.238 px AED** | 500 份检查点审计通过 |
+
+五组完整训练采用统一选优协议，正式入选 Epoch 为 97、81、87、100、93；其中三组达到零 BER。两组异常训练分别在检测到 `NaN` 与 `Inf` 后停止，未进入汇总结果。逐种子指标、完整权重 SHA-256、统计口径与失败关闭记录见[实验报告](docs/LIDMARK_MULTISEED_EXPERIMENT_20260808.md)，机器可读摘要见 [`summary.json`](reports/lidmark-multiseed-s20260807-13/summary.json)。
 
 ### official SimSwap / ArcFace / LFW n=256
 
