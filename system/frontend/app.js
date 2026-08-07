@@ -1130,6 +1130,81 @@ window.addEventListener("keydown", (event) => {
   renderDefenseGuide();
 });
 
+/* ═══ 社会背景与政策响应：自动轮播，可手动选择 ═══ */
+
+const POLICY_STEPS = [
+  {
+    year: "2022",
+    tag: "治理起点",
+    title: "互联网信息服务深度合成管理规定",
+    text: "深度合成服务提供者应对生成或编辑的信息内容采取技术措施添加标识。项目以主动水印与取证记录响应“可识别、可追溯”的技术需求。",
+    source: "https://www.cac.gov.cn/2022-12/11/c_1672221949354811.htm",
+  },
+  {
+    year: "2023",
+    tag: "发展与安全",
+    title: "生成式人工智能服务管理暂行办法",
+    text: "政策同时强调促进生成式人工智能健康发展、规范应用和保护合法权益。项目把技术创新与失败关闭、证据边界共同纳入系统设计。",
+    source: "https://www.cac.gov.cn/2023-07/13/c_1690898327029107.htm",
+  },
+  {
+    year: "2025",
+    tag: "全链路标识",
+    title: "人工智能生成合成内容标识办法",
+    text: "显式标识、文件元数据隐式标识与传播服务责任形成协同要求，并于 2025 年 9 月 1 日施行。项目重点补充跨攻击鲁棒核验和争议证据链。",
+    source: "https://www.cac.gov.cn/2025-03/14/c_1743654685899683.htm",
+  },
+  {
+    year: "JYS",
+    tag: "项目响应",
+    title: "鉴源盾 · 可验证内容身份基础设施",
+    text: "从创作时登记，到传播后盲解码，再到争议时验签；以统一攻击协议检验标识经历压缩、换脸和二次嵌入后的恢复能力。",
+    source: "#/forensics",
+  },
+];
+
+let policyIndex = 0;
+let policyTimer;
+
+function renderPolicy(index) {
+  policyIndex = (index + POLICY_STEPS.length) % POLICY_STEPS.length;
+  const step = POLICY_STEPS[policyIndex];
+  document.querySelectorAll("[data-policy-index]").forEach((button, buttonIndex) => button.classList.toggle("active", buttonIndex === policyIndex));
+  document.getElementById("policyYear").textContent = step.year;
+  document.getElementById("policyTag").textContent = step.tag;
+  document.getElementById("policyDetailTitle").textContent = step.title;
+  document.getElementById("policyDetailText").textContent = step.text;
+  const source = document.getElementById("policySource");
+  source.href = step.source;
+  source.textContent = policyIndex === POLICY_STEPS.length - 1 ? "进入项目演示 →" : "查看官方原文 ↗";
+  if (step.source.startsWith("#")) {
+    source.removeAttribute("target");
+    source.removeAttribute("rel");
+  } else {
+    source.target = "_blank";
+    source.rel = "noopener noreferrer";
+  }
+}
+
+function startPolicyRotation() {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  clearInterval(policyTimer);
+  policyTimer = setInterval(() => renderPolicy(policyIndex + 1), 5200);
+}
+
+document.querySelectorAll("[data-policy-index]").forEach((button) => {
+  button.addEventListener("click", () => {
+    renderPolicy(Number(button.dataset.policyIndex));
+    startPolicyRotation();
+  });
+});
+const policyStage = document.querySelector(".policy-stage");
+policyStage?.addEventListener("mouseenter", () => clearInterval(policyTimer));
+policyStage?.addEventListener("mouseleave", startPolicyRotation);
+policyStage?.addEventListener("focusin", () => clearInterval(policyTimer));
+policyStage?.addEventListener("focusout", startPolicyRotation);
+startPolicyRotation();
+
 /* ═══ 取证时钟 ═══ */
 
 function tickClock() {
