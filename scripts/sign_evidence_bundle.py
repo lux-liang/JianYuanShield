@@ -17,6 +17,22 @@ def main() -> int:
     parser.add_argument("--private-key", type=Path, help="Private Ed25519 PEM used only for signing.")
     parser.add_argument("--generate-key", action="store_true", help="Create the private key if it does not exist.")
     parser.add_argument("--verify-only", action="store_true")
+    parser.add_argument(
+        "--profile",
+        choices=("release-core", "release", "scoped"),
+        default="release",
+        help=(
+            "release-core signs formal scientific evidence before report export; "
+            "release adds final audit/report/snapshot outputs; scoped requires --file."
+        ),
+    )
+    parser.add_argument(
+        "--file",
+        action="append",
+        type=Path,
+        dest="files",
+        help="Explicit evidence file for a scoped signature; repeat as needed.",
+    )
     args = parser.parse_args()
 
     if args.verify_only:
@@ -24,9 +40,17 @@ def main() -> int:
     else:
         if args.private_key is None:
             parser.error("--private-key is required for signing")
+        if args.profile in {"release-core", "release"} and args.files:
+            parser.error("--file is only valid with --profile scoped")
+        if args.profile == "scoped" and not args.files:
+            parser.error("--profile scoped requires at least one --file")
         if args.generate_key and not args.private_key.expanduser().exists():
             generate_private_key(args.private_key)
-        result = sign_evidence(args.private_key)
+        result = sign_evidence(
+            args.private_key,
+            files=args.files,
+            profile=args.profile,
+        )
     print(json.dumps(result, indent=2, ensure_ascii=False))
     return 0 if result.get("verified") else 1
 
