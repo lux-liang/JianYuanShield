@@ -129,15 +129,18 @@
         <!-- ──────────── 视图 01 · 概览 ──────────── -->
         <section class="view" id="view-overview">
           <section class="panel hero-panel">
-            <span class="exhibit">EXHIBIT 01 · DEFENSE CONCLUSION</span>
+            <span class="exhibit">鉴源盾 · 数字内容可信身份基础设施</span>
             <div class="hero-grid">
               <div class="hero-copy">
+                <p class="hero-overline">CONTENT PROVENANCE / ACTIVE FORENSICS / EVIDENCE CHAIN</p>
+                <h1 class="hero-command">让数字内容<br><em>自证其源</em></h1>
+                <p class="hero-declaration">为每一次创作建立身份，为每一次传播保留线索，为每一次争议提供证据。</p>
                 <div class="hero-figure">
                   <div class="hero-figure-val"><span id="heroMetric">--</span><i>%</i></div>
                   <span class="hero-figure-label" id="heroMetricLabel">本地资产就绪度</span>
                 </div>
                 <h3 id="mainConclusion">正在检查后端服务和本地资产</h3>
-                <p id="contrastConclusion">项目评测结论与本机资产状态分开展示，避免把缺文件误判为模型效果异常。</p>
+                <p id="contrastConclusion">评测结论与运行资产双轨呈现，模型、协议、数据与签名状态实时核验。</p>
                 <div class="hero-actions" aria-label="常用操作">
                   <a class="primary-action" href="#/forensics">上传图片取证</a>
                   <a class="secondary-action" href="#/audit">查看证据审计</a>
@@ -145,23 +148,32 @@
                 </div>
               </div>
               <div class="boundary-box">
-                <span>项目评测结论</span>
-                <strong id="boundaryConclusion">正在同步机器可读声明门禁；缺少证据的性能数字不会展示。</strong>
+                <span>证据状态</span>
+                <strong id="boundaryConclusion">正在同步机器可读声明、实验闭包与签名状态。</strong>
               </div>
             </div>
           </section>
 
           <section class="story-panel" aria-labelledby="storyTitle">
             <div class="story-intro">
-              <span class="exhibit">WHY IT MATTERS · 一条可举证的内容生命线</span>
-              <p class="story-kicker">不是再做一个水印算法，而是补齐深度伪造治理中“谁创作、如何传播、凭什么追责”的证据闭环。</p>
-              <h3 id="storyTitle">让每一张数字内容，从出生起就拥有可验证的身份。</h3>
+              <span class="exhibit">内容生命线 · 从创作现场到争议现场</span>
+              <p class="story-kicker">深度伪造时代的三个核心命题：谁创作、如何传播、凭什么追责。</p>
+              <h3 id="storyTitle">一张图片，一份贯穿全生命周期的可信档案。</h3>
             </div>
             <ol class="story-journey" aria-label="鉴源盾三阶段业务闭环">
               <li><span class="story-no">01</span><div><b>出生登记</b><small>创作者身份与主动水印绑定，生成内容 ID 和哈希记录</small></div><a href="#/forensics">现场演示</a></li>
               <li><span class="story-no">02</span><div><b>传播核验</b><small>经历压缩、缩放或二次嵌入后盲解码，匹配原始登记</small></div><a href="#/benchmark">查看数据</a></li>
               <li><span class="story-no">03</span><div><b>争议举证</b><small>原始结果、协议、实现哈希与 Ed25519 签名共同验链</small></div><a href="#/audit">核验证据</a></li>
             </ol>
+          </section>
+
+          <section class="scale-stage" aria-label="项目实证规模">
+            <div><strong>8×</strong><span>H100 80GB</span><small>规模实验算力底座</small></div>
+            <div><strong>13,233</strong><span>LFW IMAGES</span><small>固定攻击协议数据规模</small></div>
+            <div><strong>15</strong><span>ATTACKS</span><small>压缩 · 几何 · 噪声 · 深度伪造</small></div>
+            <div><strong>4×4</strong><span>MEA MATRIX</span><small>多水印方向性冲突矩阵</small></div>
+            <div><strong>20,000</strong><span>BOOTSTRAPS</span><small>身份簇置信区间重采样</small></div>
+            <div><strong>Ed25519</strong><span>EVIDENCE</span><small>实验、实现与发布验签</small></div>
           </section>
 
           <section class="policy-stage" aria-labelledby="policyTitle">
@@ -197,9 +209,9 @@
 
           <section class="judge-map" aria-labelledby="judgeMapTitle">
             <div class="judge-map-head">
-              <span class="exhibit">NATIONAL-FIRST SCORE MAP</span>
-              <h3 id="judgeMapTitle">四个评审问题，一套可点击验证的回答</h3>
-              <p>先讲价值，再看系统，最后用原始证据收口；每项主张都设置失败关闭门禁。</p>
+              <span class="exhibit">作品全景 · 四重价值坐标</span>
+              <h3 id="judgeMapTitle">从国家需求，到可验证的工程回答</h3>
+              <p>价值牵引、技术攻坚、产品落地、证据收口，构成完整作品表达。</p>
             </div>
             <div class="judge-grid">
               <a href="#/forensics"><span>创新性</span><strong>从算法指标到内容全生命周期取证</strong><small>主动保护 · 盲检核验 · MEA 威胁</small></a>

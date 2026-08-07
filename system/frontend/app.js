@@ -1058,7 +1058,7 @@ const DEFENSE_STEPS = [
   {
     view: "overview",
     label: "价值命题",
-    title: "先讲清：鉴源盾不是单点算法",
+    title: "先讲清：鉴源盾构建内容可信身份链",
     cue: "用“出生登记—传播核验—争议举证”解释完整治理闭环。",
   },
   {
@@ -1071,7 +1071,7 @@ const DEFENSE_STEPS = [
     view: "benchmark",
     label: "技术实证",
     title: "用统一协议回答“效果是否可信”",
-    cue: "展示真实换脸、MEA 与身份隔离统计；弱对照和未放行结果不冒充正式结论。",
+    cue: "展示真实换脸、MEA 与身份隔离统计；正式结论由签名证据门禁统一放行。",
   },
   {
     view: "audit",
