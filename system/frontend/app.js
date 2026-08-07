@@ -1132,6 +1132,41 @@ window.addEventListener("keydown", (event) => {
 
 /* ═══ 社会背景与政策响应：自动轮播，可手动选择 ═══ */
 
+async function loadTrainingSummary() {
+  const seal = document.getElementById("trainingSeal");
+  try {
+    const response = await fetch("./data/lidmark-multiseed-summary.json", { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const summary = await response.json();
+    if (summary?.status !== "complete" || summary?.all_selected_checkpoints_verified !== true) {
+      throw new Error("evidence gate failed");
+    }
+    const accuracy = Number(summary.identity_bit_accuracy?.mean);
+    const psnr = Number(summary.aggregate?.psnr?.mean);
+    const aed = Number(summary.aggregate?.landmark_aed?.mean);
+    if (![accuracy, psnr, aed].every(Number.isFinite)) throw new Error("invalid metrics");
+    text("trainingAccuracy", `${(accuracy * 100).toFixed(4)}%`);
+    text("trainingPsnr", psnr.toFixed(3));
+    text("trainingAed", aed.toFixed(3));
+    text("trainingZeroBer", `${summary.identity_bit_accuracy.zero_ber_run_count}/${summary.completed_run_count}`);
+    text("trainingDigest", summary.evidence_sha256);
+    seal.textContent = `${summary.completed_run_count} RUNS · HASH VERIFIED`;
+    seal.classList.add("verified");
+    const runs = Array.isArray(summary.runs) ? summary.runs : [];
+    document.getElementById("trainingRuns").innerHTML = runs.map((run) => {
+      const seed = String(run.run_id || "").match(/s(\d+)-/)?.[1] || "unknown";
+      const ber = Number(run.val?.id_ber);
+      return `<div><span>SEED ${escapeHTML(seed)}</span><strong>E${escapeHTML(run.epoch)}</strong><small>BER ${Number.isFinite(ber) ? (ber * 100).toFixed(5) : "--"}%</small></div>`;
+    }).join("");
+  } catch (error) {
+    seal.textContent = "实验摘要暂不可用";
+    seal.classList.add("failed");
+    text("trainingDigest", error instanceof Error ? error.message : "load failed");
+  }
+}
+
+loadTrainingSummary();
+
 const POLICY_STEPS = [
   {
     year: "2022",

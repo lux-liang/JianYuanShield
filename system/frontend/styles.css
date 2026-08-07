@@ -1042,6 +1042,28 @@ button, input, select { font: inherit; }
 .scale-stage span { color: var(--accent); font: 600 9px/1 var(--mono); letter-spacing: .14em; }
 .scale-stage small { color: var(--faint); font-size: 10px; line-height: 1.4; }
 
+.training-stage { display: grid; gap: 15px; padding: 20px; border: 1px solid var(--accent-line); border-radius: var(--r); background: radial-gradient(circle at 100% 0, rgba(52,211,153,.12), transparent 36%), var(--bg1); }
+.training-stage-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.training-stage-head h3 { margin: 9px 0 6px; font-size: 19px; }
+.training-stage-head p { max-width: 760px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.65; }
+.training-seal { padding: 7px 10px; border: 1px solid var(--line); color: var(--faint); font: 600 9px/1 var(--mono); letter-spacing: .1em; white-space: nowrap; }
+.training-seal.verified { border-color: var(--accent-line); color: var(--accent); background: var(--accent-dim); }
+.training-seal.failed { color: var(--warning); }
+.training-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border: 1px solid var(--line); }
+.training-metrics > div { display: grid; gap: 7px; padding: 15px; border-right: 1px solid var(--line); }
+.training-metrics > div:last-child { border-right: 0; }
+.training-metrics small { color: var(--muted); font-size: 10px; }
+.training-metrics strong { color: var(--text); font: 650 clamp(20px, 2.4vw, 31px)/1 var(--mono); letter-spacing: -.04em; }
+.training-metrics span { color: var(--accent); font: 600 8px/1 var(--mono); letter-spacing: .14em; }
+.training-runs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 7px; }
+.training-runs > div { display: grid; grid-template-columns: 1fr auto; gap: 5px; padding: 10px; border-left: 2px solid var(--accent); background: rgba(52,211,153,.045); }
+.training-runs span { color: var(--faint); font: 600 9px/1 var(--mono); }
+.training-runs strong { color: var(--text); font: 650 13px/1 var(--mono); }
+.training-runs small { grid-column: 1 / -1; color: var(--muted); font: 9px/1.3 var(--mono); }
+.training-proof { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; color: var(--faint); font: 9px/1.2 var(--mono); }
+.training-proof code { overflow: hidden; color: var(--muted); text-overflow: ellipsis; white-space: nowrap; }
+.training-proof a { color: var(--accent); text-decoration: none; }
+
 .policy-stage {
   display: grid;
   gap: 15px;

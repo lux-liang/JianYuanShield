@@ -176,6 +176,25 @@
             <div><strong>Ed25519</strong><span>EVIDENCE</span><small>实验、实现与发布验签</small></div>
           </section>
 
+          <section class="training-stage" aria-labelledby="trainingStageTitle">
+            <div class="training-stage-head">
+              <div>
+                <span class="exhibit">LIVE LAB NOTE · FIVE-SEED REPRODUCIBILITY</span>
+                <h3 id="trainingStageTitle">五次独立训练，一条可复核的稳定性结论</h3>
+                <p>每个数字来自已通过严格重载与内容哈希审计的入选权重。逐种子结果保留差异，异常实验保留失败记录。</p>
+              </div>
+              <span class="training-seal" id="trainingSeal">正在读取实验摘要</span>
+            </div>
+            <div class="training-metrics" aria-live="polite">
+              <div><small>身份比特准确率</small><strong id="trainingAccuracy">--</strong><span>5-SEED MEAN</span></div>
+              <div><small>图像质量</small><strong id="trainingPsnr">--</strong><span>PSNR / dB</span></div>
+              <div><small>关键点偏移</small><strong id="trainingAed">--</strong><span>AED / px</span></div>
+              <div><small>零 BER 运行</small><strong id="trainingZeroBer">--</strong><span>INDEPENDENT RUNS</span></div>
+            </div>
+            <div class="training-runs" id="trainingRuns" aria-label="逐种子入选轮次"></div>
+            <div class="training-proof"><span>SUMMARY SHA-256</span><code id="trainingDigest">等待证据</code><a href="#/audit">进入审计台 →</a></div>
+          </section>
+
           <section class="policy-stage" aria-labelledby="policyTitle">
             <div class="policy-stage-head">
               <div>
