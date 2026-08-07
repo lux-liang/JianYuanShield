@@ -1381,6 +1381,159 @@ button, input, select { font: inherit; }
   font-variant-numeric: tabular-nums;
 }
 
+/* official SimSwap / LFW n256 真实换脸证据 */
+.simswap-evidence-panel { border-top-color: var(--info-line); }
+
+.simswap-coverage {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.simswap-coverage > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--bg2);
+}
+
+.simswap-coverage span {
+  color: var(--faint);
+  font: 500 9px/1.2 var(--mono);
+  letter-spacing: .1em;
+}
+
+.simswap-coverage strong {
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font: 700 17px/1.2 var(--mono);
+}
+
+.simswap-coverage small { color: var(--muted); font-size: 10px; }
+.simswap-table-wrap table { min-width: 1080px; }
+.simswap-model { display: grid; gap: 3px; }
+.simswap-model small { color: var(--faint); font: 400 9px/1.3 var(--mono); }
+.simswap-controls { display: grid; gap: 3px; white-space: normal; }
+.simswap-controls span { font: 500 10px/1.35 var(--mono); }
+.simswap-controls b { color: var(--faint); font-weight: 500; }
+.simswap-identity { display: grid; gap: 3px; }
+.simswap-identity small { color: var(--faint); }
+
+.simswap-gate-details {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.simswap-gate-details > span {
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  background: var(--bg0);
+  color: var(--muted);
+  font: 500 9.5px/1.4 var(--mono);
+  overflow-wrap: anywhere;
+}
+
+.model-gate-status {
+  margin: -2px 0 14px;
+  color: var(--muted);
+  font: 500 11px/1.5 var(--mono);
+}
+
+.model-gate-status.ready { color: var(--accent); }
+.model-gate-status.blocked { color: var(--risk); }
+
+/* MEA 证据驱动部署建议 */
+.collaboration-panel { border-top-color: var(--accent-line); }
+
+.collaboration-form {
+  display: grid;
+  grid-template-columns: minmax(320px, 1.5fr) minmax(220px, 1fr) auto;
+  gap: 14px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+
+.collaboration-form fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px 16px;
+  min-width: 0;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line-bright);
+  border-radius: var(--r);
+}
+
+.collaboration-form legend,
+.collaboration-form > label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.collaboration-form fieldset label { color: var(--text); font: 500 12px/1.5 var(--mono); }
+.collaboration-form input { accent-color: var(--accent); }
+.collaboration-form select { display: block; width: 100%; margin-top: 6px; }
+
+.collaboration-result { display: grid; gap: 14px; margin-top: 14px; }
+
+.collaboration-hero {
+  display: grid;
+  gap: 5px;
+  padding: 16px;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--r);
+  background: linear-gradient(135deg, var(--accent-dim), transparent);
+}
+
+.collaboration-hero span { color: var(--accent); font: 500 10px/1 var(--mono); letter-spacing: .12em; }
+.collaboration-hero strong { color: var(--accent-bright); font: 700 28px/1.1 var(--mono); }
+.collaboration-hero small { color: var(--muted); }
+
+.collaboration-cells {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.collaboration-cell {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+  background: var(--bg2);
+}
+
+.collaboration-cell > div { display: flex; justify-content: space-between; gap: 8px; }
+.collaboration-cell span { font-size: 11px; }
+.collaboration-cell small { color: var(--muted); }
+.collaboration-cell code { overflow-wrap: anywhere; color: var(--faint); font-size: 10px; }
+
+.collaboration-evidence {
+  overflow: auto;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  background: var(--bg0);
+  color: var(--faint);
+  font: 400 10px/1.6 var(--mono);
+}
+
+@media (max-width: 980px) {
+  .simswap-coverage,
+  .simswap-gate-details { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .collaboration-form { grid-template-columns: 1fr; }
+  .collaboration-cells { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
 /* ═══ 表格 ═══ */
 
 .table-wrap {
