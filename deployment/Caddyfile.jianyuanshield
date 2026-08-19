@@ -1,0 +1,66 @@
+:80 {
+    redir /jianyuanshield /jianyuanshield/ 308
+
+    # Deployment-time model trust state changes only when weights/evidence are
+    # released. Serve its signed snapshot at the edge so UI polling never
+    # competes with GPU inference or repeatedly hashes large checkpoints.
+    handle /jianyuanshield/api/models/status {
+        root * /opt/JianYuanShield/system/edge-api
+        rewrite * /models-status.json
+        header Cache-Control "no-store"
+        header Content-Type "application/json"
+        file_server
+    }
+
+    handle_path /jianyuanshield/api/* {
+        rewrite * /api{path}
+        reverse_proxy 127.0.0.1:18080 {
+            transport http {
+                dial_timeout 5s
+                response_header_timeout 180s
+            }
+        }
+    }
+
+    handle_path /jianyuanshield/artifacts/* {
+        rewrite * /api{path}
+        reverse_proxy 127.0.0.1:18080 {
+            transport http {
+                dial_timeout 5s
+                response_header_timeout 180s
+            }
+        }
+    }
+
+    handle_path /jianyuanshield/* {
+        root * /opt/JianYuanShield/system/frontend
+        header Cache-Control "no-cache"
+        try_files {path} /index.html
+        file_server
+    }
+
+    redir /sjtu /sjtu/ 308
+    handle_path /sjtu/* {
+        reverse_proxy 127.0.0.1:8091
+    }
+
+    redir /xigao /xigao/ 308
+    handle_path /xigao/* {
+        reverse_proxy 127.0.0.1:18028
+    }
+
+    log {
+        output file /var/lib/caddy/caddy-access.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+    }
+}
+
+http://xigao.81.70.178.203.nip.io {
+    reverse_proxy 127.0.0.1:18028
+}
+
+http://xigao-school.81.70.178.203.nip.io {
+    reverse_proxy 127.0.0.1:18028
+}

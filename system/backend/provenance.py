@@ -54,6 +54,8 @@ from .utils import atomic_write_bytes, atomic_write_json
 
 
 _DB_LOCK = threading.Lock()
+_ADAPTER_LOCK = threading.Lock()
+_ADAPTER_CACHE: dict[str, Any] = {}
 
 
 class ProvenanceCapabilityError(RuntimeError):
@@ -236,17 +238,26 @@ def _validate_creator_ref(creator_ref: str) -> str:
 def _get_adapter(model: str):
     from system.evaluation.adapters import get_available_adapters
 
-    adapters = get_available_adapters()
-    adapter_type = adapters.get(model)
-    if adapter_type is None:
-        raise ProvenanceCapabilityError(f"model adapter unavailable: {model}")
-    try:
-        adapter = adapter_type()
-    except Exception as exc:
-        raise ProvenanceCapabilityError(f"model adapter failed to initialize: {model}") from exc
-    if not adapter.available:
-        raise ProvenanceCapabilityError(f"model adapter unavailable: {model}: {adapter.blocker}")
-    return adapter
+    # Model construction loads and validates the released checkpoint. Keep one
+    # adapter per model in the long-running API process so every protect/verify
+    # request does not rebuild the network and reload the same weights.
+    with _ADAPTER_LOCK:
+        cached = _ADAPTER_CACHE.get(model)
+        if cached is not None:
+            return cached
+
+        adapters = get_available_adapters()
+        adapter_type = adapters.get(model)
+        if adapter_type is None:
+            raise ProvenanceCapabilityError(f"model adapter unavailable: {model}")
+        try:
+            adapter = adapter_type()
+        except Exception as exc:
+            raise ProvenanceCapabilityError(f"model adapter failed to initialize: {model}") from exc
+        if not adapter.available:
+            raise ProvenanceCapabilityError(f"model adapter unavailable: {model}: {adapter.blocker}")
+        _ADAPTER_CACHE[model] = adapter
+        return adapter
 
 
 def _signature(payload: dict[str, Any]) -> dict[str, Any]:

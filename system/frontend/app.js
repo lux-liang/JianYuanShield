@@ -13,7 +13,10 @@ function normalizeApiBase(value) {
 const deployedPathApi = window.location.pathname === "/jys"
   || window.location.pathname.startsWith("/jys/")
   ? "/jys/api"
-  : "";
+  : window.location.pathname === "/jianyuanshield"
+    || window.location.pathname.startsWith("/jianyuanshield/")
+    ? "/jianyuanshield/api"
+    : "";
 const API = normalizeApiBase(window.JYS_API_BASE || deployedPathApi);
 const TRUST_CONTRACTS = window.JYSTrustContracts || null;
 
@@ -165,7 +168,8 @@ const num = (fn) => ({ fn, cls: "num" });
 async function getJSON(path) {
   let res;
   try {
-    res = await fetchWithTimeout(apiURL(path));
+    const timeoutMs = path === "/api/models/status" ? 60000 : 15000;
+    res = await fetchWithTimeout(apiURL(path), {}, timeoutMs);
   } catch (error) {
     throw new ApiError({
       code: "network_error",
@@ -240,23 +244,38 @@ function formatApiError(error) {
 
 function renderErrorState(error) {
   const formatted = formatApiError(error);
-  text("health", formatted);
-  text("evidenceReady", error instanceof ApiError ? error.code : "offline");
-  text("lastUpdated", error instanceof ApiError ? `${error.message} · ${error.path}` : "API 不可用");
+  text("health", "visual node: ONLINE · evidence source: OFFLINE");
+  text("evidenceReady", "read-only");
+  text("lastUpdated", "展示节点在线 · 等待可信算力节点");
+  text("heroMetric", "4");
+  text("heroMetricSuffix", "");
+  text("heroMetricLabel", "核心可信判据");
+  text("mainConclusion", "展示节点在线 · 实时证据源尚未连接");
+  text("contrastConclusion", "可浏览系统叙事与交互结构；正式性能结论仍由签名证据门禁单独放行。");
+  text("boundaryConclusion", "当前页面为只读展示，不把离线状态伪装为模型在线或证据已验证。");
+  text("heroPrimaryAction", "查看取证流程");
   const bar = document.getElementById("readinessBar");
   if (bar) bar.style.width = "8%";
   const checklist = document.getElementById("artifactChecklist");
   if (checklist) {
     checklist.innerHTML = `
       <div>
-        <strong>${escapeHTML(error instanceof ApiError ? error.path : "network")}</strong>
-        ${badge(error instanceof ApiError ? error.code : "offline")}
+        <strong>可视化节点</strong>
+        ${badge("online")}
       </div>
       <div>
-        <strong>${escapeHTML(error.message || "API request failed")}</strong>
-        ${badge(error instanceof ApiError && error.status ? `HTTP ${error.status}` : "failed")}
+        <strong>实时证据源</strong>
+        ${badge("offline")}
       </div>
     `;
+  }
+  const track = document.getElementById("tickerTrack");
+  if (track) {
+    track.innerHTML = `
+      <span class="ticker-item is-real"><i class="tk-dot"></i><span class="tk-key">VISUAL</span><span class="tk-val">ONLINE</span></span>
+      <span class="ticker-item is-pending"><i class="tk-dot"></i><span class="tk-key">EVIDENCE</span><span class="tk-val">READ-ONLY</span></span>
+      <span class="ticker-item is-pending"><i class="tk-dot"></i><span class="tk-key">CLAIMS</span><span class="tk-val">NOT ASSERTED</span></span>`;
+    track.style.animation = "none";
   }
 }
 
@@ -737,36 +756,47 @@ function renderTicker(payload, audit) {
     items.push({ key, val: val == null || val === "" ? "-" : String(val), cls: statusClass(statusVal ?? val) });
 
   const mod = (key, s) => push(key, shortStatus(s), s);
-  mod("HiDDeN", statusFrom(payload.hidden));
-  mod("SepMark", statusFrom(payload.sepmark));
-  mod("LIDMark", statusFrom(payload.lidmark));
-  mod("WaveGuard", statusFrom(payload.waveguard));
-  mod("KAD-Net", statusFrom(payload.kadnet));
-  const readyKey = readinessPercent >= 90 ? "ready" : readinessPercent >= 60 ? "smoke" : "pending";
-  push("就绪度", readinessLabel, readyKey);
-  if (payload.meaMatrix?.status) {
-    push("MEA 矩阵", payload.meaMatrix.status, payload.meaMatrix.status === "complete" ? "ready" : "smoke");
+  const forensicsView = window.location.hash.replace(/^#\/?/, "") === "forensics";
+  if (forensicsView && payload.modelsStatus?.["KAD-Net"]) {
+    const kad = payload.modelsStatus["KAD-Net"];
+    push("H100", payload.health?.ok ? "ONLINE" : "OFFLINE", payload.health?.ok ? "ready" : "failed");
+    push("KAD-Net", kad.provenance_ready ? "READY" : "GATED", kad.provenance_ready ? "ready" : "pending");
+    push("登记权重", kad.registered ? "VERIFIED" : "MISSING", kad.registered ? "ready" : "missing");
+    push("校准阈值", kad.verification_threshold == null ? "-" : `${(Number(kad.verification_threshold) * 100).toFixed(1)}%`, kad.calibrated ? "ready" : "pending");
+    push("证据签名", kad.trusted ? "PINNED" : "REVIEW", kad.trusted ? "ready" : "pending");
+    push("保护→传播→溯源", "LIVE", kad.provenance_ready ? "ready" : "pending");
+  } else {
+    mod("HiDDeN", statusFrom(payload.hidden));
+    mod("SepMark", statusFrom(payload.sepmark));
+    mod("LIDMark", statusFrom(payload.lidmark));
+    mod("WaveGuard", statusFrom(payload.waveguard));
+    mod("KAD-Net", statusFrom(payload.kadnet));
+    const readyKey = readinessPercent >= 90 ? "ready" : readinessPercent >= 60 ? "smoke" : "pending";
+    push("就绪度", readinessLabel, readyKey);
+    if (payload.meaMatrix?.status) {
+      push("MEA 矩阵", payload.meaMatrix.status, payload.meaMatrix.status === "complete" ? "ready" : "smoke");
+    }
+    push(
+      "SimSwap n256",
+      payload.simswap?.claim_valid === true ? "PUBLISHABLE" : "BLOCKED",
+      payload.simswap?.claim_valid === true ? "ready" : "pending",
+    );
+    push("报告", payload.report?.exists?.json ? "ready" : "pending");
   }
-  push(
-    "SimSwap n256",
-    payload.simswap?.claim_valid === true ? "PUBLISHABLE" : "BLOCKED",
-    payload.simswap?.claim_valid === true ? "ready" : "pending",
-  );
-  push("报告", payload.report?.exists?.json ? "ready" : "pending");
-  if (audit) {
+  if (!forensicsView && audit) {
     const blocking = (audit.blocking_findings || []).length;
     push("审计阻断", blocking, blocking === 0 ? "ready" : "pending");
     const sig = audit.signature || {};
     push("Ed25519", sig.verified ? "verified" : (sig.status || "pending"), sig.verified ? "ready" : "pending");
   }
-  if (payload.claims) {
+  if (!forensicsView && payload.claims) {
     push(
       "CLAIMS",
       payload.claims.ready_for_claims ? "PUBLISHABLE" : "REVIEW",
       payload.claims.ready_for_claims ? "ready" : "pending",
     );
   }
-  push("HEALTH", payload.health?.ok ? "OK" : "FAIL", payload.health?.ok ? "ready" : "pending");
+  if (!forensicsView) push("HEALTH", payload.health?.ok ? "OK" : "FAIL", payload.health?.ok ? "ready" : "pending");
 
   const itemHTML = items.map((it) =>
     `<span class="ticker-item ${it.cls}"><i class="tk-dot"></i><span class="tk-key">${escapeHTML(it.key)}</span><span class="tk-val">${escapeHTML(it.val)}</span></span>`
@@ -819,6 +849,8 @@ function renderPayload(payload) {
   text("aggregatePath", aggregate.report_md_path || "pending");
 
   countField("heroMetric", localReady.percent, { decimals: 0 });
+  text("heroMetricSuffix", "%");
+  text("heroPrimaryAction", "上传图片取证");
   text("heroMetricLabel", "本地资产就绪度");
   text(
     "mainConclusion",
@@ -963,12 +995,18 @@ const ENDPOINTS = [
 
 async function load() {
   try {
+    const activeView = window.location.hash.replace(/^#\/?/, "") || "overview";
+    // 现场取证页只请求运行闭环必需的数据，避免同时验算整套 benchmark
+    // 证据包而占满推理节点；切到其他视图时再加载完整证据面板。
+    const selectedEndpoints = activeView === "forensics"
+      ? ENDPOINTS.filter(([key]) => ["health", "modelsStatus"].includes(key))
+      : ENDPOINTS;
     // allSettled：单个接口失败只降级对应面板，不拖垮整页
-    const results = await Promise.allSettled(ENDPOINTS.map(([, path]) => getJSON(path)));
+    const results = await Promise.allSettled(selectedEndpoints.map(([, path]) => getJSON(path)));
     const data = {};
     const failed = [];
     results.forEach((res, index) => {
-      const [key, path] = ENDPOINTS[index];
+      const [key, path] = selectedEndpoints[index];
       if (res.status === "fulfilled") {
         data[key] = res.value;
       } else {
@@ -978,7 +1016,7 @@ async function load() {
     });
 
     // 后端整体不可用才进入整页错误态
-    if (failed.length === ENDPOINTS.length) {
+    if (failed.length === selectedEndpoints.length) {
       renderErrorState(failed[0].error);
       return;
     }
@@ -1000,6 +1038,16 @@ async function load() {
       claims: data.claims || { ready_for_claims: false, summary: {} },
     };
     renderPayload(lastPayload);
+
+    if (activeView === "forensics") {
+      const readyModels = Object.entries(lastPayload.modelsStatus || {})
+        .filter(([, status]) => status && typeof status === "object" && status.provenance_ready === true)
+        .map(([model]) => model);
+      if (lastPayload.health.ok && readyModels.length) {
+        renderReadiness(100, `H100 · ${readyModels.join(" + ")} ready`);
+        text("lastUpdated", `H100 实机推理已就绪 · ${new Date().toLocaleTimeString("zh-CN", { hour12: false })}`);
+      }
+    }
 
     if (data.audit) {
       renderAudit(data.audit);
@@ -1049,7 +1097,10 @@ function applyRoute() {
   if (subtitle) subtitle.textContent = meta.sub;
 }
 
-window.addEventListener("hashchange", applyRoute);
+window.addEventListener("hashchange", () => {
+  applyRoute();
+  load();
+});
 applyRoute();
 
 /* ═══ 四章答辩导览：价值 → 闭环 → 实证 → 可信 ═══ */
@@ -1110,6 +1161,27 @@ document.getElementById("defenseLaunch")?.addEventListener("click", () => {
   const guide = document.getElementById("defenseGuide");
   if (guide?.hidden) defenseStep = Math.max(0, DEFENSE_STEPS.findIndex((step) => window.location.hash === `#/${step.view}`));
   setDefenseGuide(Boolean(guide?.hidden));
+});
+
+function setPresentationMode(enabled) {
+  document.body.classList.toggle("presentation-mode", enabled);
+  const button = document.getElementById("presentationToggle");
+  if (button) {
+    button.setAttribute("aria-pressed", String(enabled));
+    button.textContent = enabled ? "退出路演模式" : "进入路演模式";
+  }
+  if (enabled) window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+document.getElementById("presentationToggle")?.addEventListener("click", () => {
+  setPresentationMode(!document.body.classList.contains("presentation-mode"));
+});
+
+document.addEventListener("keydown", (event) => {
+  if (event.key.toLowerCase() !== "p" || event.ctrlKey || event.metaKey || event.altKey) return;
+  const tag = document.activeElement?.tagName?.toLowerCase();
+  if (["input", "textarea", "select"].includes(tag)) return;
+  setPresentationMode(!document.body.classList.contains("presentation-mode"));
 });
 document.getElementById("defenseClose")?.addEventListener("click", () => setDefenseGuide(false));
 document.getElementById("defensePrev")?.addEventListener("click", () => {
@@ -1297,6 +1369,279 @@ document.querySelectorAll("[data-scenario]").forEach((btn) => {
   });
 });
 
+/* 本地传播实验：所有变换都由浏览器 Canvas 真实生成，不伪造模型核验结果。 */
+const localEvidence = {
+  sourceFile: null,
+  sourceHash: "",
+  registeredHash: "",
+  currentBlob: null,
+  currentHash: "",
+  attacks: [],
+};
+
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes)) return "—";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+}
+
+async function sha256Blob(blob) {
+  const buffer = await blob.arrayBuffer();
+  if (globalThis.crypto?.subtle) {
+    const digest = await crypto.subtle.digest("SHA-256", buffer);
+    return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  }
+  /* 公网演示节点暂为 HTTP；WebCrypto 在非安全上下文不可用，因此使用同算法的本地实现。 */
+  const bytes = new Uint8Array(buffer);
+  const paddedLength = Math.ceil((bytes.length + 9) / 64) * 64;
+  const padded = new Uint8Array(paddedLength);
+  padded.set(bytes);
+  padded[bytes.length] = 0x80;
+  const view = new DataView(padded.buffer);
+  const bitLength = bytes.length * 8;
+  view.setUint32(paddedLength - 8, Math.floor(bitLength / 0x100000000), false);
+  view.setUint32(paddedLength - 4, bitLength >>> 0, false);
+  const constants = [
+    0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+    0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+    0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+    0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+    0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+    0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+    0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+    0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2,
+  ];
+  const state = [0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19];
+  const words = new Uint32Array(64);
+  const rotate = (value, count) => (value >>> count) | (value << (32 - count));
+  for (let offset = 0; offset < paddedLength; offset += 64) {
+    for (let i = 0; i < 16; i += 1) words[i] = view.getUint32(offset + i * 4, false);
+    for (let i = 16; i < 64; i += 1) {
+      const s0 = rotate(words[i - 15], 7) ^ rotate(words[i - 15], 18) ^ (words[i - 15] >>> 3);
+      const s1 = rotate(words[i - 2], 17) ^ rotate(words[i - 2], 19) ^ (words[i - 2] >>> 10);
+      words[i] = (words[i - 16] + s0 + words[i - 7] + s1) >>> 0;
+    }
+    let [a,b,c,d,e,f,g,h] = state;
+    for (let i = 0; i < 64; i += 1) {
+      const sum1 = rotate(e, 6) ^ rotate(e, 11) ^ rotate(e, 25);
+      const choice = (e & f) ^ (~e & g);
+      const temp1 = (h + sum1 + choice + constants[i] + words[i]) >>> 0;
+      const sum0 = rotate(a, 2) ^ rotate(a, 13) ^ rotate(a, 22);
+      const majority = (a & b) ^ (a & c) ^ (b & c);
+      const temp2 = (sum0 + majority) >>> 0;
+      h = g; g = f; f = e; e = (d + temp1) >>> 0; d = c; c = b; b = a; a = (temp1 + temp2) >>> 0;
+    }
+    [a,b,c,d,e,f,g,h].forEach((value, index) => { state[index] = (state[index] + value) >>> 0; });
+  }
+  return state.map((value) => value.toString(16).padStart(8, "0")).join("");
+}
+
+function shortHash(hash) {
+  return hash ? `${hash.slice(0, 12)}…${hash.slice(-8)}` : "—";
+}
+
+function canvasToBlob(canvas, type = "image/png", quality) {
+  return new Promise((resolve, reject) => canvas.toBlob(
+    (blob) => blob ? resolve(blob) : reject(new Error("浏览器未能生成传播文件")),
+    type,
+    quality,
+  ));
+}
+
+function base64ToBlob(base64, type = "image/png") {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return new Blob([bytes], { type });
+}
+
+async function imageFromBlob(blob) {
+  const url = URL.createObjectURL(blob);
+  try {
+    const image = new Image();
+    image.decoding = "async";
+    image.src = url;
+    await image.decode();
+    return image;
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
+
+function drawImageToAttackCanvas(image, width = image.naturalWidth, height = image.naturalHeight) {
+  const canvas = document.getElementById("attackCanvas");
+  const longest = Math.max(width, height);
+  const scale = longest > 1400 ? 1400 / longest : 1;
+  canvas.width = Math.max(1, Math.round(width * scale));
+  canvas.height = Math.max(1, Math.round(height * scale));
+  const context = canvas.getContext("2d", { alpha: true });
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  document.getElementById("attackPlaceholder").hidden = true;
+}
+
+function setDemoProgress(step) {
+  document.querySelectorAll(".demo-progress li").forEach((item, index) => {
+    item.classList.toggle("active", index === step - 1);
+    item.classList.toggle("completed", index < step - 1);
+  });
+}
+
+function addDemoTimeline(title, detail) {
+  const timeline = document.getElementById("demoEvidenceTimeline");
+  if (!timeline) return;
+  if (timeline.dataset.started !== "true") {
+    timeline.innerHTML = "";
+    timeline.dataset.started = "true";
+  }
+  const now = new Date().toLocaleTimeString("zh-CN", { hour12: false });
+  const item = document.createElement("li");
+  item.innerHTML = `<time>${escapeHTML(now)}</time><div><strong>${escapeHTML(title)}</strong><small>${escapeHTML(detail)}</small></div>`;
+  timeline.appendChild(item);
+}
+
+function setVerdict(name, label, state, note) {
+  const output = document.getElementById(`verdict${name}`);
+  const noteNode = document.getElementById(`verdict${name}Note`);
+  const article = output?.closest("article");
+  if (output) output.textContent = label;
+  if (noteNode) noteNode.textContent = note;
+  if (article) {
+    article.classList.remove("pass", "fail", "review");
+    if (state) article.classList.add(state);
+  }
+}
+
+function resetLiveVerdicts() {
+  setVerdict("Exact", "原图", "pass", "当前文件与上传原图字节一致");
+  setVerdict("Watermark", "待登记", "review", "必须由真实模型完成盲解码");
+  setVerdict("Metadata", "未检查", "review", "Canvas 传播后将重新编码标识层");
+  setVerdict("Claim", "待门禁", "review", "登记、校准、阈值与签名共同放行");
+  text("liveScore", "—");
+  text("liveThreshold", "—");
+}
+
+async function refreshAttackArtifact(type = "image/png", quality) {
+  const canvas = document.getElementById("attackCanvas");
+  localEvidence.currentBlob = await canvasToBlob(canvas, type, quality);
+  localEvidence.currentHash = await sha256Blob(localEvidence.currentBlob);
+}
+
+async function loadSourceImage(file) {
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) throw new Error("图片超过 5 MB，请更换现场样本");
+  const image = await imageFromBlob(file);
+  localEvidence.sourceFile = file;
+  localEvidence.sourceHash = await sha256Blob(file);
+  localEvidence.registeredHash = localEvidence.sourceHash;
+  localEvidence.attacks = [];
+  drawImageToAttackCanvas(image);
+  localEvidence.currentBlob = file;
+  localEvidence.currentHash = localEvidence.sourceHash;
+
+  const preview = document.getElementById("sourcePreview");
+  if (preview.dataset.objectUrl) URL.revokeObjectURL(preview.dataset.objectUrl);
+  const previewUrl = URL.createObjectURL(file);
+  preview.dataset.objectUrl = previewUrl;
+  preview.src = previewUrl;
+  preview.hidden = false;
+  document.getElementById("sourcePlaceholder").hidden = true;
+  document.getElementById("sourceFileMeta").innerHTML = `
+    <div><dt>文件</dt><dd title="${escapeHTML(file.name)}">${escapeHTML(file.name)} · ${formatBytes(file.size)}</dd></div>
+    <div><dt>尺寸</dt><dd>${image.naturalWidth} × ${image.naturalHeight} px</dd></div>
+    <div><dt>SHA-256</dt><dd title="${localEvidence.sourceHash}">${shortHash(localEvidence.sourceHash)}</dd></div>`;
+  document.querySelectorAll("[data-local-attack]").forEach((button) => { button.disabled = false; });
+  document.getElementById("useAttackForVerify").disabled = false;
+  document.getElementById("attackLog").innerHTML = '<span class="done">原始版本已装载</span>';
+  resetLiveVerdicts();
+  setDemoProgress(1);
+  addDemoTimeline("原始内容进入浏览器", `${file.name} · ${image.naturalWidth}×${image.naturalHeight} · SHA-256 ${shortHash(localEvidence.sourceHash)}`);
+  text("protectStatus", "原图已就绪；填写创作者引用后可保护登记");
+}
+
+document.getElementById("protectFile")?.addEventListener("change", async (event) => {
+  try {
+    await loadSourceImage(event.target.files?.[0]);
+  } catch (error) {
+    event.target.value = "";
+    text("protectStatus", `图片读取失败：${error.message}`);
+  }
+});
+
+document.querySelectorAll("[data-local-attack]").forEach((button) => {
+  button.disabled = true;
+  button.addEventListener("click", async () => {
+    if (!localEvidence.currentBlob) return;
+    const type = button.dataset.localAttack;
+    button.disabled = true;
+    try {
+      const canvas = document.getElementById("attackCanvas");
+      const copy = document.createElement("canvas");
+      copy.width = canvas.width;
+      copy.height = canvas.height;
+      copy.getContext("2d").drawImage(canvas, 0, 0);
+      let label = "";
+
+      if (type === "jpeg") {
+        await refreshAttackArtifact("image/jpeg", .55);
+        drawImageToAttackCanvas(await imageFromBlob(localEvidence.currentBlob));
+        label = "JPEG 55%";
+      } else if (type === "crop") {
+        const cropWidth = Math.max(1, Math.round(copy.width * .8));
+        const cropHeight = Math.max(1, Math.round(copy.height * .8));
+        canvas.width = cropWidth;
+        canvas.height = cropHeight;
+        canvas.getContext("2d").drawImage(copy, (copy.width - cropWidth) / 2, (copy.height - cropHeight) / 2, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+        label = "中心裁剪 80%";
+      } else if (type === "resize") {
+        canvas.width = Math.max(1, Math.round(copy.width * .75));
+        canvas.height = Math.max(1, Math.round(copy.height * .75));
+        canvas.getContext("2d").drawImage(copy, 0, 0, canvas.width, canvas.height);
+        label = "缩放至 75%";
+      } else if (type === "metadata") {
+        label = "元数据移除";
+      }
+
+      if (type !== "jpeg") await refreshAttackArtifact("image/png");
+      localEvidence.attacks.push(label);
+      const chip = document.createElement("span");
+      chip.className = "done";
+      chip.textContent = `${localEvidence.attacks.length}. ${label}`;
+      document.getElementById("attackLog").appendChild(chip);
+      setVerdict("Exact", localEvidence.currentHash === localEvidence.registeredHash ? "一致" : "不一致", localEvidence.currentHash === localEvidence.registeredHash ? "pass" : "fail", `传播文件 SHA-256 ${shortHash(localEvidence.currentHash)}`);
+      setVerdict("Metadata", "已移除", "fail", "浏览器重编码不会保留原文件元数据");
+      setVerdict("Watermark", "待盲核验", "review", "视觉相似不能替代解码结果");
+      setVerdict("Claim", "待门禁", "review", "需以盲核验事件和签名记录判断");
+      setDemoProgress(3);
+      addDemoTimeline("生成传播版本", `${localEvidence.attacks.join(" → ")} · ${canvas.width}×${canvas.height} · ${formatBytes(localEvidence.currentBlob.size)}`);
+    } catch (error) {
+      addDemoTimeline("传播变换失败", error.message);
+    } finally {
+      button.disabled = false;
+    }
+  });
+});
+
+document.getElementById("useAttackForVerify")?.addEventListener("click", () => {
+  if (!localEvidence.currentBlob) return;
+  const extension = localEvidence.currentBlob.type === "image/jpeg" ? "jpg" : "png";
+  const file = new File([localEvidence.currentBlob], `propagated-${Date.now()}.${extension}`, { type: localEvidence.currentBlob.type });
+  try {
+    const transfer = new DataTransfer();
+    transfer.items.add(file);
+    const input = document.getElementById("verifyFile");
+    input.files = transfer.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    text("verifyStatus", `传播版本已送入 · ${formatBytes(file.size)} · 点击执行 Decode Only`);
+    setDemoProgress(4);
+    addDemoTimeline("传播版本送入核验", `${file.name} · 只提交观测图片与 content_id`);
+    document.getElementById("verifyForm").scrollIntoView({ behavior: "smooth", block: "center" });
+  } catch (error) {
+    text("verifyStatus", `浏览器无法自动装载文件：${error.message}`);
+  }
+});
+
 function formalEvidenceBadge(result, expectedProvenance) {
   const valid = result?.mode === "real_checkpoint"
     && result?.claim_valid === true
@@ -1312,6 +1657,11 @@ function formalEvidenceBadge(result, expectedProvenance) {
 document.getElementById("protectForm")?.addEventListener("submit", async (event) => {
   event.preventDefault();
   const model = document.getElementById("protectModel").value;
+  const protectFile = document.getElementById("protectFile").files[0];
+  if (!protectFile) {
+    text("protectStatus", "请先选择原创图片");
+    return;
+  }
   if (protectModelGate.get(model)?.provenance_ready !== true) {
     text("protectStatus", "不可保护：所选模型未同时通过 checkpoint 登记、校准与签名清单门禁");
     updateProtectButton();
@@ -1323,10 +1673,10 @@ document.getElementById("protectForm")?.addEventListener("submit", async (event)
   document.getElementById("protectResult").innerHTML = "";
   try {
     const fd = new FormData();
-    fd.append("file", document.getElementById("protectFile").files[0]);
+    fd.append("file", protectFile);
     fd.append("creator_ref", document.getElementById("creatorRef").value);
     fd.append("model", model);
-    const res = await fetchWithTimeout(apiURL("/api/provenance/protect"), { method: "POST", body: fd }, 130000);
+    const res = await fetchWithTimeout(apiURL("/api/provenance/protect"), { method: "POST", body: fd }, 240000);
     const result = await res.json();
     if (!res.ok) throw new Error((result.error && result.error.message) || res.statusText);
     document.getElementById("verifyContentId").value = result.content_id;
@@ -1343,8 +1693,36 @@ document.getElementById("protectForm")?.addEventListener("submit", async (event)
       </div>`;
     document.getElementById("protectEvidence").textContent = JSON.stringify(result, null, 2);
     text("protectStatus", `保护与登记完成 · ${result.content_id} · ${result.evidence_status}`);
+    try {
+      let protectedBlob;
+      if (result.protected_image?.png_base64) {
+        protectedBlob = base64ToBlob(result.protected_image.png_base64);
+      } else {
+        const artifactResponse = await fetch(imageSource);
+        if (!artifactResponse.ok) throw new Error("保护图下载失败");
+        protectedBlob = await artifactResponse.blob();
+      }
+      const protectedImage = await imageFromBlob(protectedBlob);
+      drawImageToAttackCanvas(protectedImage);
+      localEvidence.currentBlob = protectedBlob;
+      localEvidence.currentHash = await sha256Blob(protectedBlob);
+      localEvidence.registeredHash = result.protected_sha256 || localEvidence.currentHash;
+      localEvidence.attacks = [];
+      document.getElementById("attackLog").innerHTML = '<span class="done">已保护版本进入传播台</span>';
+      document.getElementById("useAttackForVerify").disabled = false;
+      setVerdict("Exact", "登记版本", "pass", `受保护文件 SHA-256 ${shortHash(localEvidence.registeredHash)}`);
+      setVerdict("Metadata", result.aigc_labeling ? "完整" : "未声明", result.aigc_labeling ? "pass" : "review", result.aigc_labeling ? "GB 45438-2025 标识已写入保护图" : "本次保护未请求 AIGC 显式标识");
+      addDemoTimeline("受保护版本进入传播台", `${formatBytes(protectedBlob.size)} · checkpoint ${shortHash(result.checkpoint_sha256)}`);
+    } catch (artifactError) {
+      addDemoTimeline("保护图未能进入传播台", artifactError.message);
+    }
+    setVerdict("Watermark", "已嵌入", "pass", `已登记内容 ID ${result.content_id}`);
+    setVerdict("Claim", result.claim_valid === true ? "登记有效" : "待核验", result.claim_valid === true ? "pass" : "review", result.claim_valid === true ? "来源登记已通过当前证据门禁" : "仍需传播后盲核验事件收口");
+    setDemoProgress(2);
+    addDemoTimeline("创建来源登记", `${result.content_id} · ${result.creator_ref} · ${result.evidence_status || "状态未返回"}`);
   } catch (err) {
     text("protectStatus", `失败：${err.message}`);
+    addDemoTimeline("来源登记未完成", err.message);
   } finally {
     protectBusy = false;
     updateProtectButton();
@@ -1354,14 +1732,19 @@ document.getElementById("protectForm")?.addEventListener("submit", async (event)
 document.getElementById("verifyForm")?.addEventListener("submit", async (event) => {
   event.preventDefault();
   const btn = document.getElementById("verifyBtn");
+  const verifyFile = document.getElementById("verifyFile").files[0];
+  if (!verifyFile) {
+    text("verifyStatus", "请先装载传播后图片");
+    return;
+  }
   btn.disabled = true;
   text("verifyStatus", "正在盲解码并查询登记记录…");
   document.getElementById("verifyResult").innerHTML = "";
   try {
     const fd = new FormData();
-    fd.append("file", document.getElementById("verifyFile").files[0]);
+    fd.append("file", verifyFile);
     fd.append("content_id", document.getElementById("verifyContentId").value.trim());
-    const res = await fetchWithTimeout(apiURL("/api/provenance/verify"), { method: "POST", body: fd }, 130000);
+    const res = await fetchWithTimeout(apiURL("/api/provenance/verify"), { method: "POST", body: fd }, 240000);
     const result = await res.json();
     if (!res.ok) throw new Error((result.error && result.error.message) || res.statusText);
     document.getElementById("verifyResult").innerHTML = `<div class="infer-metric-row">
@@ -1373,8 +1756,26 @@ document.getElementById("verifyForm")?.addEventListener("submit", async (event) 
     </div>`;
     document.getElementById("verifyEvidence").textContent = JSON.stringify(result, null, 2);
     text("verifyStatus", `${result.verified ? "消息匹配" : "消息不匹配"} · event_id: ${result.event_id}`);
+    const score = Number(result.bit_accuracy);
+    const thresholdCandidate = result.verification_threshold ?? result.success_threshold ?? result.threshold ?? result.registered_threshold ?? result.protocol_threshold ?? result.decision_threshold;
+    const threshold = Number(thresholdCandidate);
+    setVerdict("Exact", result.exact_protected_file_match ? "一致" : "不一致", result.exact_protected_file_match ? "pass" : "fail", result.exact_protected_file_match ? "观测文件与已保护文件字节完全一致" : "文件变化不等于来源关系失效");
+    setVerdict("Watermark", result.verified ? "恢复成功" : "未达阈值", result.verified ? "pass" : "fail", Number.isFinite(score) ? `Bit Accuracy ${(score * 100).toFixed(1)}%` : "服务端未返回有效恢复得分");
+    if (typeof result.aigc_metadata_intact === "boolean") {
+      setVerdict("Metadata", result.aigc_metadata_intact ? "完整" : "缺失", result.aigc_metadata_intact ? "pass" : "fail", "结果来自服务端标识完整性检查");
+    } else {
+      setVerdict("Metadata", "未判定", "review", "当前核验接口未返回元数据完整性证据");
+    }
+    setVerdict("Claim", result.claim_valid === true ? "有效" : "未放行", result.claim_valid === true ? "pass" : "fail", result.claim_valid === true ? "模型登记、校准、阈值与签名门禁均通过" : "至少一项正式证据门禁未通过");
+    text("liveScore", Number.isFinite(score) ? `${(score * 100).toFixed(1)}%` : "—");
+    text("liveThreshold", Number.isFinite(threshold) ? `${(threshold * 100).toFixed(1)}%` : "接口未返回");
+    setDemoProgress(5);
+    addDemoTimeline("盲核验事件写入", `${result.event_id || "event_id 未返回"} · ${result.verified ? "登记消息恢复" : "未达到登记阈值"} · claim ${result.claim_valid === true ? "valid" : "not released"}`);
   } catch (err) {
     text("verifyStatus", `失败：${err.message}`);
+    setVerdict("Watermark", "无结果", "review", "核验服务未返回可验证结果");
+    setVerdict("Claim", "未放行", "review", "没有盲核验事件，不形成来源结论");
+    addDemoTimeline("盲核验未完成", err.message);
   } finally {
     btn.disabled = false;
   }
