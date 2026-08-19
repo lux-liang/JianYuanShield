@@ -14,25 +14,9 @@
     <link rel="apple-touch-icon" href="./icons/icon-180.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
     <!-- 完全离线可用；字体使用系统栈，不向第三方域名发送请求。 -->
-    <link rel="stylesheet" href="./styles.css?v=20260820-h100-2" />
+    <link rel="stylesheet" href="./styles.css?v=20260820-refine-3" />
   </head>
   <body>
-    <!-- ════════════ 入场动画 ════════════ -->
-    <div class="boot" id="bootScreen" aria-hidden="true">
-      <div class="boot-core">
-        <div class="boot-mark">
-          <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M12 2 L20 5.5 V11 C20 16.5 16.7 20.6 12 22 C7.3 20.6 4 16.5 4 11 V5.5 Z" />
-            <circle cx="12" cy="11" r="3.2" />
-            <path d="M12 4.6 V7.8 M12 14.2 V17.4 M5.8 11 H8.8 M15.2 11 H18.2" />
-          </svg>
-        </div>
-        <div class="boot-title">鉴源盾</div>
-        <div class="boot-sub">FORENSIC CONSOLE · INITIALIZING</div>
-        <div class="boot-bar"><span></span></div>
-      </div>
-    </div>
-
     <div class="app-shell">
       <!-- ════════════ 侧栏：品牌 / 视图导航 / 证据就绪度 ════════════ -->
       <aside class="sidebar">
@@ -46,26 +30,26 @@
           </div>
           <div class="brand-copy">
             <h1>鉴源盾</h1>
-            <p>FORENSIC CONSOLE · v2</p>
+            <p>CONTENT PROVENANCE</p>
           </div>
         </div>
 
         <nav class="view-nav" id="viewNav" aria-label="主视图">
           <a href="#/overview" data-view="overview" class="active">
             <span class="nav-index">01</span>
-            <span class="nav-label">概览<small>OVERVIEW</small></span>
+            <span class="nav-label">资产总览<small>ASSET OVERVIEW</small></span>
           </a>
           <a href="#/forensics" data-view="forensics">
             <span class="nav-index">02</span>
-            <span class="nav-label">互动取证<small>LIVE FORENSICS</small></span>
+            <span class="nav-label">溯源工作台<small>PROVENANCE</small></span>
           </a>
           <a href="#/benchmark" data-view="benchmark">
             <span class="nav-index">03</span>
-            <span class="nav-label">Benchmark<small>FULL EVALUATION</small></span>
+            <span class="nav-label">稳健性评估<small>EVALUATION</small></span>
           </a>
           <a href="#/audit" data-view="audit">
             <span class="nav-index">04</span>
-            <span class="nav-label">证据审计<small>EVIDENCE AUDIT</small></span>
+            <span class="nav-label">可信审计<small>TRUST AUDIT</small></span>
           </a>
         </nav>
 
@@ -91,33 +75,15 @@
       <main class="workspace">
         <header class="topbar">
           <div>
-            <span class="eyebrow">DEEPFAKE ACTIVE FORENSICS</span>
-            <h2 id="viewTitle">概览</h2>
-            <p id="viewSubtitle">防御结论 · 模块状态 · 证据就绪度</p>
+            <span class="eyebrow">JYS / CONTENT PROVENANCE SYSTEM</span>
+            <h2 id="viewTitle">资产总览</h2>
+            <p id="viewSubtitle">运行状态、可信资产与证据边界</p>
           </div>
           <div class="top-meta">
             <span class="clock" id="clock" aria-hidden="true">--:--:--</span>
-            <span class="clock-sub">PROVENANCE · MEA · CLAIM-AS-CODE · ED25519</span>
-            <div class="presentation-actions">
-              <button class="presentation-toggle" id="presentationToggle" type="button" aria-pressed="false" title="快捷键 P">进入路演模式</button>
-              <button class="defense-launch" id="defenseLaunch" type="button" aria-expanded="false" aria-controls="defenseGuide">开启答辩导览</button>
-            </div>
+            <span class="clock-sub">H100 COMPUTE / SIGNED EVIDENCE</span>
           </div>
         </header>
-
-        <aside class="defense-guide" id="defenseGuide" hidden aria-label="答辩导览">
-          <div class="defense-progress"><i id="defenseProgress"></i></div>
-          <div class="defense-guide-copy">
-            <span id="defenseStepLabel">01 / 04 · 价值命题</span>
-            <strong id="defenseStepTitle">先讲清：鉴源盾不是单点算法</strong>
-            <small id="defenseStepCue">用“出生登记—传播核验—争议举证”解释完整治理闭环。</small>
-          </div>
-          <div class="defense-guide-actions">
-            <button id="defensePrev" type="button" aria-label="上一个答辩章节">上一章</button>
-            <button id="defenseNext" type="button">下一章</button>
-            <button id="defenseClose" type="button" aria-label="关闭答辩导览">退出</button>
-          </div>
-        </aside>
 
         <!-- 实时证据流 ticker：横向滚动各模块状态 / 就绪度 / 审计 / 签名（悬停暂停）-->
         <div class="ticker" id="evidenceTicker" aria-label="实时证据流" aria-live="off">
@@ -147,7 +113,7 @@
                 <div class="hero-actions" aria-label="常用操作">
                   <a class="primary-action" id="heroPrimaryAction" href="#/forensics">上传图片取证</a>
                   <a class="secondary-action" href="#/audit">查看证据审计</a>
-                  <a class="secondary-action" href="#/benchmark">查看 Benchmark</a>
+                  <a class="secondary-action" href="#/benchmark">查看稳健性评估</a>
                 </div>
               </div>
               <div class="trust-console" aria-label="四项可信判据">
@@ -176,7 +142,7 @@
               <h3 id="storyTitle">一张图片，一份贯穿全生命周期的可信档案。</h3>
             </div>
             <ol class="story-journey" aria-label="鉴源盾三阶段业务闭环">
-              <li><span class="story-no">01</span><div><b>出生登记</b><small>创作者身份与主动水印绑定，生成内容 ID 和哈希记录</small></div><a href="#/forensics">现场演示</a></li>
+              <li><span class="story-no">01</span><div><b>出生登记</b><small>创作者身份与主动水印绑定，生成内容 ID 和哈希记录</small></div><a href="#/forensics">进入工作台</a></li>
               <li><span class="story-no">02</span><div><b>传播核验</b><small>经历压缩、缩放或二次嵌入后盲解码，匹配原始登记</small></div><a href="#/benchmark">查看数据</a></li>
               <li><span class="story-no">03</span><div><b>争议举证</b><small>原始结果、协议、实现哈希与 Ed25519 签名共同验链</small></div><a href="#/audit">核验证据</a></li>
             </ol>
@@ -280,7 +246,7 @@
             <div class="asset-detail-list" id="assetDetailList"></div>
           </section>
 
-        <section class="panel" style="margin-bottom:1.5rem">
+        <section class="panel mea-overview-panel" style="margin-bottom:1.5rem">
           <div class="panel-head">
             <div>
               <h3>MEA 多重嵌入攻击矩阵</h3>
@@ -305,7 +271,7 @@
         </section>
 
         <section class="panel simswap-evidence-panel" style="margin-bottom:1.5rem">
-          <span class="exhibit">EXHIBIT 13 · REAL FACE-SWAP EVIDENCE</span>
+          <span class="exhibit">REAL FACE-SWAP EVIDENCE</span>
           <div class="panel-head">
             <div>
               <h3>真实换脸证据 · official SimSwap / LFW</h3>
@@ -338,7 +304,7 @@
         </section>
 
         <section class="panel collaboration-panel" style="margin-bottom:1.5rem">
-          <span class="exhibit">EXHIBIT 14 · COLLABORATION POLICY</span>
+          <span class="exhibit">DEPLOYMENT POLICY</span>
           <div class="panel-head">
             <div>
               <h3>证据驱动策略推荐器 · 单模型部署建议</h3>
@@ -357,7 +323,7 @@
             <label>决策偏好
               <select id="collaborationProfile">
                 <option value="balanced">均衡 · risk 0.6 / quality 0.2 / min normalized margin LCB 0.45</option>
-                <option value="security">安全优先 · risk 0.9 / min normalized margin LCB 0.70（演示硬约束阻断）</option>
+                <option value="security">安全优先 · risk 0.9 / min normalized margin LCB 0.70（硬约束阻断）</option>
                 <option value="quality">质量优先 · quality 0.45 / min normalized margin LCB 0.45</option>
               </select>
             </label>
@@ -367,8 +333,8 @@
           <div id="collaborationResult" class="collaboration-result"></div>
         </section>
 
-          <section class="panel">
-            <span class="exhibit">EXHIBIT 02 · MODULE REGISTRY</span>
+          <section class="panel module-registry-panel">
+            <span class="exhibit">MODULE REGISTRY</span>
             <div class="panel-head">
               <div>
                 <h3>核心模块</h3>
@@ -381,32 +347,23 @@
 
         <!-- ──────────── 视图 02 · 互动取证 ──────────── -->
         <section class="view" id="view-forensics" hidden>
-          <section class="live-demo-intro">
+          <section class="live-demo-intro provenance-intro">
             <div>
-              <span>现场演示 · 单图全生命周期</span>
-              <h2>一张图片，如何穿过传播链仍能被认出？</h2>
-              <p>登记它、改变它、再次核验它。字节、水印、标识和来源声明分别作答。</p>
+              <span>PROVENANCE WORKSPACE / H100 ACTIVE</span>
+              <h2>内容溯源工作台</h2>
+              <p>对原始内容建立可信登记，在传播变换后执行盲解码，并生成可核验的证据事件。</p>
             </div>
-            <div class="demo-rule"><b>核验规则</b><strong>只允许 Decode</strong><small>不重新嵌入，不使用原图比对</small></div>
+            <div class="demo-rule"><b>验证原则</b><strong>Blind Decode</strong><small>仅使用观测文件与既有内容 ID</small></div>
           </section>
 
-          <ol class="demo-progress" aria-label="现场演示流程">
-            <li class="active"><b>01</b><span>上传原图<small>生成内容摘要</small></span></li>
-            <li><b>02</b><span>保护登记<small>创建数字出生证</small></span></li>
-            <li><b>03</b><span>传播攻击<small>压缩、裁剪、去标识</small></span></li>
-            <li><b>04</b><span>盲核验<small>得分与阈值比较</small></span></li>
-            <li><b>05</b><span>证据收口<small>签名事件与声明门禁</small></span></li>
-          </ol>
+          <div class="process-line" aria-label="内容溯源流程">
+            <span><i>01</i>INGEST</span><b></b><span><i>02</i>REGISTER</span><b></b><span><i>03</i>TRANSFORM</span><b></b><span><i>04</i>VERIFY</span>
+          </div>
 
           <section class="demo-workspace" id="scenarioPanel">
             <div class="scenario-nav">
-              <div><strong>演示工作台</strong><small>所有图片变化均在本地真实生成</small></div>
-              <div class="segmented" aria-label="scenario">
-                <button class="active" data-scenario="creator" type="button">完整流程</button>
-                <button data-scenario="demo" type="button">预置样本</button>
-                <button data-scenario="compliance" type="button">能力边界</button>
-                <button data-scenario="mea" type="button">多水印冲突</button>
-              </div>
+              <div><strong>当前会话</strong><small>变换在浏览器侧生成，保护与核验由 H100 执行</small></div>
+              <div class="session-state"><i></i>SECURE SESSION</div>
             </div>
 
             <!-- 场景1: 单图全生命周期 -->
@@ -424,6 +381,18 @@
                     <div><dt>尺寸</dt><dd>—</dd></div>
                     <div><dt>SHA-256</dt><dd>—</dd></div>
                   </dl>
+                  <div class="inline-operator">
+                    <form id="protectForm" class="operator-form compact-operator">
+                      <label>创作者引用<input type="text" id="creatorRef" maxlength="128" placeholder="creator-001" required></label>
+                      <label>保护模型<select id="protectModel" disabled>
+                        <option value="LIDMark">LIDMark</option><option value="SepMark">SepMark</option><option value="WaveGuard">WaveGuard</option><option value="KAD-Net">KAD-Net</option>
+                      </select></label>
+                      <button id="protectBtn" class="primary-action" type="submit" disabled>建立保护登记</button>
+                    </form>
+                    <div id="protectModelStatus" class="model-gate-status" aria-live="polite">正在核验模型可信状态</div>
+                    <div id="protectStatus" class="demo-status" aria-live="polite">等待原始内容</div>
+                    <div id="protectResult" class="demo-artifacts"></div>
+                  </div>
                 </section>
 
                 <section class="theatre-card attack-stage">
@@ -439,7 +408,7 @@
                     <button type="button" data-local-attack="metadata">去除元数据 <small>重新编码</small></button>
                   </div>
                   <div class="attack-log" id="attackLog"><span>尚未执行传播变换</span></div>
-                  <button class="use-attack-button" id="useAttackForVerify" type="button" disabled>将传播版本送入盲核验 →</button>
+                  <button class="use-attack-button" id="useAttackForVerify" type="button" disabled>设为待核验样本</button>
                 </section>
 
                 <section class="theatre-card verdict-stage">
@@ -455,91 +424,28 @@
                     <div><b id="liveScore">—</b><i></i><b id="liveThreshold">—</b></div>
                     <small>恢复得分 &nbsp;对比&nbsp; 登记阈值</small>
                   </div>
+                  <div class="inline-operator verify-operator">
+                    <form id="verifyForm" class="operator-form compact-operator">
+                      <label>观测文件<input type="file" id="verifyFile" accept="image/jpeg,image/png,image/webp" required></label>
+                      <label>内容 ID<input type="text" id="verifyContentId" minlength="32" maxlength="32" pattern="[a-f0-9]{32}" placeholder="登记后自动填入" required></label>
+                      <button id="verifyBtn" class="primary-action" type="submit">开始盲核验</button>
+                    </form>
+                    <div id="verifyStatus" class="demo-status" aria-live="polite">等待观测文件与内容 ID</div>
+                    <div id="verifyResult" class="infer-metrics"></div>
+                  </div>
                 </section>
               </div>
 
-              <div class="operator-deck">
-                <section>
-                  <div class="operator-head"><b>登记控制台</b><small>私钥留在创作者侧；服务端验证持钥证明</small></div>
-                  <form id="protectForm" class="operator-form">
-                    <label>创作者引用<input type="text" id="creatorRef" maxlength="128" placeholder="creator-001" required></label>
-                    <label>保护模型<select id="protectModel" disabled>
-                      <option value="LIDMark">LIDMark</option><option value="SepMark">SepMark</option><option value="WaveGuard">WaveGuard</option><option value="KAD-Net">KAD-Net</option>
-                    </select></label>
-                    <button id="protectBtn" class="primary-action" type="submit" disabled>保护并登记</button>
-                  </form>
-                  <div id="protectModelStatus" class="model-gate-status" aria-live="polite">正在核验模型登记、校准与签名状态</div>
-                  <div id="protectStatus" class="demo-status" aria-live="polite">等待原创图片</div>
-                  <div id="protectResult" class="demo-artifacts"></div>
-                </section>
-                <section>
-                  <div class="operator-head"><b>盲核验控制台</b><small>观测图片 + 已存在 content_id，不重新嵌入</small></div>
-                  <form id="verifyForm" class="operator-form">
-                    <label>传播后图片<input type="file" id="verifyFile" accept="image/jpeg,image/png,image/webp" required></label>
-                    <label>内容 ID<input type="text" id="verifyContentId" minlength="32" maxlength="32" pattern="[a-f0-9]{32}" placeholder="登记后自动填入" required></label>
-                    <button id="verifyBtn" class="primary-action" type="submit">执行 Decode Only</button>
-                  </form>
-                  <div id="verifyStatus" class="demo-status" aria-live="polite">等待传播后图片与内容 ID</div>
-                  <div id="verifyResult" class="infer-metrics"></div>
-                </section>
-              </div>
-
-              <section class="evidence-timeline-panel">
-                <div class="operator-head"><b>本次证据时间线</b><small>登记父记录、传播事件与核验子事件按时间追加</small></div>
+              <details class="evidence-timeline-panel evidence-session-detail">
+                <summary><span>会话证据链</span><small>查看登记、传播与核验事件</small></summary>
                 <ol id="demoEvidenceTimeline" class="evidence-timeline">
-                  <li><time>等待</time><div><strong>请选择现场图片</strong><small>图片仅在当前浏览器中生成传播版本</small></div></li>
+                  <li><time>等待</time><div><strong>请选择图片</strong><small>传播版本仅在当前浏览器中生成</small></div></li>
                 </ol>
                 <div class="evidence-drawers">
                   <details class="evidence-fold"><summary>来源登记记录</summary><pre id="protectEvidence">{}</pre></details>
                   <details class="evidence-fold"><summary>盲核验事件</summary><pre id="verifyEvidence">{}</pre></details>
                 </div>
-              </section>
-            </div>
-
-            <!-- 场景0: 预置样本演示链 -->
-            <div id="scene-demo" class="scene-block compact-scene" hidden>
-              <div class="compact-scene-copy"><span>预置证据链</span><h3>用于现场网络或GPU不可用时的受控回放</h3><p>明确标记执行模式，不把回放或 simulation 表述为正式模型结果。</p></div>
-              <form id="demoForm" class="demo-form">
-                <label>样本<select id="demoSample"></select></label>
-                <label>模型<select id="demoProject"><option>LIDMark</option><option>SepMark</option><option>WaveGuard</option></select></label>
-                <label>攻击链<select id="demoAttack"><option value="multi_embedding+jpeg_50+blur">二次嵌入 + JPEG50 + 模糊</option><option value="jpeg_50">JPEG50</option><option value="resize">缩放传播</option><option value="clean">无攻击</option></select></label>
-                <button id="demoRunButton" class="primary-action" type="submit">运行受控回放</button>
-              </form>
-              <div id="demoStatus" class="demo-status">等待运行</div><div id="demoArtifacts" class="demo-artifacts"></div>
-              <details class="evidence-fold"><summary>回放证据 JSON</summary><pre id="demoEvidence">{}</pre></details>
-            </div>
-
-            <!-- 场景2: 平台合规批量 -->
-            <div id="scene-compliance" class="scene-block compact-scene" hidden>
-              <p class="scene-desc">盲检能力门禁：当前适配器不支持时返回“不可判定”，不生成合规率或无水印结论</p>
-              <form id="batchForm" class="demo-form">
-                <label>批量图片（多选）<input type="file" id="batchFiles" accept="image/*" multiple required></label>
-                <label>检测模型<select id="batchModel">
-                  <option value="SepMark">SepMark</option>
-                  <option value="WaveGuard">WaveGuard</option>
-                </select></label>
-                <button id="batchBtn" class="primary-action" type="submit">检查盲检能力</button>
-              </form>
-              <div id="batchStatus" class="demo-status">等待上传</div>
-              <div id="batchResults"></div>
-            </div>
-
-            <!-- 场景3: MEA 横评 -->
-            <div id="scene-mea" class="scene-block compact-scene" hidden>
-              <p class="scene-desc">同一图片，四模型使用相同攻击做工程横评；正式协同选择以验签 MEA 矩阵为准</p>
-              <form id="meaForm" class="demo-form">
-                <label>图片<input type="file" id="meaFile" accept="image/*" required></label>
-                <label>攻击<select id="meaAttack">
-                  <option value="jpeg50">JPEG 50（平台转码）</option>
-                  <option value="jpeg70">JPEG 70</option>
-                  <option value="resize">缩放传播</option>
-                  <option value="noise">高斯噪声</option>
-                  <option value="clean">无攻击</option>
-                </select></label>
-                <button id="meaBtn" class="primary-action" type="submit">对比评测</button>
-              </form>
-              <div id="meaStatus" class="demo-status">等待上传</div>
-              <div id="meaResults" class="mea-results"></div>
+              </details>
             </div>
           </section>
         </section>
@@ -547,7 +453,7 @@
         <!-- ──────────── 视图 03 · Benchmark ──────────── -->
         <section class="view" id="view-benchmark" hidden>
           <section class="panel">
-            <span class="exhibit">EXHIBIT 21 · METHOD COMPARISON</span>
+            <span class="exhibit">MODEL COMPARISON</span>
             <div class="panel-head">
               <div>
                 <h3>方法对比</h3>
@@ -570,7 +476,7 @@
                     <th class="num-col">样本</th>
                     <th class="num-col">clean BER</th>
                     <th class="num-col">clean Acc</th>
-                    <th>答辩可用</th>
+                    <th>证据可用性</th>
                     <th>状态</th>
                   </tr>
                 </thead>
@@ -581,7 +487,7 @@
 
           <section class="evidence-grid">
             <article class="panel">
-              <span class="exhibit">EXHIBIT 22 · SEPMARK / LFW FULL</span>
+              <span class="exhibit">SEPMARK / LFW</span>
               <div class="panel-head">
                 <div>
                   <h3>SepMark LFW benchmark</h3>
@@ -601,7 +507,7 @@
             </article>
 
             <article class="panel">
-              <span class="exhibit">EXHIBIT 23 · HIDDEN / EVIDENCE STATUS</span>
+              <span class="exhibit">HIDDEN / EVIDENCE STATUS</span>
               <div class="panel-head">
                 <div>
                   <h3>HiDDeN benchmark evidence</h3>
@@ -621,7 +527,7 @@
             </article>
 
             <article class="panel">
-              <span class="exhibit">EXHIBIT 24 · WAVEGUARD / EVIDENCE STATUS</span>
+              <span class="exhibit">WAVEGUARD / EVIDENCE STATUS</span>
               <div class="panel-head">
                 <div>
                   <h3>WaveGuard baseline</h3>
@@ -641,7 +547,7 @@
 
 
             <article class="panel">
-              <span class="exhibit">EXHIBIT 24B · KAD-NET / EVIDENCE STATUS</span>
+              <span class="exhibit">KAD-NET / EVIDENCE STATUS</span>
               <div class="panel-head">
                 <div>
                   <h3>KAD-Net benchmark evidence</h3>
@@ -660,7 +566,7 @@
             </article>
 
             <article class="panel wide">
-              <span class="exhibit">EXHIBIT 25 · DEGRADATION CURVE</span>
+              <span class="exhibit">ROBUSTNESS CURVE</span>
               <div class="panel-head">
                 <div>
                   <h3>攻击退化曲线</h3>
@@ -680,7 +586,7 @@
         <!-- ──────────── 视图 04 · 证据审计 ──────────── -->
         <section class="view" id="view-audit" hidden>
           <section class="panel audit-panel">
-            <span class="exhibit">EXHIBIT 31 · AUTOMATED AUDIT</span>
+            <span class="exhibit">AUTOMATED AUDIT</span>
             <div class="panel-head">
               <div><h3>证据与实验协议审计</h3><span>自动识别异常指标、协议差异和证据文件哈希</span></div>
               <span id="auditStatus" class="panel-badge warning" aria-live="polite">loading</span>
@@ -695,7 +601,7 @@
 
           <section class="evidence-grid">
             <article class="panel">
-              <span class="exhibit">EXHIBIT 32 · LIDMARK RAW</span>
+              <span class="exhibit">LIDMARK / RAW EVIDENCE</span>
               <div class="panel-head">
                 <div>
                   <h3>LIDMark evaluation evidence</h3>
@@ -710,7 +616,7 @@
             </article>
 
             <article class="panel">
-              <span class="exhibit">EXHIBIT 33 · WAVEGUARD RAW</span>
+              <span class="exhibit">WAVEGUARD / RAW EVIDENCE</span>
               <div class="panel-head">
                 <div>
                   <h3>WaveGuard baseline</h3>
@@ -725,10 +631,10 @@
             </article>
 
             <article class="panel wide">
-              <span class="exhibit">EXHIBIT 34 · REPORT PATHS</span>
+              <span class="exhibit">EVIDENCE EXPORTS</span>
               <div class="panel-head">
                 <div>
-                  <h3>竞赛报告产物</h3>
+                  <h3>证据导出产物</h3>
                   <span>导出路径与格式</span>
                 </div>
               </div>
@@ -738,7 +644,7 @@
         </section>
       </main>
     </div>
-    <script src="./trust-contracts.js?v=20260820-h100-2"></script>
-    <script src="./app.js?v=20260820-h100-2"></script>
+    <script src="./trust-contracts.js?v=20260820-refine-3"></script>
+    <script src="./app.js?v=20260820-refine-3"></script>
   </body>
 </html>

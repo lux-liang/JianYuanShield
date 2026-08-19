@@ -246,13 +246,13 @@ function renderErrorState(error) {
   const formatted = formatApiError(error);
   text("health", "visual node: ONLINE · evidence source: OFFLINE");
   text("evidenceReady", "read-only");
-  text("lastUpdated", "展示节点在线 · 等待可信算力节点");
+  text("lastUpdated", "边缘节点在线 · 等待可信算力节点");
   text("heroMetric", "4");
   text("heroMetricSuffix", "");
   text("heroMetricLabel", "核心可信判据");
-  text("mainConclusion", "展示节点在线 · 实时证据源尚未连接");
+  text("mainConclusion", "边缘节点在线 · 实时证据源尚未连接");
   text("contrastConclusion", "可浏览系统叙事与交互结构；正式性能结论仍由签名证据门禁单独放行。");
-  text("boundaryConclusion", "当前页面为只读展示，不把离线状态伪装为模型在线或证据已验证。");
+  text("boundaryConclusion", "当前页面处于只读状态，不把离线状态伪装为模型在线或证据已验证。");
   text("heroPrimaryAction", "查看取证流程");
   const bar = document.getElementById("readinessBar");
   if (bar) bar.style.width = "8%";
@@ -305,7 +305,7 @@ const ASSET_CHECK_META = {
   dataset_ready: {
     label: "数据集",
     path: "datasets/lfw_full_upload 或 datasets/samples",
-    missing: "缺少可演示图片，接口可用但无法进入真实样本流程。",
+    missing: "缺少可用图片，接口在线但无法进入真实样本流程。",
   },
   weights_ready: {
     label: "权重",
@@ -482,7 +482,7 @@ function renderAssetDetails(payload) {
   if (localSummary) {
     localSummary.textContent = healthOk
       ? (snapshot.ready
-        ? "后端在线，演示资产和证据产物已满足当前展示要求。"
+        ? "后端在线，运行资产和证据产物已满足当前工作流要求。"
         : `后端在线，但还缺 ${snapshot.missing.length} 类本地资产；这不是前端故障。`)
       : "后端健康检查失败，请先确认 API 服务是否启动。";
   }
@@ -501,8 +501,8 @@ function renderAssetDetails(payload) {
   if (snapshot.ready) {
     container.innerHTML = `
       <div class="asset-detail asset-ready">
-        <strong>演示资产完整</strong>
-        <span>可以直接进行互动取证、证据审计和 Benchmark 展示。</span>
+        <strong>运行资产完整</strong>
+        <span>可以直接进入溯源工作台、可信审计和稳健性评估。</span>
         ${badge("ready")}
       </div>
     `;
@@ -803,9 +803,7 @@ function renderTicker(payload, audit) {
   ).join("");
   if (track.__sig === itemHTML) return;
   track.__sig = itemHTML;
-  // 复制一份实现无缝循环；条目越多滚动时长越长，保持匀速观感（节奏偏快，让动感更明显）
-  track.innerHTML = itemHTML + itemHTML;
-  track.style.setProperty("--ticker-duration", `${Math.max(16, items.length * 1.8).toFixed(0)}s`);
+  track.innerHTML = itemHTML;
 }
 
 function renderPayload(payload) {
@@ -855,7 +853,7 @@ function renderPayload(payload) {
   text(
     "mainConclusion",
     health.ok
-      ? (localReady.ready ? "本机状态：后端在线 · 演示资产完整" : `本机状态：后端在线 · 缺少 ${localReady.missing.length} 类本地资产`)
+      ? (localReady.ready ? "本机状态：后端在线 · 运行资产完整" : `本机状态：后端在线 · 缺少 ${localReady.missing.length} 类本地资产`)
       : "本机状态：后端健康检查失败",
   );
   text(
@@ -945,7 +943,7 @@ function renderAudit(audit) {
   const limits = audit.protocol?.known_limitations || [];
   const signature = audit.signature || {};
   container.innerHTML = [
-    `<div class="audit-item"><strong>release gate</strong><span>演示状态与研究结论发布状态独立计算；阻断项 ${escapeHTML((audit.blocking_findings || []).length)} 个。</span>${badge(audit.ready_for_claims ? "ready" : "review")}</div>`,
+    `<div class="audit-item"><strong>release gate</strong><span>运行状态与研究结论发布状态独立计算；阻断项 ${escapeHTML((audit.blocking_findings || []).length)} 个。</span>${badge(audit.ready_for_claims ? "ready" : "review")}</div>`,
     `<div class="audit-item"><strong>Ed25519 signature</strong><span>${escapeHTML(signature.status || "not_generated")} · fingerprint ${escapeHTML((signature.public_key_fingerprint_sha256 || "-").slice(0, 16))}</span>${badge(signature.verified ? "ready" : "review")}</div>`,
     ...findings.map((item) => `<div class="audit-item"><strong>${escapeHTML(item.code)}</strong><span>${escapeHTML(item.message)}</span>${badge(item.severity)}</div>`),
     ...limits.map((message) => `<div class="audit-item"><strong>protocol</strong><span>${escapeHTML(message)}</span>${badge("review")}</div>`),
@@ -1069,10 +1067,10 @@ async function load() {
 /* ═══ 视图路由（hash）═══ */
 
 const VIEW_META = {
-  overview: { title: "概览", sub: "防御结论 · 模块状态 · 证据就绪度" },
-  forensics: { title: "互动取证", sub: "真实 checkpoint 推理 · 上传取证 · 合规检测" },
-  benchmark: { title: "Benchmark", sub: "证据门禁 · 方法对比 · 退化曲线" },
-  audit: { title: "证据审计", sub: "协议审计 · Ed25519 签名 · 原始证据 JSON" },
+  overview: { title: "资产总览", sub: "运行状态、可信资产与证据边界" },
+  forensics: { title: "溯源工作台", sub: "保护登记、传播变换与盲核验" },
+  benchmark: { title: "稳健性评估", sub: "统一协议、方法对比与退化曲线" },
+  audit: { title: "可信审计", sub: "协议、实现、权重与签名证据" },
 };
 
 function applyRoute() {
@@ -1102,105 +1100,6 @@ window.addEventListener("hashchange", () => {
   load();
 });
 applyRoute();
-
-/* ═══ 四章答辩导览：价值 → 闭环 → 实证 → 可信 ═══ */
-
-const DEFENSE_STEPS = [
-  {
-    view: "overview",
-    label: "价值命题",
-    title: "先讲清：鉴源盾构建内容可信身份链",
-    cue: "用“出生登记—传播核验—争议举证”解释完整治理闭环。",
-  },
-  {
-    view: "forensics",
-    label: "系统闭环",
-    title: "再现场跑通一次真实取证链",
-    cue: "从样本输入到主动保护、攻击、盲解码与哈希存证，结果与执行模式分开显示。",
-  },
-  {
-    view: "benchmark",
-    label: "技术实证",
-    title: "用统一协议回答“效果是否可信”",
-    cue: "展示真实换脸、MEA 与身份隔离统计；正式结论由签名证据门禁统一放行。",
-  },
-  {
-    view: "audit",
-    label: "可信收口",
-    title: "最后把主张交给证据验链",
-    cue: "以原始结果、协议、实现哈希、Manifest 和 Ed25519 签名完成可复算收口。",
-  },
-];
-
-let defenseStep = 0;
-
-function renderDefenseGuide() {
-  const guide = document.getElementById("defenseGuide");
-  const step = DEFENSE_STEPS[defenseStep];
-  if (!guide || !step) return;
-  document.getElementById("defenseStepLabel").textContent = `${String(defenseStep + 1).padStart(2, "0")} / ${String(DEFENSE_STEPS.length).padStart(2, "0")} · ${step.label}`;
-  document.getElementById("defenseStepTitle").textContent = step.title;
-  document.getElementById("defenseStepCue").textContent = step.cue;
-  document.getElementById("defenseProgress").style.width = `${((defenseStep + 1) / DEFENSE_STEPS.length) * 100}%`;
-  document.getElementById("defensePrev").disabled = defenseStep === 0;
-  document.getElementById("defenseNext").textContent = defenseStep === DEFENSE_STEPS.length - 1 ? "回到开场" : "下一章";
-  if (window.location.hash !== `#/${step.view}`) window.location.hash = `#/${step.view}`;
-}
-
-function setDefenseGuide(open) {
-  const guide = document.getElementById("defenseGuide");
-  const launch = document.getElementById("defenseLaunch");
-  if (!guide || !launch) return;
-  guide.hidden = !open;
-  launch.setAttribute("aria-expanded", String(open));
-  launch.textContent = open ? "答辩导览进行中" : "开启答辩导览";
-  if (open) renderDefenseGuide();
-}
-
-document.getElementById("defenseLaunch")?.addEventListener("click", () => {
-  const guide = document.getElementById("defenseGuide");
-  if (guide?.hidden) defenseStep = Math.max(0, DEFENSE_STEPS.findIndex((step) => window.location.hash === `#/${step.view}`));
-  setDefenseGuide(Boolean(guide?.hidden));
-});
-
-function setPresentationMode(enabled) {
-  document.body.classList.toggle("presentation-mode", enabled);
-  const button = document.getElementById("presentationToggle");
-  if (button) {
-    button.setAttribute("aria-pressed", String(enabled));
-    button.textContent = enabled ? "退出路演模式" : "进入路演模式";
-  }
-  if (enabled) window.scrollTo({ top: 0, behavior: "smooth" });
-}
-
-document.getElementById("presentationToggle")?.addEventListener("click", () => {
-  setPresentationMode(!document.body.classList.contains("presentation-mode"));
-});
-
-document.addEventListener("keydown", (event) => {
-  if (event.key.toLowerCase() !== "p" || event.ctrlKey || event.metaKey || event.altKey) return;
-  const tag = document.activeElement?.tagName?.toLowerCase();
-  if (["input", "textarea", "select"].includes(tag)) return;
-  setPresentationMode(!document.body.classList.contains("presentation-mode"));
-});
-document.getElementById("defenseClose")?.addEventListener("click", () => setDefenseGuide(false));
-document.getElementById("defensePrev")?.addEventListener("click", () => {
-  defenseStep = Math.max(0, defenseStep - 1);
-  renderDefenseGuide();
-});
-document.getElementById("defenseNext")?.addEventListener("click", () => {
-  defenseStep = defenseStep === DEFENSE_STEPS.length - 1 ? 0 : defenseStep + 1;
-  renderDefenseGuide();
-});
-window.addEventListener("keydown", (event) => {
-  const guide = document.getElementById("defenseGuide");
-  if (guide?.hidden || !["ArrowLeft", "ArrowRight", "Escape"].includes(event.key)) return;
-  if (event.key === "Escape") return setDefenseGuide(false);
-  defenseStep = event.key === "ArrowRight"
-    ? (defenseStep + 1) % DEFENSE_STEPS.length
-    : Math.max(0, defenseStep - 1);
-  renderDefenseGuide();
-});
 
 /* ═══ 社会背景与政策响应：自动轮播，可手动选择 ═══ */
 
@@ -1248,7 +1147,7 @@ function renderPolicy(index) {
   document.getElementById("policyDetailText").textContent = step.text;
   const source = document.getElementById("policySource");
   source.href = step.source;
-  source.textContent = policyIndex === POLICY_STEPS.length - 1 ? "进入项目演示 →" : "查看官方原文 ↗";
+  source.textContent = policyIndex === POLICY_STEPS.length - 1 ? "进入溯源工作台 →" : "查看官方原文 ↗";
   if (step.source.startsWith("#")) {
     source.removeAttribute("target");
     source.removeAttribute("rel");
@@ -1392,7 +1291,7 @@ async function sha256Blob(blob) {
     const digest = await crypto.subtle.digest("SHA-256", buffer);
     return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
   }
-  /* 公网演示节点暂为 HTTP；WebCrypto 在非安全上下文不可用，因此使用同算法的本地实现。 */
+  /* 公网节点暂为 HTTP；WebCrypto 在非安全上下文不可用，因此使用同算法的本地实现。 */
   const bytes = new Uint8Array(buffer);
   const paddedLength = Math.ceil((bytes.length + 9) / 64) * 64;
   const padded = new Uint8Array(paddedLength);
@@ -1684,13 +1583,18 @@ document.getElementById("protectForm")?.addEventListener("submit", async (event)
       ? `data:image/png;base64,${result.protected_image.png_base64}`
       : apiURL(result.protected_image?.url || "/api/invalid-artifact");
     document.getElementById("protectResult").innerHTML = `
-      <figure><img src="${escapeHTML(imageSource)}" alt="已保护图片"><figcaption>protected · 可下载后用于传播核验</figcaption></figure>
-      <div class="infer-metric-row">
-        <span>内容 ID</span><strong>${escapeHTML(result.content_id)}</strong>
-        <span>创作者引用</span><strong>${escapeHTML(result.creator_ref)}</strong>
-        <span>原图留存</span><strong>${result.privacy?.original_persisted ? "是" : "否"}</strong>
-        <span>正式证据</span><strong>${formalEvidenceBadge(result, "registered_protection_record")}</strong>
-      </div>`;
+      <details class="registration-receipt">
+        <summary><span>登记回执</span><code>${escapeHTML(shortHash(result.content_id))}</code></summary>
+        <div class="registration-receipt-body">
+          <figure><img src="${escapeHTML(imageSource)}" alt="已保护图片"><figcaption>protected asset</figcaption></figure>
+          <div class="infer-metric-row">
+            <span>内容 ID</span><strong>${escapeHTML(result.content_id)}</strong>
+            <span>创作者引用</span><strong>${escapeHTML(result.creator_ref)}</strong>
+            <span>原图留存</span><strong>${result.privacy?.original_persisted ? "是" : "否"}</strong>
+            <span>正式证据</span><strong>${formalEvidenceBadge(result, "registered_protection_record")}</strong>
+          </div>
+        </div>
+      </details>`;
     document.getElementById("protectEvidence").textContent = JSON.stringify(result, null, 2);
     text("protectStatus", `保护与登记完成 · ${result.content_id} · ${result.evidence_status}`);
     try {
