@@ -9,7 +9,7 @@
 [![Evidence](https://img.shields.io/badge/evidence-Ed25519-0f766e)](system/backend/signing.py)
 [![GB 45438](https://img.shields.io/badge/GB%2045438--2025-aligned-b45309)](system/backend/aigc_labeling.py)
 [![CI](https://img.shields.io/badge/CI-fail--closed-475569)](.github/workflows/quality.yml)
-[![Tests](https://img.shields.io/badge/tests-359%20passed-16a34a)](tests)
+[![Tests](https://img.shields.io/badge/tests-361%20passed-16a34a)](tests)
 [![GPU Scale](https://img.shields.io/badge/SimSwap%20GPU-n%3D1024-7c3aed)](docs/GPU_SCALE_EXPERIMENT_20260807.md)
 
 **创作者持钥证明 · 四模型主动水印 · AIGC 双重标识 · 自包含来源凭证 · 防回滚审计 · 签名撤销 · MEA 4×4 红队评测**
