@@ -41,6 +41,7 @@ from .signing import (
     verify_evidence_bundle,
 )
 from .runtime import runtime_health
+from .gpu import GpuStatusError, gpu_status_payload
 from .schemas import (
     CollaborationRecommendationRequest,
     CollaborationRecommendationResponse,
@@ -157,11 +158,63 @@ def health() -> dict[str, Any] | JSONResponse:
     return payload
 
 
+def _inference_queue_status() -> dict[str, Any]:
+    max_running = settings.max_concurrent_inference
+    max_queued = settings.max_queued_inference
+    available_slots = max(0, int(getattr(_inference_slots, "_value", 0)))
+    available_capacity = max(0, int(getattr(_inference_capacity, "_value", 0)))
+    running = max(0, min(max_running, max_running - available_slots))
+    admitted = max(
+        0,
+        min(max_running + max_queued, max_running + max_queued - available_capacity),
+    )
+    queued = max(0, admitted - running)
+    if admitted >= max_running + max_queued:
+        state = "saturated"
+    elif queued:
+        state = "queued"
+    elif running:
+        state = "running"
+    else:
+        state = "ready"
+    return {
+        "state": state,
+        "running": running,
+        "queued": queued,
+        "max_concurrent": max_running,
+        "max_queue": max_queued,
+    }
+
+
 @router.get("/api/health", response_model=None)
 async def health_endpoint() -> dict[str, Any] | JSONResponse:
     """Keep liveness independent from the worker pool used by evidence audits."""
 
     return health()
+
+
+@router.get(
+    "/api/system/gpu",
+    response_model=None,
+    dependencies=[Depends(require_api_key)],
+)
+async def gpu_status_endpoint() -> dict[str, Any] | JSONResponse:
+    """Sample the selected NVIDIA device without entering the inference queue."""
+
+    try:
+        return await run_in_threadpool(
+            partial(gpu_status_payload, inference=_inference_queue_status())
+        )
+    except GpuStatusError as exc:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "schema_version": "h100-runtime-status.v1",
+                "ok": False,
+                "state": "connecting",
+                "error": {"code": "gpu_status_unavailable", "message": str(exc)},
+            },
+        )
 
 
 @router.get("/api/health/details", dependencies=[Depends(require_api_key)])

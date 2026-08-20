@@ -83,7 +83,11 @@ def _error_response(
 class ApiKeyAuthMiddleware:
     """Authenticate protected API requests before FastAPI parses their bodies."""
 
-    PUBLIC_API_PATHS = frozenset({"/api/health", "/api/projects", "/api/claims"})
+    PUBLIC_API_PATHS = frozenset({
+        "/api/health",
+        "/api/projects",
+        "/api/claims",
+    })
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app

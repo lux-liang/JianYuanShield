@@ -67,6 +67,7 @@ class BackendSmokeTests(unittest.TestCase):
         paths = set(app.openapi()["paths"])
         self.assertEqual(app.title, "JianYuanShield Active Forensics Platform")
         self.assertIn("/api/health", paths)
+        self.assertIn("/api/system/gpu", paths)
         self.assertIn("/api/artifacts/status", paths)
         self.assertIn("/api/artifacts/{artifact_path}", paths)
         self.assertIn("/api/benchmark/aggregate", paths)
