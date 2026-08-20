@@ -31,7 +31,12 @@ BENCHMARK_SOURCES = {
     "kadnet": REPORT_ROOT / "kadnet_lfw_benchmark" / "summary.json",
 }
 METRIC_TOKENS = ("accuracy", "ber", "success_rate", "psnr", "ssim")
-UPSTREAM_ARTIFACT_CHECKS = ("dataset_ready", "weights_ready", "benchmark_ready", "aggregate_ready")
+UPSTREAM_ARTIFACT_CHECKS = (
+    "formal_dataset_ready",
+    "weights_ready",
+    "benchmark_ready",
+    "aggregate_ready",
+)
 
 
 class EvidenceGateError(RuntimeError):

@@ -795,6 +795,27 @@ class ApiHardeningTests(unittest.TestCase):
             self.assertEqual(payload["image_count"], 0)
             self.assertFalse(payload["ready"])
 
+    def test_formal_dataset_readiness_requires_both_signed_benchmark_scopes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            data_root = Path(directory) / "data"
+            protocol = data_root / "lfw/processed/image/lfw_128/test"
+            lidmark = (
+                data_root
+                / "lfw/lidmark_identity_disjoint/image/lfw_128/test"
+            )
+            protocol.mkdir(parents=True)
+            (protocol / "protocol.jpg").write_bytes(png_bytes())
+            with patch.object(artifacts, "DATA_ROOT", data_root):
+                incomplete = artifacts.artifacts_status_payload()
+            self.assertFalse(incomplete["checks"]["formal_dataset_ready"])
+
+            lidmark.mkdir(parents=True)
+            (lidmark / "lidmark.jpg").write_bytes(png_bytes())
+            with patch.object(artifacts, "DATA_ROOT", data_root):
+                complete = artifacts.artifacts_status_payload()
+            self.assertTrue(complete["checks"]["formal_dataset_ready"])
+            self.assertTrue(complete["checks"]["dataset_ready"])
+
 
 if __name__ == "__main__":
     unittest.main()

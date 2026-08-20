@@ -172,6 +172,14 @@ def artifacts_status_payload() -> dict[str, Any]:
     datasets = {
         "lfw_full": dataset_status("lfw_full", DATA_ROOT / "lfw_full_upload"),
         "lfw_unknown": dataset_status("lfw_unknown", DATA_ROOT / "lfw_full_upload/unknown"),
+        "lfw_protocol_full": dataset_status(
+            "lfw_protocol_full",
+            DATA_ROOT / "lfw/processed/image/lfw_128",
+        ),
+        "lidmark_identity_disjoint": dataset_status(
+            "lidmark_identity_disjoint",
+            DATA_ROOT / "lfw/lidmark_identity_disjoint/image/lfw_128/test",
+        ),
         "samples": dataset_status("samples", DATA_ROOT / "samples"),
         "celeba_hq_small": dataset_status("celeba_hq_small", DATA_ROOT / "celeba_hq_small"),
     }
@@ -257,8 +265,18 @@ def artifacts_status_payload() -> dict[str, Any]:
                 "hash_registered": bool(item.get("sha256") or item.get("checkpoint_sha256")),
             })
 
+    formal_dataset_ready = (
+        datasets["lfw_protocol_full"]["ready"]
+        and datasets["lidmark_identity_disjoint"]["ready"]
+    )
     checks = {
-        "dataset_ready": datasets["lfw_full"]["ready"] or datasets["lfw_unknown"]["ready"] or datasets["samples"]["ready"],
+        "dataset_ready": (
+            formal_dataset_ready
+            or datasets["lfw_full"]["ready"]
+            or datasets["lfw_unknown"]["ready"]
+            or datasets["samples"]["ready"]
+        ),
+        "formal_dataset_ready": formal_dataset_ready,
         "weights_ready": weights["mea"]["ready"] or weights["hidden"]["ready"] or weights["sepmark"]["ready"] or weights["waveguard"]["ready"] or weights["lidmark_smoke"]["ready"],
         "benchmark_ready": (
             benchmarks["hidden_lfw_full"]["complete"]
