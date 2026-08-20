@@ -40,7 +40,25 @@ PAIR_FIELDS = [
     ("ber", "bit_accuracy"),
 ]
 
-METRIC_HINTS = ("bit_error", "bit_accuracy", "ber", "acc", "psnr", "ssim", "success", "aed")
+METRIC_RANGES = {
+    "bit_error": (0.0, 1.0),
+    "bit_accuracy": (0.0, 1.0),
+    "bit_error_c": (0.0, 1.0),
+    "bit_accuracy_c": (0.0, 1.0),
+    "bit_error_rf": (0.0, 1.0),
+    "bit_accuracy_rf": (0.0, 1.0),
+    "bit_error_detector": (0.0, 1.0),
+    "bit_accuracy_detector": (0.0, 1.0),
+    "bit_error_tracer": (0.0, 1.0),
+    "bit_accuracy_tracer": (0.0, 1.0),
+    "ber": (0.0, 1.0),
+    "landmark_aed_px": (0.0, None),
+    "watermarked_psnr": (0.0, None),
+    "watermarked_ssim": (-1.0, 1.0),
+    "psnr": (0.0, None),
+    "ssim": (-1.0, 1.0),
+    "success": (0.0, 1.0),
+}
 PRIMARY_METRICS = {
     "SepMark": ("bit_accuracy_c",),
     "WaveGuard": ("bit_accuracy_tracer",),
@@ -168,6 +186,7 @@ def analyze_csv(model: str, path: Path) -> dict[str, Any]:
     seen: set[tuple[str, str]] = set()
     duplicate_keys = 0
     invalid_numeric = 0
+    invalid_bit_count = 0
     pair_checks = 0
     pair_mismatches = 0
     error_rows = 0
@@ -183,7 +202,7 @@ def analyze_csv(model: str, path: Path) -> dict[str, Any]:
         with path.open("r", encoding="utf-8", newline="") as handle:
             reader = csv.DictReader(handle)
             fields = reader.fieldnames or []
-            metric_fields = [field for field in fields if any(hint in field.lower() for hint in METRIC_HINTS)]
+            metric_fields = [field for field in fields if field in METRIC_RANGES]
             primary_candidates = PRIMARY_METRICS.get(model, ("bit_accuracy",))
             primary_metric = next(
                 (field for field in primary_candidates if field in fields),
@@ -195,6 +214,7 @@ def analyze_csv(model: str, path: Path) -> dict[str, Any]:
                 or primary_metric is None
                 or not required_fields.issubset(fields)
                 or len(fields) != len(set(fields))
+                or (("bit_errors" in fields) != ("identity_bit_length" in fields))
             )
             for row in reader:
                 rows += 1
@@ -218,16 +238,25 @@ def analyze_csv(model: str, path: Path) -> dict[str, Any]:
                         if row.get(field) not in (None, ""):
                             invalid_numeric += 1
                         continue
-                    lowered = field.lower()
-                    if (
-                        any(token in lowered for token in ("bit_error", "bit_accuracy", "ber", "acc", "success"))
-                        and not 0 <= value <= 1
-                    ) or ("ssim" in lowered and not -1 <= value <= 1) or (
-                        "psnr" in lowered and value < 0
-                    ):
+                    lower, upper = METRIC_RANGES[field]
+                    if value < lower or (upper is not None and value > upper):
                         invalid_numeric += 1
                         continue
                     grouped[attack][field].append(value)
+                if "bit_errors" in fields and "identity_bit_length" in fields:
+                    try:
+                        bit_errors = int(str(row.get("bit_errors") or ""))
+                        bit_length = int(str(row.get("identity_bit_length") or ""))
+                    except (TypeError, ValueError):
+                        invalid_bit_count += 1
+                    else:
+                        ber = numeric(row.get("ber"))
+                        if bit_errors < 0 or bit_length <= 0 or bit_errors > bit_length:
+                            invalid_bit_count += 1
+                        elif ber is not None:
+                            pair_checks += 1
+                            if abs(ber - bit_errors / bit_length) > 1e-9:
+                                pair_mismatches += 1
                 if primary_metric is not None:
                     primary_value = numeric(row.get(primary_metric))
                     if (
@@ -292,6 +321,12 @@ def analyze_csv(model: str, path: Path) -> dict[str, Any]:
         findings.append({"severity": "error", "code": "error_rows", "count": error_rows})
     if invalid_numeric:
         findings.append({"severity": "error", "code": "invalid_numeric", "count": invalid_numeric})
+    if invalid_bit_count:
+        findings.append({
+            "severity": "error",
+            "code": "invalid_bit_count",
+            "count": invalid_bit_count,
+        })
     if unexpected_attacks:
         findings.append({"severity": "error", "code": "unexpected_attacks", "count": unexpected_attacks})
     sample_sets = [
@@ -340,6 +375,7 @@ def analyze_csv(model: str, path: Path) -> dict[str, Any]:
         "unique_keys": len(seen),
         "duplicate_keys": duplicate_keys,
         "invalid_numeric_values": invalid_numeric,
+        "invalid_bit_count_values": invalid_bit_count,
         "primary_metric": primary_metric,
         "primary_metric_errors": primary_metric_errors,
         "per_attack_sample_set_valid": per_attack_coverage_valid,

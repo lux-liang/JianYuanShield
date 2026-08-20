@@ -126,6 +126,64 @@ class AuditTests(unittest.TestCase):
             self.assertEqual(corrupt["status"], "invalid_summary")
             self.assertEqual(corrupt["findings"][0]["code"], "summary_invalid")
 
+    def test_integer_bit_error_count_is_bound_to_length_and_ber(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / "results.csv"
+            path.write_text(
+                "image_id,attack_type,bit_errors,identity_bit_length,ber,"
+                "bit_accuracy,error,success\n"
+                "a,clean,2,16,0.125,0.875,,1\n",
+                encoding="utf-8",
+            )
+            (root / "summary.json").write_text(
+                json.dumps({
+                    "schema_version": "benchmark-summary.v2",
+                    "status": "complete",
+                    "sample_count": 1,
+                    "attack_ids": ["clean"],
+                    "results_csv_path": "reports/results.csv",
+                    "results_csv_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                }),
+                encoding="utf-8",
+            )
+            with patch(
+                "system.scripts.audit_benchmark_results.resolve_logical_path",
+                return_value=path,
+            ):
+                valid = analyze_csv("LIDMark", path)
+
+            self.assertEqual(valid["status"], "verified")
+            self.assertEqual(valid["invalid_numeric_values"], 0)
+            self.assertEqual(valid["invalid_bit_count_values"], 0)
+
+            path.write_text(
+                "image_id,attack_type,bit_errors,identity_bit_length,ber,"
+                "bit_accuracy,error,success\n"
+                "a,clean,17,16,1.0625,-0.0625,,0\n",
+                encoding="utf-8",
+            )
+            (root / "summary.json").write_text(
+                json.dumps({
+                    "schema_version": "benchmark-summary.v2",
+                    "status": "complete",
+                    "sample_count": 1,
+                    "attack_ids": ["clean"],
+                    "results_csv_path": "reports/results.csv",
+                    "results_csv_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                }),
+                encoding="utf-8",
+            )
+            with patch(
+                "system.scripts.audit_benchmark_results.resolve_logical_path",
+                return_value=path,
+            ):
+                invalid = analyze_csv("LIDMark", path)
+
+            codes = {finding["code"] for finding in invalid["findings"]}
+            self.assertEqual(invalid["status"], "review_required")
+            self.assertIn("invalid_bit_count", codes)
+
 
 if __name__ == "__main__":
     unittest.main()
