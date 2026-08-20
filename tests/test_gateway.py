@@ -147,6 +147,38 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(status, 405)
         self.assertEqual(_UpstreamHandler.observed, [])
 
+    def test_gateway_injects_secret_only_for_public_competition_routes(self) -> None:
+        status, _headers, _body = self.request("GET", "/api/system/gpu")
+        self.assertEqual(status, 200)
+        self.assertEqual(len(_UpstreamHandler.observed), 1)
+
+        blocked_requests = (
+            ("GET", "/api/health/details"),
+            ("GET", "/api/provenance/records/example"),
+            ("POST", "/api/creator/challenges"),
+            ("POST", "/api/provenance/example/revoke"),
+            ("GET", "/api/not-a-real-route"),
+        )
+        for method, path in blocked_requests:
+            with self.subTest(method=method, path=path):
+                status, _headers, _body = self.request(method, path, body=b"{}")
+                self.assertEqual(status, 403)
+        self.assertEqual(len(_UpstreamHandler.observed), 1)
+
+    def test_gateway_allows_frontend_dynamic_download_routes(self) -> None:
+        allowed = (
+            "/api/artifacts/task/output.png",
+            "/api/samples/example/image",
+            "/api/reports/task-123",
+            "/api/evidence/signature/download/manifest.json",
+            "/api/competition-report/download/json",
+        )
+        for path in allowed:
+            with self.subTest(path=path):
+                status, _headers, _body = self.request("GET", path)
+                self.assertEqual(status, 200)
+        self.assertEqual(len(_UpstreamHandler.observed), len(allowed))
+
     def test_static_path_traversal_and_symlink_escape_are_rejected(self) -> None:
         with self.assertRaises(ValueError):
             safe_static_path(self.root, "/%2e%2e/etc/passwd")

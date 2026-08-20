@@ -24,6 +24,48 @@ from urllib.parse import unquote, urlsplit
 
 API_PREFIX = "/api"
 DEFAULT_MAX_BODY_BYTES = 96 * 1024 * 1024
+_PUBLIC_API_GET_PATHS = frozenset(
+    {
+        "/api/health",
+        "/api/projects",
+        "/api/artifacts/status",
+        "/api/samples",
+        "/api/real-evals",
+        "/api/benchmark/hidden-lfw-full",
+        "/api/benchmark/lidmark-lfw-eval",
+        "/api/benchmark/lidmark",
+        "/api/benchmark/sepmark",
+        "/api/benchmark/waveguard",
+        "/api/benchmark/mea-matrix",
+        "/api/benchmark/simswap-lfw",
+        "/api/benchmark/kadnet",
+        "/api/benchmark/aggregate",
+        "/api/competition-report",
+        "/api/evidence/audit",
+        "/api/claims",
+        "/api/evidence/signature",
+        "/api/modules",
+        "/api/models/status",
+        "/api/system/gpu",
+    }
+)
+_PUBLIC_API_GET_PREFIXES = (
+    "/api/artifacts/",
+    "/api/samples/",
+    "/api/reports/",
+    "/api/evidence/signature/download/",
+    "/api/competition-report/download/",
+)
+_PUBLIC_API_POST_PATHS = frozenset(
+    {
+        "/api/tasks/demo-run",
+        "/api/collaboration/recommend",
+        "/api/infer/single",
+        "/api/compliance/batch",
+        "/api/provenance/protect",
+        "/api/provenance/verify",
+    }
+)
 _HOST_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,251}[A-Za-z0-9])?$")
 _HOP_BY_HOP = frozenset(
     {
@@ -210,6 +252,27 @@ def _is_api_path(path: str) -> bool:
     return decoded == API_PREFIX or decoded.startswith(f"{API_PREFIX}/")
 
 
+def _public_api_request_allowed(method: str, path: str) -> bool:
+    """Limit secret injection to the API surface required by the public UI."""
+
+    try:
+        decoded = unquote(path, errors="strict")
+    except (UnicodeDecodeError, ValueError):
+        return False
+    normalized_method = method.upper()
+    get_allowed = decoded in _PUBLIC_API_GET_PATHS or any(
+        decoded.startswith(prefix) and len(decoded) > len(prefix)
+        for prefix in _PUBLIC_API_GET_PREFIXES
+    )
+    if normalized_method in {"GET", "HEAD"}:
+        return get_allowed
+    if normalized_method == "POST":
+        return decoded in _PUBLIC_API_POST_PATHS
+    if normalized_method == "OPTIONS":
+        return get_allowed or decoded in _PUBLIC_API_POST_PATHS
+    return False
+
+
 def safe_static_path(static_root: Path, raw_target: str) -> Path:
     """Resolve a static request without directory listings or traversal."""
 
@@ -337,6 +400,9 @@ def make_gateway_handler(configuration: GatewayConfiguration) -> type[BaseHTTPRe
                 path, query = _request_target(self.path)
                 if not _is_api_path(path):
                     raise ValueError("non-API proxy target")
+                if not _public_api_request_allowed(self.command, path):
+                    self._plain_error(403, "API route is not exposed by the public gateway")
+                    return
                 body = self._request_body()
                 headers = self._proxy_headers(body)
             except OverflowError:
