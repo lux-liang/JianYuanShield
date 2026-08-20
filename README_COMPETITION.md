@@ -50,12 +50,12 @@
 
 [claims manifest](configs/claims_manifest.v1.json) 将每条申报结论绑定到状态、证据路径与机器门禁；`system/backend/claims.py` 重新计算 evidence 是否存在、benchmark gate 是否通过以及 required claim 是否全部可发布。
 
-当前提交态：
+静态文档审查态：
 
 - `ready_for_claims=false`
 - 状态：`review required`
 
-该状态是机器计算的发布事实，不是项目进度描述。正式性能只能由当前 canonical summary、完整实验上下文、签名清单 membership 和固定签名者共同放行；运行日志、smoke、partial、诊断报告和历史同名目录均不改变该状态。
+这是静态检查器的刻意 fail-closed 基线：它不读取可变 runtime gate，也不代表当前线上发布状态。现场唯一有效状态必须从 `/api/claims` 动态读取，并与当前 canonical summary、完整实验上下文、签名清单 membership 和固定签名者共同核对；运行日志、smoke、partial、诊断报告和历史同名目录均不能单独改变发布状态。
 
 ## 答辩现场复核主线
 
