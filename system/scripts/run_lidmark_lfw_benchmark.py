@@ -73,6 +73,8 @@ EXPECTED_IDENTITY_MAP_SHA256 = (
 EXPECTED_FILES_MANIFEST_SHA256 = (
     "dcc65ba0d9060a3641892376b9df731c4c46f716a9ecdd84ed39b31a779177ea"
 )
+INPUT_MANIFEST_SCHEMA = "jys.lidmark.evaluation-inputs.v1"
+ACTIVE_INPUT_MANIFEST: dict[str, Any] | None = None
 
 DEFAULT_DATASET_ROOT = DATA_ROOT / "lfw" / "lidmark_identity_disjoint"
 DEFAULT_CHECKPOINT = (
@@ -128,6 +130,7 @@ _WINDOWS_ABSOLUTE = re.compile(r"^[A-Za-z]:[\\/]")
 _LFW_FILENAME = re.compile(r"(?P<identity>.+)_[0-9]{4}\.jpg", re.IGNORECASE)
 _SHA256 = re.compile(r"[0-9a-f]{64}")
 _SINGLE_GPU = re.compile(r"[0-9]+")
+_RUN_ID = re.compile(r"[a-z0-9][a-z0-9._-]{0,127}")
 
 _PROTOCOL_PARAMETER_EXTENSIONS: dict[str, dict[str, Any]] = {
     "resize_0.5x": {"down": "area", "up": "linear"},
@@ -159,7 +162,129 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--seed", type=int, default=int(protocol["seed"]))
     parser.add_argument("--flush-every", type=int, default=25)
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument(
+        "--input-manifest",
+        type=Path,
+        help="content-bound candidate inputs; omitted for the frozen release baseline",
+    )
     return parser.parse_args(argv)
+
+
+def configure_input_expectations(path: Path | None) -> None:
+    """Activate a content-bound candidate manifest without weakening defaults."""
+    global ACTIVE_INPUT_MANIFEST
+    ACTIVE_INPUT_MANIFEST = None
+    if path is None:
+        return
+    resolved = path.expanduser().resolve()
+    if not resolved.is_file():
+        raise ValueError("LIDMark evaluation input manifest is not a regular file")
+    before = resolved.stat()
+    document = _read_json(resolved)
+    digest = sha256_file(resolved)
+    after = resolved.stat()
+    identity_before = (
+        before.st_dev,
+        before.st_ino,
+        before.st_size,
+        before.st_mtime_ns,
+    )
+    identity_after = (
+        after.st_dev,
+        after.st_ino,
+        after.st_size,
+        after.st_mtime_ns,
+    )
+    if identity_before != identity_after or digest is None:
+        raise RuntimeError("LIDMark evaluation input manifest changed while reading")
+    if document.get("schema_version") != INPUT_MANIFEST_SCHEMA:
+        raise ValueError("invalid LIDMark evaluation input manifest schema")
+    required = {
+        "run_id": str,
+        "selection_sha256": str,
+        "checkpoint_sha256": str,
+        "checkpoint_size_bytes": int,
+        "selected_epoch": int,
+        "training_config_sha256": str,
+        "training_seed": int,
+    }
+    expected_fields = {"schema_version", *required}
+    if set(document) != expected_fields:
+        raise ValueError("LIDMark evaluation input manifest fields are not exact")
+    for field, expected_type in required.items():
+        value = document.get(field)
+        if isinstance(value, bool) or not isinstance(value, expected_type):
+            raise ValueError(f"invalid input manifest field: {field}")
+    for field in ("selection_sha256", "checkpoint_sha256", "training_config_sha256"):
+        if not _SHA256.fullmatch(document[field]):
+            raise ValueError(f"invalid SHA-256 in input manifest: {field}")
+    if not _RUN_ID.fullmatch(document["run_id"]):
+        raise ValueError("invalid input manifest run_id")
+    if (
+        document["checkpoint_size_bytes"] <= 0
+        or document["selected_epoch"] <= 0
+        or document["training_seed"] < 0
+    ):
+        raise ValueError("input manifest sizes, epochs, and seed are invalid")
+    ACTIVE_INPUT_MANIFEST = {
+        "document": document,
+        "path": resolved,
+        "sha256": digest,
+        "identity": identity_after,
+    }
+
+
+def input_expectation(name: str, frozen_value: Any) -> Any:
+    if ACTIVE_INPUT_MANIFEST is None:
+        return frozen_value
+    return ACTIVE_INPUT_MANIFEST["document"][name]
+
+
+def input_evaluation_scope() -> dict[str, Any]:
+    """Return a portable binding and fail if an active manifest drifted."""
+    if ACTIVE_INPUT_MANIFEST is None:
+        return {
+            "mode": "frozen_release_baseline",
+            "formal_claim_eligible": True,
+            "input_manifest_path": None,
+            "input_manifest_sha256": None,
+            "input_manifest_schema_version": None,
+            "input_run_id": None,
+        }
+    path = ACTIVE_INPUT_MANIFEST["path"]
+    stat = path.stat()
+    current_identity = (
+        stat.st_dev,
+        stat.st_ino,
+        stat.st_size,
+        stat.st_mtime_ns,
+    )
+    current_digest = sha256_file(path)
+    if (
+        current_identity != ACTIVE_INPUT_MANIFEST["identity"]
+        or current_digest != ACTIVE_INPUT_MANIFEST["sha256"]
+    ):
+        raise RuntimeError("LIDMark evaluation input manifest changed during evaluation")
+    document = ACTIVE_INPUT_MANIFEST["document"]
+    return {
+        "mode": "candidate_non_claim_evaluation",
+        "formal_claim_eligible": False,
+        "input_manifest_path": logical_path(path),
+        "input_manifest_sha256": current_digest,
+        "input_manifest_schema_version": document["schema_version"],
+        "input_run_id": document["run_id"],
+    }
+
+
+def bind_evaluation_scope(
+    payload: dict[str, Any], scope: Mapping[str, Any]
+) -> dict[str, Any]:
+    payload["evaluation_scope"] = dict(scope)
+    payload["formal_claim_eligible"] = bool(scope["formal_claim_eligible"])
+    if not payload["formal_claim_eligible"]:
+        payload["claim_valid"] = False
+        payload["claim_status"] = "candidate_non_claim_evaluation"
+    return payload
 
 
 def _canonical_json_bytes(payload: Any) -> bytes:
@@ -430,7 +555,9 @@ def verify_source(source_root: Path) -> dict[str, Any]:
 def verify_training_config(path: Path) -> dict[str, Any]:
     path = path.expanduser().resolve()
     actual_sha = sha256_file(path)
-    if actual_sha != EXPECTED_TRAINING_CONFIG_SHA256:
+    if actual_sha != input_expectation(
+        "training_config_sha256", EXPECTED_TRAINING_CONFIG_SHA256
+    ):
         raise RuntimeError("training config SHA-256 mismatch")
     try:
         import yaml
@@ -446,7 +573,7 @@ def verify_training_config(path: Path) -> dict[str, Any]:
         "decoder_channels": 64,
         "decoder_blocks": 1,
         "sep_model": False,
-        "seed": 20260603,
+        "seed": input_expectation("training_seed", 20260603),
     }
     if not isinstance(config, Mapping):
         raise ValueError("training config must be a mapping")
@@ -466,20 +593,30 @@ def verify_checkpoint_selection(
     checkpoint = checkpoint.expanduser().resolve()
     selection_report = selection_report.expanduser().resolve()
     selection_sha = sha256_file(selection_report)
-    if selection_sha != EXPECTED_SELECTION_SHA256:
+    expected_selection_sha = input_expectation(
+        "selection_sha256", EXPECTED_SELECTION_SHA256
+    )
+    expected_checkpoint_sha = input_expectation(
+        "checkpoint_sha256", EXPECTED_CHECKPOINT_SHA256
+    )
+    expected_checkpoint_size = input_expectation(
+        "checkpoint_size_bytes", EXPECTED_CHECKPOINT_SIZE
+    )
+    expected_epoch = input_expectation("selected_epoch", 20)
+    if selection_sha != expected_selection_sha:
         raise RuntimeError("model-selection report SHA-256 mismatch")
     selection = _read_json(selection_report)
     selected = selection.get("selected")
-    if not isinstance(selected, Mapping) or int(selected.get("epoch", -1)) != 20:
-        raise RuntimeError("model-selection report did not select epoch 20")
+    if not isinstance(selected, Mapping) or int(selected.get("epoch", -1)) != expected_epoch:
+        raise RuntimeError("model-selection report selected an unexpected epoch")
     record = selected.get("checkpoint")
     if not isinstance(record, Mapping) or record.get("verified") is not True:
         raise RuntimeError("selected checkpoint lacks integrity verification")
     actual_sha = sha256_file(checkpoint)
     actual_size = checkpoint.stat().st_size if checkpoint.is_file() else -1
-    if actual_sha != EXPECTED_CHECKPOINT_SHA256 or actual_sha != record.get("sha256"):
+    if actual_sha != expected_checkpoint_sha or actual_sha != record.get("sha256"):
         raise RuntimeError("selected checkpoint SHA-256 mismatch")
-    if actual_size != EXPECTED_CHECKPOINT_SIZE or actual_size != int(
+    if actual_size != expected_checkpoint_size or actual_size != int(
         record.get("size_bytes", -1)
     ):
         raise RuntimeError("selected checkpoint size mismatch")
@@ -490,7 +627,7 @@ def verify_checkpoint_selection(
     return {
         "selection_report": logical_path(selection_report),
         "selection_report_sha256": selection_sha,
-        "selected_epoch": 20,
+        "selected_epoch": expected_epoch,
         "checkpoint": logical_path(checkpoint),
         "checkpoint_sha256": actual_sha,
         "checkpoint_size_bytes": actual_size,
@@ -1293,6 +1430,8 @@ def _base_row(
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
+    configure_input_expectations(getattr(args, "input_manifest", None))
+    evaluation_scope = input_evaluation_scope()
     if args.flush_every <= 0:
         raise ValueError("flush-every must be positive")
     if args.expected_physical_gpu < 0:
@@ -1405,6 +1544,7 @@ def main(argv: list[str] | None = None) -> int:
             "attack_seed_scope": "SHA256(global_seed,sample_id,attack)",
         },
     }
+    bind_evaluation_scope(run_config, evaluation_scope)
     _ensure_run_config(
         run_config_path,
         run_config,
@@ -1447,6 +1587,7 @@ def main(argv: list[str] | None = None) -> int:
         summary["dataset_manifest_sha256"] = sha256_file(dataset_manifest_path)
         summary["run_config_path"] = logical_path(run_config_path)
         summary["run_config_sha256"] = sha256_file(run_config_path)
+        bind_evaluation_scope(summary, evaluation_scope)
         _assert_no_absolute_paths(summary, "progress_summary")
         _atomic_write_json(summary_path, summary)
         elapsed = max(0.0, time.time() - started)
@@ -1613,6 +1754,8 @@ def main(argv: list[str] | None = None) -> int:
         expected_software_environment=software_evidence,
         seed=args.seed,
     )
+    if input_evaluation_scope() != evaluation_scope:
+        raise RuntimeError("LIDMark evaluation input scope changed during evaluation")
     summary["dataset_manifest_path"] = logical_path(dataset_manifest_path)
     summary["dataset_manifest_sha256"] = sha256_file(dataset_manifest_path)
     summary["run_config_path"] = logical_path(run_config_path)
@@ -1649,10 +1792,12 @@ def main(argv: list[str] | None = None) -> int:
     summary["run_config_path"] = logical_path(run_config_path)
     summary["run_config_sha256"] = sha256_file(run_config_path)
     summary["selection_report_path"] = logical_path(selection_report)
-    summary["selection_report_sha256"] = EXPECTED_SELECTION_SHA256
+    selection_sha256 = input_expectation("selection_sha256", EXPECTED_SELECTION_SHA256)
+    summary["selection_report_sha256"] = selection_sha256
     summary["checkpoint_manifest_path"] = logical_path(selection_report)
-    summary["checkpoint_manifest_sha256"] = EXPECTED_SELECTION_SHA256
+    summary["checkpoint_manifest_sha256"] = selection_sha256
     summary["identity_disjoint_proof"] = identity_proof
+    bind_evaluation_scope(summary, evaluation_scope)
     _assert_no_absolute_paths(summary, "final_summary")
     _atomic_write_json(summary_path, summary)
     _atomic_write_json(

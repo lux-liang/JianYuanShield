@@ -19,6 +19,7 @@ from system.scripts import run_lidmark_lfw_benchmark as benchmark
 
 class LIDMarkBenchmarkTests(unittest.TestCase):
     def setUp(self) -> None:
+        benchmark.configure_input_expectations(None)
         self.protocol = load_protocol()
         self.attacks = benchmark.resolve_attacks(self.protocol)
 
@@ -208,6 +209,64 @@ class LIDMarkBenchmarkTests(unittest.TestCase):
         jpeg["parameters"]["quality"] = 49
         with self.assertRaisesRegex(ValueError, "parameter drift"):
             benchmark.resolve_attacks(drifted)
+
+    def test_candidate_manifest_is_explicit_and_fail_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            manifest = root / "inputs.json"
+            payload = {
+                "schema_version": benchmark.INPUT_MANIFEST_SCHEMA,
+                "run_id": "lidmark-candidate-s20260813-e93",
+                "selection_sha256": "a" * 64,
+                "checkpoint_sha256": "b" * 64,
+                "checkpoint_size_bytes": 71,
+                "selected_epoch": 93,
+                "training_config_sha256": "c" * 64,
+                "training_seed": 20260813,
+            }
+            manifest.write_text(json.dumps(payload), encoding="utf-8")
+            benchmark.configure_input_expectations(manifest)
+            self.assertEqual(benchmark.input_expectation("selected_epoch", 20), 93)
+            payload["unexpected"] = "field"
+            manifest.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "fields are not exact"):
+                benchmark.configure_input_expectations(manifest)
+            payload.pop("unexpected")
+            payload["checkpoint_sha256"] = "unsafe"
+            manifest.write_text(json.dumps(payload), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "SHA-256"):
+                benchmark.configure_input_expectations(manifest)
+            self.assertIsNone(benchmark.ACTIVE_INPUT_MANIFEST)
+
+    def test_candidate_scope_is_content_bound_and_never_claim_eligible(self) -> None:
+        with tempfile.TemporaryDirectory(dir=benchmark.PROJECT_DIR) as temporary:
+            root = Path(temporary)
+            manifest = root / "inputs.json"
+            payload = {
+                "schema_version": benchmark.INPUT_MANIFEST_SCHEMA,
+                "run_id": "lidmark-candidate-s20260813-e93",
+                "selection_sha256": "a" * 64,
+                "checkpoint_sha256": "b" * 64,
+                "checkpoint_size_bytes": 71,
+                "selected_epoch": 93,
+                "training_config_sha256": "c" * 64,
+                "training_seed": 20260813,
+            }
+            manifest.write_text(json.dumps(payload), encoding="utf-8")
+            benchmark.configure_input_expectations(manifest)
+            scope = benchmark.input_evaluation_scope()
+            self.assertEqual(scope["mode"], "candidate_non_claim_evaluation")
+            self.assertFalse(scope["formal_claim_eligible"])
+            self.assertRegex(str(scope["input_manifest_sha256"]), r"^[0-9a-f]{64}$")
+            manifest.write_text(json.dumps({**payload, "selected_epoch": 94}), encoding="utf-8")
+            with self.assertRaisesRegex(RuntimeError, "changed during evaluation"):
+                benchmark.input_evaluation_scope()
+
+    def test_frozen_scope_remains_formal_and_has_no_manifest_override(self) -> None:
+        scope = benchmark.input_evaluation_scope()
+        self.assertEqual(scope["mode"], "frozen_release_baseline")
+        self.assertTrue(scope["formal_claim_eligible"])
+        self.assertIsNone(scope["input_manifest_sha256"])
 
     def test_identity_disjoint_proof_rejects_overlap_and_non_test_selection(self) -> None:
         splits = {

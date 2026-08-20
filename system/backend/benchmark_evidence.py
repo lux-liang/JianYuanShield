@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import csv
+from copy import deepcopy
+from functools import lru_cache
 import hashlib
 import hmac
 import json
 import math
 import re
+import threading
 from collections import Counter
 from collections import defaultdict
 from pathlib import Path
@@ -15,11 +18,32 @@ from system.evaluation.run_metadata import sha256_file
 from system.evaluation.runtime import logical_path, resolve_logical_path
 from system.evaluation.attacks import ATTACKS
 
-from .signing import MANIFEST_PATH, verify_evidence_bundle
+from .signing import (
+    MANIFEST_PATH,
+    PUBLIC_KEY_PATH,
+    SIGNATURE_PATH,
+    verify_evidence_bundle,
+)
 from .settings import settings
 
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$", re.IGNORECASE)
+_BENCHMARK_CACHE_LOCK = threading.RLock()
+_AUXILIARY_FIELDS = {
+    "watermarked_quality_csv_path": "watermarked_quality_csv_sha256",
+    "run_config_path": "run_config_sha256",
+    "failures_csv_path": "failures_csv_sha256",
+    "calibration_path": "calibration_sha256",
+    "source_manifest_path": "source_manifest_sha256",
+    "checkpoint_manifest_path": "checkpoint_manifest_sha256",
+    "environment_path": "environment_sha256",
+    "experiment_context_hashes_path": "experiment_context_hashes_sha256",
+    "artifact_manifest_path": "artifact_manifest_sha256",
+    "progress_path": "progress_sha256",
+    "runner_path": "runner_sha256",
+    "compatibility_entrypoint_path": "compatibility_entrypoint_sha256",
+    "selection_report_path": "selection_report_sha256",
+}
 
 
 def _reject_nonfinite_json(value: str) -> None:
@@ -777,7 +801,7 @@ def _signature_covers(paths: list[Path]) -> tuple[bool, dict[str, Any]]:
     return bool(expected) and expected.issubset(covered), signature
 
 
-def benchmark_claim_status(
+def _benchmark_claim_status_uncached(
     summary: dict[str, Any],
     *,
     summary_path: Path,
@@ -795,24 +819,9 @@ def benchmark_claim_status(
     checkpoint = _resolve(summary.get("checkpoint"))
     dataset_manifest = _resolve(summary.get("dataset_manifest_path"))
     protocol = _resolve(summary.get("protocol_path"))
-    auxiliary_fields = {
-        "watermarked_quality_csv_path": "watermarked_quality_csv_sha256",
-        "run_config_path": "run_config_sha256",
-        "failures_csv_path": "failures_csv_sha256",
-        "calibration_path": "calibration_sha256",
-        "source_manifest_path": "source_manifest_sha256",
-        "checkpoint_manifest_path": "checkpoint_manifest_sha256",
-        "environment_path": "environment_sha256",
-        "experiment_context_hashes_path": "experiment_context_hashes_sha256",
-        "artifact_manifest_path": "artifact_manifest_sha256",
-        "progress_path": "progress_sha256",
-        "runner_path": "runner_sha256",
-        "compatibility_entrypoint_path": "compatibility_entrypoint_sha256",
-        "selection_report_path": "selection_report_sha256",
-    }
     auxiliary_paths: list[Path] = []
     auxiliary_identity = True
-    for path_field, hash_field in auxiliary_fields.items():
+    for path_field, hash_field in _AUXILIARY_FIELDS.items():
         reference = summary.get(path_field)
         expected_hash = summary.get(hash_field)
         if reference is None and expected_hash is None:
@@ -836,6 +845,15 @@ def benchmark_claim_status(
     )
     actual_results = results_path.expanduser().resolve()
     actual_summary = summary_path.expanduser().resolve()
+
+    try:
+        summary_file_payload = json.loads(
+            actual_summary.read_text(encoding="utf-8"),
+            parse_constant=_reject_nonfinite_json,
+        )
+        summary_file_identity = summary_file_payload == summary
+    except (OSError, UnicodeError, ValueError, TypeError):
+        summary_file_identity = False
 
     results_identity = bool(
         declared_results
@@ -965,6 +983,7 @@ def benchmark_claim_status(
             summary.get("schema_version") == "benchmark-summary.v2"
             and summary.get("status") == "complete"
         ),
+        "summary_file_identity": summary_file_identity,
         "summary_finite": _finite_tree(summary),
         "sample_count": isinstance(sample_count, int) and sample_count > 0,
         "attack_ids": bool(attack_ids) and len(attack_ids) == len(set(attack_ids)),
@@ -994,4 +1013,137 @@ def benchmark_claim_status(
         "raw_results_audit": csv_audit,
         "watermarked_quality_audit": quality_audit,
         "signature_status": signature.get("status", "not_generated"),
+    }
+
+
+def _path_identity(path: Path) -> tuple[str, int, int, int, int, int] | tuple[str, None]:
+    """Return a fail-closed cache identity for one dependency path."""
+
+    try:
+        resolved = path.expanduser().resolve(strict=False)
+        metadata = resolved.stat()
+    except OSError:
+        return (str(path.expanduser()), None)
+    return (
+        str(resolved),
+        metadata.st_dev,
+        metadata.st_ino,
+        metadata.st_size,
+        metadata.st_mtime_ns,
+        metadata.st_ctime_ns,
+    )
+
+
+def _signature_member_paths() -> list[Path]:
+    """Resolve every signed member so any release mutation invalidates the cache."""
+
+    try:
+        payload = json.loads(
+            MANIFEST_PATH.read_text(encoding="utf-8"),
+            parse_constant=_reject_nonfinite_json,
+        )
+    except (OSError, UnicodeError, ValueError, TypeError):
+        return []
+    files = payload.get("files") if isinstance(payload, dict) else None
+    if not isinstance(files, list):
+        return []
+    paths: list[Path] = []
+    for item in files:
+        reference = item.get("path") if isinstance(item, dict) else None
+        resolved = _resolve(reference)
+        if resolved is not None:
+            paths.append(resolved)
+    return paths
+
+
+def _benchmark_dependency_token(
+    summary: dict[str, Any],
+    summary_path: Path,
+    results_path: Path,
+) -> tuple[tuple[Any, ...], ...]:
+    paths = [
+        summary_path,
+        results_path,
+        MANIFEST_PATH,
+        SIGNATURE_PATH,
+        PUBLIC_KEY_PATH,
+        *_signature_member_paths(),
+    ]
+    for field in (
+        "checkpoint",
+        "dataset_manifest_path",
+        "protocol_path",
+        *_AUXILIARY_FIELDS,
+    ):
+        resolved = _resolve(summary.get(field))
+        if resolved is not None:
+            paths.append(resolved)
+    unique = {str(path.expanduser().resolve(strict=False)): path for path in paths}
+    return tuple(_path_identity(unique[key]) for key in sorted(unique))
+
+
+@lru_cache(maxsize=64)
+def _cached_benchmark_claim_status(
+    summary_json: str,
+    summary_path: str,
+    results_path: str,
+    dependency_token: tuple[tuple[Any, ...], ...],
+    configured_fingerprint: str,
+) -> dict[str, Any]:
+    del dependency_token, configured_fingerprint
+    summary = json.loads(summary_json, parse_constant=_reject_nonfinite_json)
+    return _benchmark_claim_status_uncached(
+        summary,
+        summary_path=Path(summary_path),
+        results_path=Path(results_path),
+    )
+
+
+def benchmark_claim_status(
+    summary: dict[str, Any],
+    *,
+    summary_path: Path,
+    results_path: Path,
+) -> dict[str, Any]:
+    """Validate once per immutable evidence identity and coalesce concurrent probes.
+
+    The key covers every signed release member plus all benchmark dependencies.
+    A second identity pass rejects mutations that race validation.  The lock is
+    intentionally held across a cache miss so a polling burst cannot launch the
+    same full CSV and signature audit in dozens of worker threads.
+    """
+
+    try:
+        summary_json = json.dumps(
+            summary,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+        )
+    except (TypeError, ValueError):
+        return _benchmark_claim_status_uncached(
+            summary,
+            summary_path=summary_path,
+            results_path=results_path,
+        )
+    fingerprint = (settings.evidence_public_key_fingerprint or "").strip().lower()
+    with _BENCHMARK_CACHE_LOCK:
+        for _attempt in range(3):
+            before = _benchmark_dependency_token(summary, summary_path, results_path)
+            result = _cached_benchmark_claim_status(
+                summary_json,
+                str(summary_path.expanduser().resolve()),
+                str(results_path.expanduser().resolve()),
+                before,
+                fingerprint,
+            )
+            after = _benchmark_dependency_token(summary, summary_path, results_path)
+            if before == after:
+                return deepcopy(result)
+    return {
+        "claim_valid": False,
+        "claim_status": "benchmark_artifacts_changed_during_validation",
+        "evidence_requirements": {"stable_dependency_identity": False},
+        "signature_status": "review_required",
     }

@@ -150,7 +150,6 @@ async def _run_inference(callable_, /, *args, **kwargs):
             capacity.release()
 
 
-@router.get("/api/health", response_model=None)
 def health() -> dict[str, Any] | JSONResponse:
     payload = runtime_health(detailed=settings.mode != "production")
     if payload.get("ok") is not True:
@@ -158,14 +157,25 @@ def health() -> dict[str, Any] | JSONResponse:
     return payload
 
 
+@router.get("/api/health", response_model=None)
+async def health_endpoint() -> dict[str, Any] | JSONResponse:
+    """Keep liveness independent from the worker pool used by evidence audits."""
+
+    return health()
+
+
 @router.get("/api/health/details", dependencies=[Depends(require_api_key)])
 def health_details() -> dict[str, Any]:
     return runtime_health(detailed=True)
 
 
-@router.get("/api/projects")
 def projects() -> list[dict[str, Any]]:
     return PROJECTS
+
+
+@router.get("/api/projects")
+async def projects_endpoint() -> list[dict[str, Any]]:
+    return projects()
 
 
 @router.get("/api/artifacts/status", dependencies=[Depends(require_api_key)])
