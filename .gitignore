@@ -64,6 +64,12 @@ WaveGuard/
 # Backup snapshots
 .code_backup_*/
 .runtime_backup_*/
+backups/
+**/backups/
+*.bak
+*.bak-*
+*.backup
+*.backup-*
 
 # Symlinks to /data1 (gitignore trailing-slash patterns don't match symlinks)
 KAD-Net

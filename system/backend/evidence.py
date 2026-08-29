@@ -48,7 +48,10 @@ def _clean_accuracy(summary: dict[str, Any], key: str = "mean_bit_accuracy") -> 
         return None
 
 
-def evidence_audit_payload() -> dict[str, Any]:
+def evidence_audit_payload(
+    *,
+    claims_snapshot: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     summaries = {
         "sepmark": REPORTS / "sepmark_lfw_benchmark" / "summary.json",
         "waveguard_full": REPORTS / "waveguard_lfw_benchmark" / "summary.json",
@@ -190,7 +193,7 @@ def evidence_audit_payload() -> dict[str, Any]:
             "message": f"Evidence signature status is {signature.get('status', 'not_generated')}.",
         })
 
-    claims = claims_payload()
+    claims = claims_snapshot if claims_snapshot is not None else claims_payload()
     if not claims.get("ready_for_claims"):
         findings.append({
             "severity": "warning",

@@ -133,7 +133,7 @@ def _validate_cors_origin(origin: str, *, production: bool) -> None:
 
 @dataclass(frozen=True)
 class Settings:
-    version: str = os.getenv("JYS_VERSION", "0.1.0")
+    version: str = os.getenv("JYS_VERSION", "1.0.0")
     mode: str = _mode_env()
     log_level: str = os.getenv("JYS_LOG_LEVEL", "INFO")
     enable_demo: bool = (not _production_mode()) and _bool_env("JYS_ENABLE_DEMO", True)
@@ -157,6 +157,10 @@ class Settings:
     rate_limit_window_seconds: int = _positive_int_env("JYS_RATE_LIMIT_WINDOW_SECONDS", 60)
     max_rate_limit_clients: int = _positive_int_env("JYS_MAX_RATE_LIMIT_CLIENTS", 10_000)
     artifact_ttl_seconds: int = _positive_int_env("JYS_ARTIFACT_TTL_SECONDS", 3600)
+    public_snapshot_ttl_seconds: int = _positive_int_env(
+        "JYS_PUBLIC_SNAPSHOT_TTL_SECONDS",
+        300,
+    )
     warmup_models: bool = _bool_env("JYS_WARMUP_MODELS", False)
     min_free_disk_bytes: int = _positive_int_env("JYS_MIN_FREE_DISK_BYTES", 512 * 1024 * 1024)
     artifact_write_reserve_bytes: int = _positive_int_env(

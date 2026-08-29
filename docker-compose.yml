@@ -58,6 +58,8 @@ services:
     environment:
       JYS_GATEWAY_UPSTREAM: http://api:8026
       JYS_GATEWAY_REQUIRE_API_KEY: "false"
+      JYS_GATEWAY_REQUIRE_UI_SESSION: "false"
+      JYS_GATEWAY_DEVELOPMENT_UI_BYPASS: "true"
       JYS_GATEWAY_STATIC_ROOT: /app/system/frontend
     read_only: true
     tmpfs:

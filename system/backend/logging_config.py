@@ -28,7 +28,9 @@ def configure_logging() -> logging.Logger:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    stream_handler = logging.StreamHandler(sys.stdout)
+    # Keep stdout available for machine-readable command output (for example,
+    # JSON emitted by deployment probes); operational logs belong on stderr.
+    stream_handler = logging.StreamHandler(sys.stderr)
     stream_handler.setFormatter(formatter)
     logger.addHandler(stream_handler)
 

@@ -88,11 +88,21 @@ services:
         condition: service_healthy
     secrets:
       - jys_api_key
+      - jys_ui_password
+      - jys_session_secret
     environment:
       JYS_GATEWAY_UPSTREAM: http://api:8026
       JYS_GATEWAY_API_KEY_FILE: /run/secrets/jys_api_key
       JYS_GATEWAY_REQUIRE_API_KEY: "true"
       JYS_GATEWAY_STATIC_ROOT: /app/system/frontend
+      JYS_GATEWAY_REQUIRE_UI_SESSION: "true"
+      JYS_GATEWAY_UI_USERNAME: ${JYS_GATEWAY_UI_USERNAME:?Set the reviewed UI administrator username}
+      JYS_GATEWAY_UI_DISPLAY_NAME: ${JYS_GATEWAY_UI_DISPLAY_NAME:-鉴源管理员}
+      JYS_GATEWAY_UI_PASSWORD_FILE: /run/secrets/jys_ui_password
+      JYS_GATEWAY_SESSION_SECRET_FILE: /run/secrets/jys_session_secret
+      JYS_GATEWAY_SESSION_TTL_SECONDS: ${JYS_GATEWAY_SESSION_TTL_SECONDS:-28800}
+      JYS_GATEWAY_REMEMBER_TTL_SECONDS: ${JYS_GATEWAY_REMEMBER_TTL_SECONDS:-604800}
+      JYS_GATEWAY_SESSION_COOKIE_PATH: ${JYS_GATEWAY_SESSION_COOKIE_PATH:-/}
     restart: unless-stopped
     init: true
     read_only: true
@@ -122,6 +132,10 @@ secrets:
     file: ${JYS_PROVENANCE_SECRET_FILE:?Set JYS_PROVENANCE_SECRET_FILE}
   jys_evidence_private_key:
     file: ${JYS_EVIDENCE_PRIVATE_KEY_FILE:?Set JYS_EVIDENCE_PRIVATE_KEY_FILE}
+  jys_ui_password:
+    file: ${JYS_UI_PASSWORD_SECRET_FILE:?Set JYS_UI_PASSWORD_SECRET_FILE}
+  jys_session_secret:
+    file: ${JYS_SESSION_SECRET_FILE:?Set JYS_SESSION_SECRET_FILE}
 
 volumes:
   jys-reports:

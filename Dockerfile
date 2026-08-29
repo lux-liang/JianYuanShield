@@ -23,12 +23,14 @@ RUN sed -i 's/^deb /deb [snapshot=yes] /' /etc/apt/sources.list \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt requirements.lock Dockerfile ./
+COPY VERSION ./
 COPY docker-compose.yml docker-compose.production.yml docker-compose.competition.yml ./
 COPY offline_deploy.sh ./
 COPY THIRD_PARTY_NOTICES.md ./
 COPY supply-chain/ ./supply-chain/
 COPY scripts/supply_chain.py scripts/build_release_image.py scripts/check_deployment.py scripts/offline_bundle.py ./scripts/
 COPY system/gateway.py ./system/gateway.py
+COPY deployment/ ./deployment/
 RUN python scripts/supply_chain.py check \
     && python -m pip install --no-cache-dir --require-hashes \
         --only-binary=:all: \

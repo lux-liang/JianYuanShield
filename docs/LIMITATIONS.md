@@ -9,13 +9,19 @@
 - 当前历史材料中的多 seed 区间需要按层级结构重算，不能把重复图片池化为独立样本。
 - MEA 已固定 `mea-4x4-protocol-v1-s20260603-n256` 五件套及证据驱动协同策略；其结论范围限于登记的四个 checkpoint、有向二次嵌入协议和各模型自身的 decoder/消息容量语义，不能外推为未登记模型或任意传播攻击的通用排序。
 
+## 展示图与正式证据边界
+
+- `docs/PRESENTATION_HEATMAP.md` 描述的 PPT 热力图是从用户提供图逐格重建的展示资产，目的是避免截图放大模糊；它不改变 benchmark 数据、阈值、checkpoint 或签名状态。
+- 展示图可以解释趋势，但不能单独放行 `claim_valid`。正式数字仍以当前运行时的 claims、audit、manifest 和逐图 artifact 为准。
+- 展示服务不可用时，页面只读展示已签名离线证据；证据不完整、协议未知、输入未登记或签名漂移时，统一显示 `review_required` / `unverifiable`，不沿用旧数字。
+
 ## 产品能力
 
 - 来源登记中的 `creator_ref` 是应用侧引用，不代表平台已验证现实身份。
 - provenance API 依赖实现 `encode/decode` 合约的真实模型 checkpoint；缺失时返回 503。
 - 合规批检尚无校准后的 blind detector，因此返回 `capability_unavailable`，不输出合规率。
 - 单图 infer 的 simulation 只验证 UI 流程，`claim_valid=false`。
-- Android 和小程序仍需迁移到 provenance API；旧“真假鉴定/AI 生成识别”文案不可用于发布。
+- Android 和小程序已接入 provenance API，但正式发布仍依赖可信 HTTPS 域名、各平台网络安全配置与真机验收；旧“真假鉴定/AI 生成识别”文案不可用于发布。
 
 ## 证据与法律边界
 
@@ -26,7 +32,8 @@
 ## 部署边界
 
 - SQLite 适合单机竞赛原型，不适合多租户生产集群。
-- API Key 是最小部署控制；生产环境仍需 OIDC/RBAC、对象级权限、速率限制与 TLS。
+- H100 API Key 只在服务端网关注入，Web 入口使用签名 HttpOnly 会话与 CSRF 校验；当前仍是单管理员部署，不等同于多用户 OIDC/RBAC，公开只读接口也不提供对象级权限。
+- 公网入口必须通过 HTTPS；生产脚本使用独立、持久化的 UI 口令与会话签名密钥，禁止把口令写入前端或版本库。
 - 资产改由受 API Key 保护的 `/api/artifacts/{path}` 提供；单样本衍生工件已有默认 1 小时 TTL 清理，公开部署仍需对象级授权、短期下载令牌和集中生命周期任务。
 - 推理超时无法强制终止已在线程中运行的 GPU 内核；长期方案应使用独立 worker 进程和任务队列。
 - 正式发布已经强制哈希 lockfile、CycloneDX SBOM、基础镜像 digest 与构建 provenance；仍须执行镜像漏洞扫描并在目标 GPU 环境完成 clean-start 验证。

@@ -20,6 +20,7 @@ PINNED_FROM = (
 
 def create_fixture(root: Path) -> None:
     (root / "scripts").mkdir(parents=True)
+    (root / "VERSION").write_text("1.0.0\n", encoding="utf-8")
     (root / "Dockerfile").write_text(
         PINNED_FROM
         + "RUN sed '[snapshot=yes]' /etc/apt/sources.list \\\n"
@@ -28,8 +29,10 @@ def create_fixture(root: Path) -> None:
         + "COPY docker-compose.yml docker-compose.production.yml docker-compose.competition.yml ./\n"
         + "COPY offline_deploy.sh ./\n"
         + "COPY THIRD_PARTY_NOTICES.md ./\n"
+        + "COPY VERSION ./\n"
         + "COPY scripts/supply_chain.py scripts/build_release_image.py scripts/check_deployment.py scripts/offline_bundle.py ./scripts/\n"
         + "COPY system/gateway.py ./system/gateway.py\n"
+        + "COPY deployment/ ./deployment/\n"
         + "RUN python scripts/supply_chain.py check \\\n"
         + " && pip install --require-hashes --only-binary=:all: -r requirements.lock \\\n"
         + " && python scripts/supply_chain.py verify-environment\n",
@@ -54,6 +57,16 @@ def create_fixture(root: Path) -> None:
     (root / "system" / "gateway.py").write_text("# fixture\n", encoding="utf-8")
     (root / "offline_deploy.sh").write_text("#!/bin/sh\n", encoding="utf-8")
     (root / "THIRD_PARTY_NOTICES.md").write_text("fixture notices\n", encoding="utf-8")
+    (root / "deployment").mkdir()
+    for name in (
+        "Caddyfile.jianyuanshield",
+        "deploy-public-release.sh",
+        "run-h100-api.sh",
+        "run-h100-gateway.sh",
+        "run-h100-tunnel.sh",
+        "supervisor-jianyuanshield.conf",
+    ):
+        (root / "deployment" / name).write_text(f"# {name}\n", encoding="utf-8")
     (root / "docker-compose.yml").write_text("services: {}\n", encoding="utf-8")
     (root / "docker-compose.production.yml").write_text("services: {}\n", encoding="utf-8")
     (root / "docker-compose.competition.yml").write_text("services: {}\n", encoding="utf-8")
@@ -67,6 +80,8 @@ class SupplyChainTests(unittest.TestCase):
         self.assertEqual(manifest["status"], "verified")
         self.assertRegex(manifest["base_image"]["digest"], r"^sha256:[0-9a-f]{64}$")
         self.assertEqual(sbom["bomFormat"], "CycloneDX")
+        self.assertEqual(manifest["software"]["version"], "1.0.0")
+        self.assertEqual(sbom["metadata"]["component"]["version"], "1.0.0")
         self.assertEqual(len(sbom["components"]), manifest["dependencies"]["locked_package_count"])
 
     def test_mutable_base_image_is_rejected(self) -> None:
@@ -75,6 +90,20 @@ class SupplyChainTests(unittest.TestCase):
             dockerfile.write_text("FROM example.invalid/runtime:latest\n", encoding="utf-8")
             with self.assertRaisesRegex(supply_chain.SupplyChainError, "immutable sha256"):
                 supply_chain.parse_base_image(dockerfile)
+
+    def test_version_must_be_copied_before_the_supply_chain_check(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            create_fixture(root)
+            dockerfile = root / "Dockerfile"
+            source = dockerfile.read_text(encoding="utf-8")
+            source = source.replace("COPY VERSION ./\n", "") + "COPY VERSION ./\n"
+            dockerfile.write_text(source, encoding="utf-8")
+            with self.assertRaisesRegex(
+                supply_chain.SupplyChainError,
+                "copy VERSION before",
+            ):
+                supply_chain.validate_docker_install_contract(dockerfile)
 
     def test_missing_distribution_hash_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -22,7 +22,6 @@ from .benchmarks import (
     simswap_lfw_payload,
 )
 from .demo import demo_run_payload, ensure_sample, real_evals_payload, report_payload, samples_payload
-from .evidence import evidence_audit_payload
 from .config import ASSETS, REPORTS
 from .infer import (
     InferenceCapabilityError,
@@ -41,7 +40,8 @@ from .signing import (
     verify_evidence_bundle,
 )
 from .runtime import runtime_health
-from .gpu import GpuStatusError, gpu_status_payload
+from .public_snapshots import claims_snapshot, evidence_audit_snapshot
+from .gpu import GpuStatusError, gpu_status_payload, public_gpu_status_payload
 from .schemas import (
     CollaborationRecommendationRequest,
     CollaborationRecommendationResponse,
@@ -56,7 +56,6 @@ from .security import (
 )
 from .settings import settings
 from .logging_config import logger
-from .claims import claims_payload
 from .collaboration import CollaborationPolicyError, recommend_collaboration
 from .provenance import (
     ProvenanceCapabilityError,
@@ -152,7 +151,7 @@ async def _run_inference(callable_, /, *args, **kwargs):
 
 
 def health() -> dict[str, Any] | JSONResponse:
-    payload = runtime_health(detailed=settings.mode != "production")
+    payload = runtime_health(detailed=False)
     if payload.get("ok") is not True:
         return JSONResponse(status_code=503, content=payload)
     return payload
@@ -200,6 +199,30 @@ async def health_endpoint() -> dict[str, Any] | JSONResponse:
 )
 async def gpu_status_endpoint() -> dict[str, Any] | JSONResponse:
     """Sample the selected NVIDIA device without entering the inference queue."""
+
+    try:
+        return await run_in_threadpool(
+            partial(public_gpu_status_payload, inference=_inference_queue_status())
+        )
+    except GpuStatusError as exc:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "schema_version": "h100-runtime-status.v1",
+                "ok": False,
+                "state": "connecting",
+                "error": {"code": "gpu_status_unavailable", "message": str(exc)},
+            },
+        )
+
+
+@router.get(
+    "/api/system/gpu/details",
+    dependencies=[Depends(require_api_key)],
+    response_model=None,
+)
+async def gpu_status_details_endpoint() -> dict[str, Any] | JSONResponse:
+    """Expose host/device identity only to an explicitly authenticated client."""
 
     try:
         return await run_in_threadpool(
@@ -374,12 +397,12 @@ def competition_report() -> dict[str, Any]:
 
 @router.get("/api/evidence/audit", dependencies=[Depends(require_api_key)])
 def evidence_audit() -> dict[str, Any]:
-    return evidence_audit_payload()
+    return evidence_audit_snapshot.get()
 
 
 @router.get("/api/claims")
 def claims() -> dict[str, Any]:
-    return claims_payload()
+    return claims_snapshot.get()
 
 
 @router.get("/api/evidence/signature", dependencies=[Depends(require_api_key)])

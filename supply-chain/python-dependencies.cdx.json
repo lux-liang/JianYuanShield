@@ -671,7 +671,7 @@
         "pkg:pypi/watchfiles@1.2.0",
         "pkg:pypi/websockets@17.0.1"
       ],
-      "ref": "pkg:generic/jianyuanshield@0.1.0"
+      "ref": "pkg:generic/jianyuanshield@1.0.0"
     },
     {
       "dependsOn": [],
@@ -1008,10 +1008,10 @@
   ],
   "metadata": {
     "component": {
-      "bom-ref": "pkg:generic/jianyuanshield@0.1.0",
+      "bom-ref": "pkg:generic/jianyuanshield@1.0.0",
       "name": "JianYuanShield",
       "type": "application",
-      "version": "0.1.0"
+      "version": "1.0.0"
     },
     "properties": [
       {
@@ -1029,7 +1029,7 @@
       ]
     }
   },
-  "serialNumber": "urn:uuid:f3ba6c1e-f4d1-5678-a224-763a516c1940",
+  "serialNumber": "urn:uuid:78cda0c7-bc0c-55ef-8f68-ed181120ba78",
   "specVersion": "1.6",
   "version": 1
 }

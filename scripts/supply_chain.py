@@ -248,6 +248,41 @@ def validate_docker_install_contract(dockerfile: Path) -> None:
     if missing:
         raise SupplyChainError("Dockerfile is missing fail-closed dependency controls: " + ", ".join(missing))
 
+    logical_instructions: list[str] = []
+    current = ""
+    for raw_line in source.splitlines():
+        stripped = raw_line.strip()
+        if not current and (not stripped or stripped.startswith("#")):
+            continue
+        current = f"{current} {stripped}".strip() if current else stripped
+        if current.endswith("\\"):
+            current = current[:-1].rstrip()
+            continue
+        logical_instructions.append(current)
+        current = ""
+    if current:
+        logical_instructions.append(current)
+
+    version_copies = [
+        index
+        for index, instruction in enumerate(logical_instructions)
+        if re.fullmatch(r"COPY\s+VERSION\s+\./", instruction, re.IGNORECASE)
+    ]
+    supply_checks = [
+        index
+        for index, instruction in enumerate(logical_instructions)
+        if instruction.upper().startswith("RUN ")
+        and re.search(r"\bscripts/supply_chain\.py\s+check\b", instruction)
+    ]
+    if len(version_copies) != 1:
+        raise SupplyChainError(
+            "Dockerfile must copy the root VERSION file exactly once with 'COPY VERSION ./'"
+        )
+    if len(supply_checks) != 1:
+        raise SupplyChainError("Dockerfile must run supply_chain.py check exactly once")
+    if version_copies[0] > supply_checks[0]:
+        raise SupplyChainError("Dockerfile must copy VERSION before running supply_chain.py check")
+
 
 def parse_os_dependencies(dockerfile: Path) -> dict[str, Any]:
     source = dockerfile.read_text(encoding="utf-8")
@@ -279,6 +314,7 @@ def _component(entry: dict[str, Any]) -> dict[str, Any]:
 
 
 def build_outputs(root: Path = ROOT) -> dict[Path, bytes]:
+    version_path = root / "VERSION"
     dockerfile = root / "Dockerfile"
     requirements_path = root / "requirements.txt"
     lock_path = root / "requirements.lock"
@@ -292,6 +328,12 @@ def build_outputs(root: Path = ROOT) -> dict[Path, bytes]:
     offline_bundle_path = root / "scripts" / "offline_bundle.py"
     gateway_path = root / "system" / "gateway.py"
     third_party_notices_path = root / "THIRD_PARTY_NOTICES.md"
+    caddy_path = root / "deployment" / "Caddyfile.jianyuanshield"
+    h100_api_path = root / "deployment" / "run-h100-api.sh"
+    h100_gateway_path = root / "deployment" / "run-h100-gateway.sh"
+    h100_tunnel_path = root / "deployment" / "run-h100-tunnel.sh"
+    supervisor_path = root / "deployment" / "supervisor-jianyuanshield.conf"
+    public_release_path = root / "deployment" / "deploy-public-release.sh"
     for path in (
         dockerfile,
         requirements_path,
@@ -306,6 +348,13 @@ def build_outputs(root: Path = ROOT) -> dict[Path, bytes]:
         offline_bundle_path,
         gateway_path,
         third_party_notices_path,
+        version_path,
+        caddy_path,
+        h100_api_path,
+        h100_gateway_path,
+        h100_tunnel_path,
+        supervisor_path,
+        public_release_path,
     ):
         if not path.is_file() or path.is_symlink():
             raise SupplyChainError(f"required supply-chain input is missing or unsafe: {path.name}")
@@ -316,8 +365,14 @@ def build_outputs(root: Path = ROOT) -> dict[Path, bytes]:
     validate_direct_requirements(requirements_path, entries)
     validate_docker_install_contract(dockerfile)
     lock_sha256 = _sha256_file(lock_path)
-    root_component = "pkg:generic/jianyuanshield@0.1.0"
-    serial = uuid.uuid5(uuid.NAMESPACE_URL, f"jianyuanshield:{lock_sha256}")
+    project_version = version_path.read_text(encoding="utf-8").strip()
+    if re.fullmatch(r"[1-9][0-9]*\.[0-9]+\.[0-9]+", project_version) is None:
+        raise SupplyChainError("VERSION must contain a semantic release version")
+    root_component = f"pkg:generic/jianyuanshield@{project_version}"
+    serial = uuid.uuid5(
+        uuid.NAMESPACE_URL,
+        f"jianyuanshield:{project_version}:{lock_sha256}",
+    )
     sbom = {
         "$schema": "https://cyclonedx.org/schema/bom-1.6.schema.json",
         "bomFormat": "CycloneDX",
@@ -334,7 +389,7 @@ def build_outputs(root: Path = ROOT) -> dict[Path, bytes]:
                 "bom-ref": root_component,
                 "name": "JianYuanShield",
                 "type": "application",
-                "version": "0.1.0",
+                "version": project_version,
             },
             "properties": [
                 {
@@ -375,13 +430,19 @@ def build_outputs(root: Path = ROOT) -> dict[Path, bytes]:
             },
         },
         "deployment": {
+            "caddy_sha256": _sha256_file(caddy_path),
             "checker_sha256": _sha256_file(deployment_checker_path),
             "competition_compose_sha256": _sha256_file(competition_compose_path),
             "development_compose_sha256": _sha256_file(development_compose_path),
             "gateway_sha256": _sha256_file(gateway_path),
+            "h100_api_launcher_sha256": _sha256_file(h100_api_path),
+            "h100_gateway_launcher_sha256": _sha256_file(h100_gateway_path),
+            "h100_tunnel_launcher_sha256": _sha256_file(h100_tunnel_path),
             "offline_bundle_sha256": _sha256_file(offline_bundle_path),
             "offline_entrypoint_sha256": _sha256_file(offline_entrypoint_path),
             "production_compose_sha256": _sha256_file(production_compose_path),
+            "public_release_sha256": _sha256_file(public_release_path),
+            "supervisor_sha256": _sha256_file(supervisor_path),
         },
         "dockerfile": {
             "path": "Dockerfile",
@@ -407,6 +468,11 @@ def build_outputs(root: Path = ROOT) -> dict[Path, bytes]:
             "spec_version": "1.6",
         },
         "schema_version": "jianyuanshield-supply-chain.v1",
+        "software": {
+            "name": "鉴源盾内容来源可信取证系统",
+            "version": project_version,
+            "version_file_sha256": _sha256_file(version_path),
+        },
         "status": "verified",
     }
     return {

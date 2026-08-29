@@ -7,10 +7,12 @@ RUNTIME_ROOT=/root/jialiang_liang/runtime/JianYuanShield
 PYTHON="$PROJECT_ROOT/.venv/bin/python"
 EVIDENCE_KEY="$RUNTIME_ROOT/keys/evidence-ed25519.pem"
 PROVENANCE_SECRET="$RUNTIME_ROOT/keys/provenance-secret"
+API_KEY="$RUNTIME_ROOT/keys/api-key"
 
 test -x "$PYTHON"
 test -r "$EVIDENCE_KEY"
 test -r "$PROVENANCE_SECRET"
+test -r "$API_KEY"
 
 EVIDENCE_FINGERPRINT="$($PYTHON - "$EVIDENCE_KEY" <<'PY'
 import hashlib
@@ -29,6 +31,7 @@ PY
 
 exec env \
   PYTHONUNBUFFERED=1 \
+  JYS_VERSION=1.0.0 \
   CUDA_VISIBLE_DEVICES=6 \
   OMP_NUM_THREADS=8 \
   MKL_NUM_THREADS=8 \
@@ -43,7 +46,8 @@ exec env \
   JYS_ASSET_ROOT="$RUNTIME_ROOT/assets" \
   JYS_MODE=real_inference \
   JYS_ENABLE_DEMO=false \
-  JYS_REQUIRE_API_KEY=false \
+  JYS_REQUIRE_API_KEY=true \
+  JYS_API_KEY_FILE="$API_KEY" \
   JYS_INFER_DEVICE=cuda:0 \
   JYS_WARMUP_MODELS=false \
   JYS_MAX_CONCURRENT_INFERENCE=1 \
@@ -51,6 +55,7 @@ exec env \
   JYS_INFERENCE_TIMEOUT_SECONDS=600 \
   JYS_RATE_LIMIT_REQUESTS=120 \
   JYS_RATE_LIMIT_WINDOW_SECONDS=60 \
+  JYS_PUBLIC_SNAPSHOT_TTL_SECONDS=300 \
   JYS_PROVENANCE_DB="$RUNTIME_ROOT/state/provenance.sqlite3" \
   JYS_AUDIT_ANCHOR="$RUNTIME_ROOT/state/provenance-audit-anchor.json" \
   JYS_PROVENANCE_SECRET_FILE="$PROVENANCE_SECRET" \

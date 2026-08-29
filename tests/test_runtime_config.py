@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import unittest
@@ -31,18 +32,23 @@ class RuntimeConfigTests(unittest.TestCase):
             env=env,
             text=True,
         ).splitlines()
-        self.assertEqual(output, ["/tmp/jys-project", "/tmp/jys-models", "/tmp/jys-weights"])
+        self.assertEqual(
+            output,
+            [
+                str(Path("/tmp/jys-project").resolve()),
+                str(Path("/tmp/jys-models").resolve()),
+                str(Path("/tmp/jys-weights").resolve()),
+            ],
+        )
 
     def test_benchmark_scripts_do_not_contain_legacy_absolute_root(self) -> None:
-        legacy_roots = {
-            "/home/luxliang/work/vpsg_competition_candidates",
-            "/data1/luxliang/work/vpsg_competition_candidates",
-        }
+        legacy_root = re.compile(
+            r"/(?:home|data[0-9]*)/[^/\s]+/work/vpsg_competition_candidates"
+        )
         offenders = []
         for path in [*(ROOT / "system" / "scripts").glob("run_*"), *(ROOT / "scripts").glob("*")]:
-            if path.is_file() and any(
-                legacy in path.read_text(encoding="utf-8", errors="ignore")
-                for legacy in legacy_roots
+            if path.is_file() and legacy_root.search(
+                path.read_text(encoding="utf-8", errors="ignore")
             ):
                 offenders.append(path.name)
         self.assertEqual(offenders, [])

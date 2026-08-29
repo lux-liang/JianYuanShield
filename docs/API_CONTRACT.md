@@ -63,7 +63,7 @@ Content-Type: multipart/form-data
 
 ```json
 {
-  "schema_version": "provenance-record.v1",
+  "schema_version": "provenance-record.v2",
   "content_id": "<32-char-hex-id>",
   "creator_ref": "creator-reference",
   "model": "model-name",

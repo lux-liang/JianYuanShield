@@ -455,7 +455,7 @@ Python 全量测试
 | 内存 | 约 1 TiB RAM |
 | GPU | 8 × NVIDIA H100 80GB HBM3 |
 | NVIDIA Driver | 590.48.01 |
-| 主要框架 | PyTorch 2.9.1 + CUDA 12.8（KAD-Net/SepMark 正式上下文已捕获） |
+| 主要框架 | PyTorch 2.8.0 + CUDA 12.8（H100 生产虚拟环境实测；KAD-Net/SepMark 正式上下文已捕获） |
 | OS Kernel | Linux 6.17 |
 | 服务 | Python/FastAPI + SQLite + 静态 Gateway |
 | 客户端 | Web、Android、微信小程序 |

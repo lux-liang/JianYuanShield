@@ -189,14 +189,23 @@ def _validate_gateway(service: dict[str, Any], *, label: str) -> list[str]:
         "JYS_GATEWAY_API_KEY_FILE": "/run/secrets/jys_api_key",
         "JYS_GATEWAY_REQUIRE_API_KEY": "true",
         "JYS_GATEWAY_STATIC_ROOT": "/app/system/frontend",
+        "JYS_GATEWAY_REQUIRE_UI_SESSION": "true",
+        "JYS_GATEWAY_UI_PASSWORD_FILE": "/run/secrets/jys_ui_password",
+        "JYS_GATEWAY_SESSION_SECRET_FILE": "/run/secrets/jys_session_secret",
     }
     for key, value in expected.items():
         if environment.get(key) != value:
             failures.append(f"{label}: {key} is not fail-closed")
     if "JYS_API_KEY" in environment:
         failures.append(f"{label}: browser gateway contains a plaintext API key")
-    if _secret_targets(service) != {"/run/secrets/jys_api_key"}:
-        failures.append(f"{label}: API key is not mounted only as a file secret")
+    if not str(environment.get("JYS_GATEWAY_UI_USERNAME") or "").strip():
+        failures.append(f"{label}: UI administrator username is missing")
+    if _secret_targets(service) != {
+        "/run/secrets/jys_api_key",
+        "/run/secrets/jys_ui_password",
+        "/run/secrets/jys_session_secret",
+    }:
+        failures.append(f"{label}: gateway file-secret mounts are incomplete")
     return failures
 
 
@@ -345,6 +354,9 @@ def main() -> int:
         "JYS_API_KEY_SECRET_FILE": "/dev/null",
         "JYS_PROVENANCE_SECRET_FILE": "/dev/null",
         "JYS_EVIDENCE_PRIVATE_KEY_FILE": "/dev/null",
+        "JYS_UI_PASSWORD_SECRET_FILE": "/dev/null",
+        "JYS_SESSION_SECRET_FILE": "/dev/null",
+        "JYS_GATEWAY_UI_USERNAME": "jianyuanshield-admin",
         "JYS_EVIDENCE_PUBLIC_KEY_FINGERPRINT": "b" * 64,
         "JYS_CORS_ORIGINS": "https://console.example",
         "JYS_COMPOSE_PROJECT_NAME": "jys-competition-check",

@@ -1,10 +1,20 @@
 @echo off
-set ANDROID_HOME=C:\Users\39474\AppData\Local\Android\Sdk
-set JAVA_HOME=C:\Program Files\Eclipse Adoptium\jdk-17.0.18.8-hotspot
+setlocal
 set GRADLE_OPTS=-Dorg.gradle.jvmargs=-Xmx2048m
-set PROJECT_DIR=C:\Users\39474\Desktop\JYD-6-17-2142
+set "PROJECT_DIR=%~dp0"
 
-cd /d %PROJECT_DIR%
+cd /d "%PROJECT_DIR%"
+if errorlevel 1 exit /b 1
+
+if not defined JAVA_HOME (
+    echo JAVA_HOME must point to a JDK 17 installation.
+    exit /b 2
+)
+
+if not defined ANDROID_HOME if not defined ANDROID_SDK_ROOT (
+    echo Set ANDROID_HOME or ANDROID_SDK_ROOT to the Android SDK directory.
+    exit /b 2
+)
 
 REM Clear config cache
 if exist .gradle\configuration-cache rmdir /s /q .gradle\configuration-cache
@@ -12,7 +22,7 @@ if exist .gradle\configuration-cache rmdir /s /q .gradle\configuration-cache
 echo Building debug APK...
 echo.
 
-C:\Users\39474\.gradle\wrapper\dists\gradle-8.7-bin\9zpcdmofi6tavecpj4ka1zls7\gradle-8.7\bin\gradle.bat assembleDebug --no-daemon --console=plain
+call "%PROJECT_DIR%gradlew.bat" assembleDebug --no-daemon --console=plain
 
 set EXIT_CODE=%ERRORLEVEL%
 echo.

@@ -59,6 +59,21 @@ class GpuStatusTests(unittest.TestCase):
         self.assertEqual(second["gpu"]["uuid"], "GPU-6666")
         run.assert_called_once()
 
+    def test_public_payload_omits_host_and_hardware_identifiers(self) -> None:
+        completed = SimpleNamespace(stdout=NVIDIA_SMI_OUTPUT)
+        with (
+            patch.object(gpu.subprocess, "run", return_value=completed),
+            patch.dict(os.environ, {"CUDA_VISIBLE_DEVICES": "6"}),
+            patch.object(gpu.socket, "gethostname", return_value="private-h100-node"),
+        ):
+            payload = gpu.public_gpu_status_payload(inference={"state": "ready"})
+
+        self.assertNotIn("node", payload)
+        self.assertNotIn("device_mapping", payload)
+        self.assertNotIn("uuid", payload["gpu"])
+        self.assertNotIn("index", payload["gpu"])
+        self.assertEqual(payload["gpu"]["name"], "NVIDIA H100 80GB HBM3")
+
     def test_missing_selected_device_fails_closed(self) -> None:
         completed = SimpleNamespace(stdout=NVIDIA_SMI_OUTPUT)
         with (

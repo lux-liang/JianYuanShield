@@ -57,6 +57,7 @@ def runtime_health(*, detailed: bool = True) -> dict[str, Any]:
             "rate_limit_requests": settings.rate_limit_requests,
             "rate_limit_window_seconds": settings.rate_limit_window_seconds,
             "artifact_ttl_seconds": settings.artifact_ttl_seconds,
+            "public_snapshot_ttl_seconds": settings.public_snapshot_ttl_seconds,
             "warmup_models": settings.warmup_models,
             "min_free_disk_bytes": settings.min_free_disk_bytes,
             "artifact_write_reserve_bytes": settings.artifact_write_reserve_bytes,

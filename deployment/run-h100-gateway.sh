@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 077
+
+PROJECT_ROOT=/root/jialiang_liang/projects/JianYuanShield
+RUNTIME_ROOT=/root/jialiang_liang/runtime/JianYuanShield
+PYTHON="$PROJECT_ROOT/.venv/bin/python"
+API_KEY="$RUNTIME_ROOT/keys/api-key"
+UI_PASSWORD="$RUNTIME_ROOT/keys/ui-password"
+SESSION_SECRET="$RUNTIME_ROOT/keys/ui-session-secret"
+
+test -x "$PYTHON"
+test -r "$API_KEY"
+test -r "$UI_PASSWORD"
+test -r "$SESSION_SECRET"
+
+exec env \
+  PYTHONUNBUFFERED=1 \
+  PYTHONPATH="$PROJECT_ROOT" \
+  JYS_GATEWAY_UPSTREAM=http://127.0.0.1:8026 \
+  JYS_GATEWAY_STATIC_ROOT="$PROJECT_ROOT/system/frontend" \
+  JYS_GATEWAY_REQUIRE_API_KEY=true \
+  JYS_GATEWAY_API_KEY_FILE="$API_KEY" \
+  JYS_GATEWAY_REQUIRE_UI_SESSION=true \
+  JYS_GATEWAY_UI_USERNAME=jianyuanshield-admin \
+  JYS_GATEWAY_UI_DISPLAY_NAME=鉴源管理员 \
+  JYS_GATEWAY_UI_ROLE=administrator \
+  JYS_GATEWAY_UI_PASSWORD_FILE="$UI_PASSWORD" \
+  JYS_GATEWAY_SESSION_SECRET_FILE="$SESSION_SECRET" \
+  JYS_GATEWAY_SESSION_TTL_SECONDS=28800 \
+  JYS_GATEWAY_REMEMBER_TTL_SECONDS=604800 \
+  JYS_GATEWAY_SESSION_COOKIE_PATH=/jianyuanshield/ \
+  JYS_GATEWAY_MAX_BODY_BYTES=100663296 \
+  JYS_GATEWAY_TIMEOUT_SECONDS=600 \
+  JYS_GATEWAY_CLIENT_TIMEOUT_SECONDS=30 \
+  "$PYTHON" "$PROJECT_ROOT/system/gateway.py" \
+    --host 127.0.0.1 \
+    --port 8027

@@ -20,25 +20,31 @@
     }
   },
   "deployment": {
-    "checker_sha256": "3e712c5b109372ad7cc3400f84a660d9e3c11f01cb38d5343eeac855ce7c3844",
-    "competition_compose_sha256": "297eb3f5d880707f1d920f3e0fec7cb4bc23496717322804f10ed54f9d8cfab0",
-    "development_compose_sha256": "f9674803382e1de0954d84c4ea2361e7e40826a0a29ac2b568700110390a1c83",
-    "gateway_sha256": "7d2d3ab5987d67f9b426abdcf916ae3811370f97da18f018070f4218d85b892a",
+    "caddy_sha256": "e20793429f13cefabf9c2f1bb2a10fa4b12129ed9004bca4d27305787bc34ba2",
+    "checker_sha256": "ab07dcd23960f69da23ddb75f028cf42737a308101d0e0652b709708e4a4178c",
+    "competition_compose_sha256": "b4ada9a5580ca75e3911ee541f562120b8ce3866a2c25fad3ee581bcbdf00e8c",
+    "development_compose_sha256": "ac04f178315ef0b103f8855dba4245c89069d60c6e088a3ebb85c21db5bd8aa1",
+    "gateway_sha256": "175071034f893207e6d704e7d3d3cedc9c0f664c636e3d5bc319c3f75049d87e",
+    "h100_api_launcher_sha256": "47d36fdc346613dd3d80203c8ee7eebeac2cad18e2ea25f947b163d0a3536dca",
+    "h100_gateway_launcher_sha256": "e20009958376569832c2790e6b16fc385a791e3c8663ae6fafcb45ec6fa04804",
+    "h100_tunnel_launcher_sha256": "298444525118900b352816e0c5926b51220450934db70c55b84d36826c3d079a",
     "offline_bundle_sha256": "e2925b393b0a11c66ebaa42fb4d7d5874cca3e51eaa163410a0138d539711b23",
     "offline_entrypoint_sha256": "07b6b9478d685ff68b32427562b09fa2fb9c98ed92b6fcd9274345653310ab2c",
-    "production_compose_sha256": "4f316979c1f78467e1e656960e932b16ac0b414547948365bc9a3e3bddc2dfc4"
+    "production_compose_sha256": "946108e1180dedc2deff48815e74263884be3f44d3f7e6403d667f59a4adb26e",
+    "public_release_sha256": "e216a11e78805312ecd7fe5ac99bd208ae34122f320493b11b950ec519c689bf",
+    "supervisor_sha256": "27f65318f6f586e357eea1bd8cdd83554c6195502996e23fe9aadb8164c5214d"
   },
   "dockerfile": {
     "path": "Dockerfile",
-    "sha256": "01e0890575825c41be2b413732b0ee6914ce0c0374b970118a3788d184376eeb"
+    "sha256": "579f69f747750acf46bc1110303549bf3664b31b419b49c19f3721577e884769"
   },
   "generator": {
     "path": "scripts/supply_chain.py",
-    "sha256": "78837d9c0c3a5fb45f004d1ecd3373940474a9022b50d50bdced06526a959951"
+    "sha256": "634557df4680a3445788b7f01e0488f3c79edca24b8bfd00869aa5bd62f3ad03"
   },
   "licensing": {
     "third_party_notices_path": "THIRD_PARTY_NOTICES.md",
-    "third_party_notices_sha256": "0fb2e5d51970c39f593cad17339063d4d592f61213094fb6fd0f0585756dc1da"
+    "third_party_notices_sha256": "d79b3cd628d39d042fa9f47cb733562415c305b075984670fdde841fc41ffe5d"
   },
   "os_dependencies": {
     "distribution": "ubuntu-22.04",
@@ -55,9 +61,14 @@
   "sbom": {
     "format": "CycloneDX",
     "path": "supply-chain/python-dependencies.cdx.json",
-    "sha256": "33a39d2573547e5bde8c5e2f2c82c1e4f70ee487128dc3988e7350d0ff7970c9",
+    "sha256": "2489dc501ba7926ae444220e3ca8459a9e651b952ca779f9405d33e6c0bf3c09",
     "spec_version": "1.6"
   },
   "schema_version": "jianyuanshield-supply-chain.v1",
+  "software": {
+    "name": "鉴源盾内容来源可信取证系统",
+    "version": "1.0.0",
+    "version_file_sha256": "59854984853104df5c353e2f681a15fc7924742f9a2e468c29af248dce45ce03"
+  },
   "status": "verified"
 }

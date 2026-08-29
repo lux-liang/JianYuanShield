@@ -56,15 +56,21 @@ jobs:
         run: |
           python tests/test_supply_chain.py -v
           python tests/test_deployment.py -v
+          python tests/test_gateway.py -v
+          python tests/test_software_copyright_package.py -v
+
+      - name: Validate software-copyright source boundary
+        run: python scripts/build_software_copyright_package.py --check
 
       - name: Check shell syntax
-        run: bash -n scripts/*.sh system/scripts/*.sh offline_deploy.sh
+        run: bash -n scripts/*.sh system/scripts/*.sh deployment/*.sh offline_deploy.sh
 
       - name: Check browser and mini-program JavaScript
         run: |
           while IFS= read -r file; do node --check "$file"; done < <(
             find system/frontend miniprogram -type f -name '*.js' -print
           )
+          node tests/test_frontend_trust_contracts.js
           node miniprogram/scripts/check-trust-gate.js
 
       - name: Validate Compose contract

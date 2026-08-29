@@ -132,7 +132,7 @@ private fun infoContent(key: String): InfoContent = when (key) {
                 "系统为新内容嵌入与 content_id 绑定的来源消息；后续只核验指定登记记录。它不是任意图片真假、AI 生成或换脸分类器。",
             )),
             InfoSection("版本与团队", listOf(
-                "版本 V2.0.0。",
+                "版本 V1.0.0。",
                 "技术支持：新疆大学 VPSG 实验室。本工具提供技术验证记录，不替代监管认定或司法鉴定。",
             )),
         ),

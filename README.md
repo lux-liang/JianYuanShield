@@ -1,20 +1,20 @@
 <div align="center">
 
-# 鉴源盾 · JianYuanShield
+# 鉴源盾内容来源可信取证系统 V1.0
 
-### 面向 AI 生成合成图像的主动溯源、可信凭证与多水印冲突治理平台
+### JianYuanShield · 面向 AI 生成合成图像的主动溯源、可信凭证与多水印冲突治理平台
 
 [![Claims](https://img.shields.io/badge/claims-runtime--gated-0f766e)](configs/claims_manifest.v1.json)
 [![Protocol](https://img.shields.io/badge/protocol-evaluation.v1-2563eb)](configs/evaluation_protocol.v1.json)
 [![Evidence](https://img.shields.io/badge/evidence-Ed25519-0f766e)](system/backend/signing.py)
 [![GB 45438](https://img.shields.io/badge/GB%2045438--2025-aligned-b45309)](system/backend/aigc_labeling.py)
 [![CI](https://img.shields.io/badge/CI-fail--closed-475569)](.github/workflows/quality.yml)
-[![Tests](https://img.shields.io/badge/tests-361%20passed-16a34a)](tests)
+[![Tests](https://img.shields.io/badge/tests-397%20passed%20%7C%201%20skipped-16a34a)](tests)
 [![GPU Scale](https://img.shields.io/badge/SimSwap%20GPU-n%3D1024-7c3aed)](docs/GPU_SCALE_EXPERIMENT_20260807.md)
 
 **创作者持钥证明 · 四模型主动水印 · AIGC 双重标识 · 自包含来源凭证 · 防回滚审计 · 签名撤销 · MEA 4×4 红队评测**
 
-**[在线演示](http://81.70.178.203/jianyuanshield/)** · [三分钟答辩](docs/DEFENSE_SCRIPT_3MIN.md) · [国一对标卡](docs/NATIONAL_FIRST_SCORECARD.md) · [证据索引](docs/EVIDENCE_INDEX.md) · [核心创新](#核心创新) · [正式实验](#已完成的正式实验) · [快速开始](#快速开始)
+**[V1.0 HTTPS 在线演示](https://jianyuanshield.81.70.178.203.nip.io/jianyuanshield/)** · [三分钟答辩](docs/DEFENSE_SCRIPT_3MIN.md) · [国一对标卡](docs/NATIONAL_FIRST_SCORECARD.md) · [证据索引](docs/EVIDENCE_INDEX.md) · [核心创新](#核心创新) · [正式实验](#已完成的正式实验) · [快速开始](#快速开始)
 
 </div>
 
@@ -267,6 +267,14 @@ docker compose up --build
 - Web：`http://127.0.0.1:8027`
 - API：`http://127.0.0.1:8026`
 - OpenAPI：`http://127.0.0.1:8026/docs`
+
+默认开发 Compose 显式启用 `JYS_GATEWAY_DEVELOPMENT_UI_BYPASS=true`，因此浏览器只在
+`127.0.0.1:8027` 获得标记为 `local-development-bypass` 的匿名开发会话，无需配置示例口令。
+该旁路只适用于同时关闭 UI 会话保护、且网关不持有 API Key 的回环联调；网关会拒绝把它
+与服务端账号、会话密钥或 API Key 混用。不要把开发 Compose 的端口改为公网绑定。
+
+生产与比赛部署不得启用开发旁路，必须由网关执行服务端登录，使用 Secure/HttpOnly 会话
+Cookie、CSRF 校验，以及以文件或容器 secret 注入的独立账号口令和签名密钥。
 
 真实模型目录必须显式配置并以只读方式挂载：
 

@@ -191,3 +191,24 @@ def gpu_status_payload(*, inference: dict[str, Any]) -> dict[str, Any]:
         "gpu": device,
         "inference": inference,
     }
+
+
+def public_gpu_status_payload(*, inference: dict[str, Any]) -> dict[str, Any]:
+    """Return UI telemetry without host, UUID or device-selection details."""
+
+    payload = gpu_status_payload(inference=inference)
+    device = payload["gpu"]
+    return {
+        "schema_version": payload["schema_version"],
+        "ok": payload["ok"],
+        "state": payload["state"],
+        "sampled_at": payload["sampled_at"],
+        "gpu": {
+            "name": device["name"],
+            "memory": device["memory"],
+            "utilization_percent": device["utilization_percent"],
+            "temperature_c": device["temperature_c"],
+            "power": device["power"],
+        },
+        "inference": payload["inference"],
+    }

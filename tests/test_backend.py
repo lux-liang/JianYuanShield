@@ -82,18 +82,16 @@ class BackendSmokeTests(unittest.TestCase):
         self.assertIn("/api/claims", paths)
         self.assertIn("/api/benchmark/simswap-lfw", paths)
 
-    def test_health_includes_runtime_fields(self) -> None:
+    def test_public_health_is_minimal(self) -> None:
         payload = health()
         self.assertTrue(payload["ok"])
         self.assertIn("version", payload)
-        self.assertIn("started_at", payload)
-        self.assertIn("uptime_seconds", payload)
-        self.assertIn("log_file", payload)
-        self.assertIn("settings", payload)
-        self.assertEqual(payload["modules"]["backend"], "ok")
-        self.assertEqual(payload["settings"]["enable_demo"], settings.enable_demo)
+        self.assertNotIn("started_at", payload)
+        self.assertNotIn("uptime_seconds", payload)
+        self.assertNotIn("log_file", payload)
+        self.assertNotIn("settings", payload)
+        self.assertNotIn("modules", payload)
         self.assertNotIn("root", payload)
-        self.assertFalse(Path(payload["log_file"]).is_absolute())
 
     def test_default_settings_shape(self) -> None:
         self.assertTrue(settings.version)

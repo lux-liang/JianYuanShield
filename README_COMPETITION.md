@@ -1,6 +1,14 @@
-# 鉴源盾：国家级信息安全作品赛评审说明
+# 鉴源盾内容来源可信取证系统 V1.0：国家级信息安全作品赛评审说明
 
 > 建议评审顺序：[竞赛主叙事](docs/COMPETITION_STORY.md) → [现场演示分镜](docs/DEMO_STORYBOARD.md) → [答辩证据索引](docs/EVIDENCE_INDEX.md) → 本文的完整技术主张地图。
+
+## V1.0 软著与交付基线
+
+- 软件全称：鉴源盾内容来源可信取证系统；版本号：V1.0。
+- 全量自动化测试基线：398 项测试，其中 397 项通过、1 项因环境条件跳过；最终交付以发布 commit 归档的测试输出为准。
+- 在线演示：[https://jianyuanshield.81.70.178.203.nip.io/jianyuanshield/](https://jianyuanshield.81.70.178.203.nip.io/jianyuanshield/)。边缘层终止 TLS、启用 HSTS 并将明文访问跳转到 HTTPS。
+- Web 管理入口采用单管理员服务端 HMAC 签名会话，浏览器只持有 Secure/HttpOnly/SameSite Cookie；CSRF 校验、登录失败限速和后端 API Key 的网关注入均在服务端完成。
+- 公网静态资源按不可变版本目录构建并通过原子 `current` 链接切换，旧版本保留用于显式回滚。
 
 ## 作品定位
 
@@ -31,7 +39,7 @@
 
 ### 第一层：来源记录
 
-`POST /api/provenance/protect` 创建 `provenance-record.v1`。原始图像参与编码与摘要计算，但不持久化；正式登记消息由 `content_id`、模型和部署密钥确定性派生。数据库同时保存可复算的消息绑定、保护图摘要和 canonical JSON 签名。
+`POST /api/provenance/protect` 创建 `provenance-record.v2`，并绑定一次性创作者持钥挑战。原始图像参与编码与摘要计算，但不持久化；正式登记消息由 `content_id`、模型和部署密钥确定性派生。数据库同时保存可复算的消息绑定、保护图摘要和 canonical JSON 签名。
 
 `POST /api/provenance/verify` 必须携带已有 `content_id`。核验事件记录观测图摘要、恢复消息摘要、运行 checkpoint 摘要、标定阈值和 `parent_record_sha256`。子事件的 `claim_valid` 只有在父登记记录仍有效且子事件自身通过同一信任链时才成立；篡改数据库字段、父记录、checkpoint、标定文件或签名都会使链路失效。
 

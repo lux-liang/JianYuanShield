@@ -10,7 +10,7 @@
 
 ### 机制增量
 
-保护阶段创建唯一 `content_id`，将应用侧 `creator_ref`、模型、checkpoint SHA-256、原始/保护内容 SHA-256、消息 SHA-256、消息派生方式和验证阈值写入 `provenance-record.v1`。正式消息由部署密钥、`content_id` 和模型确定性派生；原图不落库。
+保护阶段创建唯一 `content_id`，将应用侧 `creator_ref`、模型、checkpoint SHA-256、原始/保护内容 SHA-256、消息 SHA-256、消息派生方式、验证阈值和创作者持钥证明写入 `provenance-record.v2`。正式消息由部署密钥、`content_id` 和模型确定性派生；原图不落库。
 
 核验阶段根据 `content_id` 取回登记消息，只对观测图做 decode。`provenance-verification.v1` 记录 `parent_record_sha256` 和 `parent_record_claim_valid`；最终 `claim_valid` 是“父登记记录有效”与“当前核验事件有效”的合取，而不是数据库中的可编辑布尔值。
 
@@ -217,7 +217,7 @@ SimSwap source/权重漂移、身份复用、calibration/holdout 交叉、消息
 
 | 创新层级 | 机器可读事实源 | 独立复核入口 | 发布控制 |
 |---|---|---|---|
-| 来源事件 | `provenance-record.v1`、`provenance-verification.v1` | `verify_payload_signature` 与父记录重算 | 父子 `claim_valid` 合取 |
+| 来源事件 | `provenance-record.v2`、`provenance-verification.v1` | `verify_payload_signature` 与父记录重算 | 父子 `claim_valid` 合取 |
 | 模型实验 | 逐图 CSV、dataset manifest、run config | `benchmark_claim_status` | `benchmark-summary.v2` 完成门禁 |
 | 阈值信任 | `threshold-calibration.v1`、`WEIGHT_MANIFEST.json` | 运行时完整语义复算 | 未标定 checkpoint 不进入正式来源主张 |
 | 证据完整性 | Ed25519 manifest、signature、public key | bundle verify 与 signer pinning | 文件 membership 和内容哈希同时成立 |

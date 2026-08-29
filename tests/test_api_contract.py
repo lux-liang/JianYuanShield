@@ -33,7 +33,8 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         payload = response.json()
         self.assertTrue(payload["ok"])
-        self.assertFalse(payload["log_file"].startswith("/"))
+        self.assertNotIn("log_file", payload)
+        self.assertNotIn("settings", payload)
         self.assertNotIn("root", payload)
 
     def test_protected_endpoint_enforces_api_key_with_uniform_error(self) -> None:

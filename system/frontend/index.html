@@ -3,9 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>鉴源盾 · 取证证据工作台</title>
+    <title>鉴源盾 V1.0 · 内容来源可信取证系统</title>
+    <meta name="description" content="鉴源盾内容来源可信取证系统 V1.0：来源登记、传播变换、盲解码核验与签名证据审计。" />
     <!-- PWA / iOS 主屏支持 -->
-    <meta name="theme-color" content="#0a0f14" />
+    <meta name="theme-color" content="#f4f7fb" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -13,11 +14,121 @@
     <link rel="manifest" href="./manifest.json" />
     <link rel="apple-touch-icon" href="./icons/icon-180.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
-    <!-- 完全离线可用；字体使用系统栈，不向第三方域名发送请求。 -->
-    <link rel="stylesheet" href="./styles.css?v=20260820-refine-3" />
+    <!-- 字体使用系统栈，不向第三方域名发送请求。 -->
+    <link rel="stylesheet" href="./styles.css?v=1.0.0-20260830" />
+    <link rel="stylesheet" href="./refined-visuals.css?v=1.0.0-20260830" />
+    <link rel="stylesheet" href="./workflow-redesign.css?v=1.0.0-20260830" />
   </head>
   <body>
-    <div class="app-shell">
+    <a class="skip-link" href="#mainContent">跳到主要内容</a>
+    <div class="jys-splash" id="bootScreen" aria-hidden="true">
+      <div class="jys-splash-grid"></div>
+      <div class="jys-splash-scan"></div>
+      <div class="jys-splash-core">
+        <span class="jys-splash-kicker">JYS / CONTENT PROVENANCE</span>
+        <div class="jys-splash-stage">
+          <i class="jys-splash-orbit"></i>
+          <i class="jys-splash-orbit jys-splash-orbit-b"></i>
+          <svg viewBox="0 0 360 420" role="presentation">
+            <defs>
+              <linearGradient id="jysSplashShield" x1="72" y1="90" x2="286" y2="348" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#6fd4ff"/><stop offset=".55" stop-color="#4f8dff"/><stop offset="1" stop-color="#9a79ff"/>
+              </linearGradient>
+              <linearGradient id="jysSplashPortrait" x1="118" y1="145" x2="241" y2="286" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#85d8ff" stop-opacity=".3"/><stop offset="1" stop-color="#7c68ff" stop-opacity=".08"/>
+              </linearGradient>
+              <linearGradient id="jysSplashFace" x1="130" y1="150" x2="230" y2="292" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#e8f7ff"/><stop offset=".48" stop-color="#79c8ff"/><stop offset="1" stop-color="#9c88ff"/>
+              </linearGradient>
+              <filter id="jysSplashGlow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="8"/>
+              </filter>
+            </defs>
+            <path class="jys-shield-glow" d="M180 64 286 105v92c0 73-43 128-106 151-63-23-106-78-106-151v-92z"/>
+            <path class="jys-shield-fill" d="M180 64 286 105v92c0 73-43 128-106 151-63-23-106-78-106-151v-92z"/>
+            <path class="jys-shield-rim" d="M180 64 286 105v92c0 73-43 128-106 151-63-23-106-78-106-151v-92z"/>
+            <path class="jys-shield-cut" d="M180 84v246M93 132l174 151M267 132 93 283"/>
+            <g class="jys-face">
+              <circle class="jys-face-backdrop" cx="180" cy="202" r="67"/>
+              <circle class="jys-face-halo" cx="180" cy="202" r="82"/>
+              <path class="jys-face-hud" d="M116 183h20m88 0h20M180 118v18m0 133v18"/>
+              <path class="jys-face-line" d="M151 188c2-25 12-42 29-42s27 17 29 42c-3 31-13 51-29 51s-26-20-29-51Z"/>
+              <path class="jys-face-line" d="M136 281c8-25 23-37 44-37s36 12 44 37M158 197c7 5 14 5 21 0m2 0c7 5 14 5 21 0M168 220c8 5 16 5 24 0"/>
+              <path class="jys-face-scan" d="M124 167c39-20 73-19 112 0M124 206c38-14 74-14 112 0M130 245c33-9 67-9 100 0"/>
+              <path class="jys-face-data" d="M111 147h42M207 147h42M106 261h48M206 261h48"/>
+              <path class="jys-face-node" d="M144 181h10m52 0h10M175 229h10"/>
+            </g>
+            <path class="jys-shard jys-shard-1" style="--tx:-92px;--ty:-66px;--rot:-34deg" d="m119 111 34 14-22 36z"/>
+            <path class="jys-shard jys-shard-2" style="--tx:86px;--ty:-75px;--rot:28deg" d="m240 112-31 16 20 31z"/>
+            <path class="jys-shard jys-shard-3" style="--tx:-118px;--ty:8px;--rot:-58deg" d="m81 183 37 2-24 30z"/>
+            <path class="jys-shard jys-shard-4" style="--tx:116px;--ty:6px;--rot:54deg" d="m279 181-38 5 26 29z"/>
+            <path class="jys-shard jys-shard-5" style="--tx:-76px;--ty:92px;--rot:24deg" d="m116 281 36-11-7 38z"/>
+            <path class="jys-shard jys-shard-6" style="--tx:74px;--ty:96px;--rot:-29deg" d="m244 280-35-10 7 38z"/>
+          </svg>
+        </div>
+        <div class="jys-splash-wordmark" aria-label="鉴源盾">
+          <span style="--i:0;--dx:-52px;--dy:18px;--dr:-13deg">鉴</span>
+          <span style="--i:1;--dx:0;--dy:-28px;--dr:6deg">源</span>
+          <span style="--i:2;--dx:54px;--dy:15px;--dr:12deg">盾</span>
+        </div>
+        <span class="jys-splash-subtitle">主动水印 · DEEPFAKE 取证 · 签名证据</span>
+        <span class="jys-splash-progress"><i></i></span>
+      </div>
+    </div>
+
+    <section class="login-view" id="loginView" aria-labelledby="loginTitle">
+      <div class="login-shell">
+        <aside class="login-story">
+          <div class="login-brand">
+            <span class="login-brand-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M12 2 20 5.5V11c0 5.5-3.3 9.6-8 11-4.7-1.4-8-5.5-8-11V5.5z"/>
+                <circle cx="12" cy="11" r="3.2"/><path d="M12 4.6v3.2m0 6.4v3.2M5.8 11h3m6.4 0h3"/>
+              </svg>
+            </span>
+            <span><strong>鉴源盾</strong><small>内容来源可信取证系统 · V1.0</small></span>
+          </div>
+          <div class="login-statement">
+            <span>可验证的内容来源</span>
+            <h1>让数字内容<br>保有可验证的来源</h1>
+            <p>来源登记、传播变换、盲解码与签名证据汇聚于同一工作台。</p>
+          </div>
+          <div class="login-proof-list" aria-label="平台能力">
+            <div><b>01</b><span>来源登记</span><small>内容 ID · 主动水印</small></div>
+            <div><b>02</b><span>传播核验</span><small>压缩 · 裁剪 · 换脸</small></div>
+            <div><b>03</b><span>证据审计</span><small>协议 · 哈希 · 签名</small></div>
+          </div>
+        </aside>
+        <main class="login-panel">
+          <div class="login-panel-head">
+            <span>平台访问</span>
+            <h2 id="loginTitle">登录鉴源盾</h2>
+            <p>进入内容来源登记与核验工作台</p>
+          </div>
+          <form class="login-form" id="loginForm">
+            <label for="loginUsername">账号</label>
+            <div class="login-input-wrap">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c.8-4.6 3.5-7 8-7s7.2 2.4 8 7"/></svg>
+              <input id="loginUsername" name="username" type="text" autocomplete="username" placeholder="请输入平台账号" required>
+            </div>
+            <label for="loginPassword">访问口令</label>
+            <div class="login-input-wrap password-wrap">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></svg>
+              <input id="loginPassword" name="password" type="password" autocomplete="current-password" placeholder="请输入访问口令" required>
+              <button class="password-toggle" id="passwordToggle" type="button" aria-label="显示访问口令" aria-pressed="false">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z"/><circle cx="12" cy="12" r="2.7"/></svg>
+              </button>
+            </div>
+            <label class="remember-control"><input id="rememberSession" type="checkbox"><span>在此设备保持登录</span></label>
+            <p class="login-error" id="loginError" aria-live="polite"></p>
+            <button class="login-submit" type="submit"><span>进入工作台</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-5-5 5 5-5 5"/></svg></button>
+          </form>
+          <div class="login-foot"><i></i><span>H100 在线算力 · 安全访问会话</span></div>
+        </main>
+      </div>
+    </section>
+
+    <div class="app-shell" id="appShell" hidden>
       <!-- ════════════ 侧栏：品牌 / 视图导航 / 证据就绪度 ════════════ -->
       <aside class="sidebar">
         <div class="brand">
@@ -30,67 +141,84 @@
           </div>
           <div class="brand-copy">
             <h1>鉴源盾</h1>
-            <p>CONTENT PROVENANCE</p>
+            <p>内容来源可信取证系统 · V1.0</p>
           </div>
         </div>
 
         <nav class="view-nav" id="viewNav" aria-label="主视图">
           <a href="#/overview" data-view="overview" class="active">
             <span class="nav-index">01</span>
-            <span class="nav-label">资产总览<small>ASSET OVERVIEW</small></span>
+            <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+            <span class="nav-label">首页<small>系统全景</small></span>
           </a>
           <a href="#/forensics" data-view="forensics">
             <span class="nav-index">02</span>
-            <span class="nav-label">溯源工作台<small>PROVENANCE</small></span>
+            <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 20 6v5c0 5.1-3.2 8.7-8 10-4.8-1.3-8-4.9-8-10V6z"/><path d="m8.5 12 2.2 2.2 4.8-4.8"/></svg>
+            <span class="nav-label">取证工作台<small>登记 · 传播 · 核验</small></span>
           </a>
           <a href="#/benchmark" data-view="benchmark">
             <span class="nav-index">03</span>
-            <span class="nav-label">稳健性评估<small>EVALUATION</small></span>
+            <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6A2 2 0 0 0 19 18l-5-9V3"/><path d="M7.5 15h9"/></svg>
+            <span class="nav-label">攻击实验<small>统一协议评测</small></span>
           </a>
           <a href="#/audit" data-view="audit">
             <span class="nav-index">04</span>
-            <span class="nav-label">可信审计<small>TRUST AUDIT</small></span>
+            <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l3 3v15H6z"/><path d="M15 3v4h4M9 13l2 2 4-4"/></svg>
+            <span class="nav-label">证据中心<small>发布门禁</small></span>
           </a>
         </nav>
 
-        <section class="evidence-card">
-          <span class="exhibit">EVIDENCE READINESS</span>
-          <div class="readiness-head">
-            <div class="readiness-ring" id="readinessRing" style="--p:0"><span id="readinessRingPct">--</span></div>
-            <div class="readiness-meta">
-              <strong id="evidenceReady" aria-live="polite">syncing</strong>
-              <small id="lastUpdated">等待后端数据</small>
+        <div class="header-tools">
+          <section class="evidence-card" aria-label="H100 算力摘要">
+            <span class="exhibit">H100 算力摘要</span>
+            <div class="readiness-head">
+              <div class="readiness-ring" id="readinessRing" style="--p:0"><span id="readinessRingPct">···</span></div>
+              <div class="readiness-meta">
+                <strong id="evidenceReady" aria-live="polite">正在连接 H100</strong>
+                <small id="lastUpdated">仅显示算力可用状态</small>
+              </div>
+            </div>
+            <div class="artifact-checklist" id="artifactChecklist"></div>
+          </section>
+          <div class="user-control">
+            <button class="user-trigger" id="userTrigger" type="button" aria-expanded="false" aria-controls="userMenu">
+              <span class="user-avatar" id="userAvatar">管</span>
+              <span class="user-summary"><strong id="userDisplayName">演示管理员</strong><small>平台访问</small></span>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 10 4 4 4-4"/></svg>
+            </button>
+            <div class="user-menu" id="userMenu" hidden>
+              <div><span>当前会话</span><strong id="userMenuName">演示管理员</strong><small>内容来源工作台</small></div>
+              <a href="#/profile" class="user-menu-link">进入个人中心</a>
+              <button id="logoutButton" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4H5v16h5M14 8l4 4-4 4m4-4H9"/></svg>退出登录</button>
             </div>
           </div>
-          <div class="artifact-checklist" id="artifactChecklist"></div>
-        </section>
+        </div>
 
         <div class="sidebar-foot">
-          <span class="api-pill" id="apiEndpoint">API ·</span>
-          <span class="health" id="health" aria-live="polite">health: -</span>
+          <span class="api-pill" id="apiEndpoint">接口 ·</span>
+          <span class="health" id="health" aria-live="polite">H100 · 连接中</span>
         </div>
       </aside>
 
       <!-- ════════════ 工作区 ════════════ -->
-      <main class="workspace">
+      <main class="workspace" id="mainContent" tabindex="-1">
         <header class="topbar">
           <div>
-            <span class="eyebrow">JYS / CONTENT PROVENANCE SYSTEM</span>
-            <h2 id="viewTitle">资产总览</h2>
-            <p id="viewSubtitle">运行状态、可信资产与证据边界</p>
+            <span class="eyebrow">鉴源盾 V1.0 / 内容来源可信取证系统</span>
+            <h2 id="viewTitle">系统全景</h2>
+            <p id="viewSubtitle">定位、原创机制与实证边界</p>
           </div>
           <div class="top-meta">
             <span class="clock" id="clock" aria-hidden="true">--:--:--</span>
-            <span class="clock-sub">H100 COMPUTE / SIGNED EVIDENCE</span>
           </div>
         </header>
 
-        <!-- 实时证据流 ticker：横向滚动各模块状态 / 就绪度 / 审计 / 签名（悬停暂停）-->
-        <div class="ticker" id="evidenceTicker" aria-label="实时证据流" aria-live="off">
-          <span class="ticker-label">LIVE</span>
+        <!-- 在线算力带：H100 节点状态与当前视图证据摘要 -->
+        <div class="ticker" id="evidenceTicker" aria-label="H100 实时算力状态" aria-live="off">
+          <span class="ticker-label">H100</span>
           <div class="ticker-viewport">
             <div class="ticker-track" id="tickerTrack">
-              <span class="ticker-item"><i class="tk-dot"></i><span class="tk-key">SYNC</span><span class="tk-val">连接后端…</span></span>
+              <span class="ticker-item is-pending"><i class="tk-dot"></i><span class="tk-key">连接</span><span class="tk-val">连接中</span></span>
             </div>
           </div>
         </div>
@@ -98,12 +226,17 @@
         <!-- ──────────── 视图 01 · 概览 ──────────── -->
         <section class="view" id="view-overview">
           <section class="panel hero-panel">
-            <span class="exhibit">鉴源盾 · 数字内容可信身份基础设施</span>
+            <span class="exhibit">来源登记 · 变换后仍可核验</span>
             <div class="hero-grid">
               <div class="hero-copy">
-                <p class="hero-overline">CONTENT PROVENANCE / ACTIVE FORENSICS / EVIDENCE CHAIN</p>
-                <h1 class="hero-command">让数字内容<br><em>自证其源</em></h1>
-                <p class="hero-declaration">为每一次创作建立身份，为每一次传播保留线索，为每一次争议提供证据。</p>
+                <p class="hero-overline">内容来源 · 主动水印 · 签名声明</p>
+                <h1 class="hero-command">让数字内容<br><em>保有可信来源</em></h1>
+                <p class="hero-declaration">面向已登记的 AIGC 图像，在压缩、编辑、换脸与二次水印之后恢复来源关系，并把每一项结论收口为可审计证据。</p>
+                <div class="positioning-line" aria-label="系统适用范围">
+                  <div><span>适用范围</span><strong>已登记的数字图像</strong><small>登记时建立内容身份和主动水印</small></div>
+                  <i aria-hidden="true"></i>
+                  <div><span>核心回答</span><strong>传播变化后，来源是否仍可验证</strong><small>文件、主动水印和签名共同给出结论</small></div>
+                </div>
                 <div class="hero-figure">
                   <div class="hero-figure-val"><span id="heroMetric">--</span><i id="heroMetricSuffix">%</i></div>
                   <span class="hero-figure-label" id="heroMetricLabel">本地资产就绪度</span>
@@ -111,20 +244,24 @@
                 <h3 id="mainConclusion">正在检查后端服务和本地资产</h3>
                 <p id="contrastConclusion">评测结论与运行资产双轨呈现，模型、协议、数据与签名状态实时核验。</p>
                 <div class="hero-actions" aria-label="常用操作">
-                  <a class="primary-action" id="heroPrimaryAction" href="#/forensics">上传图片取证</a>
-                  <a class="secondary-action" href="#/audit">查看证据审计</a>
-                  <a class="secondary-action" href="#/benchmark">查看稳健性评估</a>
+                  <a class="primary-action" id="heroPrimaryAction" href="#/register">开始来源登记</a>
+                  <a class="secondary-action" href="#/benchmark">查看攻击实验</a>
+                  <a class="secondary-action" href="#/audit">查看证据中心</a>
                 </div>
               </div>
               <div class="trust-console" aria-label="四项可信判据">
+                <figure class="home-reference-visual">
+                  <img src="./assets/operations-center.webp" loading="lazy" decoding="async" alt="鉴源盾可信取证运行中心概念场景，非实时监控画面">
+                  <figcaption><span>可信取证运行场景示意</span><strong>概念场景 · 非实时监控画面</strong></figcaption>
+                </figure>
                 <div class="trust-console-head">
-                  <span>TRUST VERDICTS · 独立判定</span>
-                  <i>04 SIGNALS</i>
+                  <span>可信判据</span>
+                  <i>04 项</i>
                 </div>
                 <div class="trust-verdict-grid">
                   <div><b>01</b><span>字节一致</span><small>文件是否与登记输出完全相同</small></div>
                   <div><b>02</b><span>水印恢复</span><small>是否恢复并匹配登记消息</small></div>
-                  <div><b>03</b><span>标识完整</span><small>AIGC 显式与隐式标识是否保留</small></div>
+                  <div><b>03</b><span>标识完整</span><small>显式与隐式标识是否保留</small></div>
                   <div><b>04</b><span>声明有效</span><small>身份、权重、阈值与签名是否放行</small></div>
                 </div>
                 <div class="boundary-box">
@@ -135,36 +272,85 @@
             </div>
           </section>
 
-          <section class="story-panel" aria-labelledby="storyTitle">
-            <div class="story-intro">
-              <span class="exhibit">内容生命线 · 从创作现场到争议现场</span>
-              <p class="story-kicker">深度伪造时代的三个核心命题：谁创作、如何传播、凭什么追责。</p>
-              <h3 id="storyTitle">一张图片，一份贯穿全生命周期的可信档案。</h3>
+          <section class="overview-live-strip" aria-labelledby="liveWorkflowTitle">
+            <header class="live-strip-head">
+              <div>
+                <span class="exhibit">实时工作流</span>
+                <h3 id="liveWorkflowTitle">从登记到核验，四步形成可信证据</h3>
+                <p>页面先展示可用链路，再根据 H100、模型和签名状态实时更新。</p>
+              </div>
+              <div class="live-pulse" aria-live="polite"><i></i><span>链路状态</span><strong id="livePulseText">正在建立连接</strong></div>
+            </header>
+            <div class="live-strip-grid">
+              <article class="live-step is-live" data-live-step="register">
+                <span class="live-step-no">01</span>
+                <svg class="live-step-icon" aria-hidden="true"><use href="./icons/provenance-icons.svg#source"></use></svg>
+                <div><strong>来源登记</strong><small>建立内容 ID 与主动水印</small></div>
+                <b id="liveStageRegister">待启动</b>
+              </article>
+              <article class="live-step" data-live-step="transform">
+                <span class="live-step-no">02</span>
+                <svg class="live-step-icon" aria-hidden="true"><use href="./icons/provenance-icons.svg#conflict"></use></svg>
+                <div><strong>传播变换</strong><small>压缩、编辑、换脸与二次嵌入</small></div>
+                <b id="liveStageTransform">待观测</b>
+              </article>
+              <article class="live-step" data-live-step="decode">
+                <span class="live-step-no">03</span>
+                <svg class="live-step-icon" aria-hidden="true"><use href="./icons/provenance-icons.svg#identity"></use></svg>
+                <div><strong>盲解码</strong><small>恢复消息并关联登记记录</small></div>
+                <b id="liveStageDecode">待核验</b>
+              </article>
+              <article class="live-step" data-live-step="audit">
+                <span class="live-step-no">04</span>
+                <svg class="live-step-icon" aria-hidden="true"><use href="./icons/provenance-icons.svg#audit"></use></svg>
+                <div><strong>证据收口</strong><small>哈希、阈值和签名共同放行</small></div>
+                <b id="liveStageAudit">待审计</b>
+              </article>
             </div>
-            <ol class="story-journey" aria-label="鉴源盾三阶段业务闭环">
-              <li><span class="story-no">01</span><div><b>出生登记</b><small>创作者身份与主动水印绑定，生成内容 ID 和哈希记录</small></div><a href="#/forensics">进入工作台</a></li>
-              <li><span class="story-no">02</span><div><b>传播核验</b><small>经历压缩、缩放或二次嵌入后盲解码，匹配原始登记</small></div><a href="#/benchmark">查看数据</a></li>
-              <li><span class="story-no">03</span><div><b>争议举证</b><small>原始结果、协议、实现哈希与 Ed25519 签名共同验链</small></div><a href="#/audit">核验证据</a></li>
+          </section>
+
+          <section class="innovation-stage" aria-labelledby="innovationTitle">
+            <header>
+              <span class="exhibit">三项原创机制</span>
+              <h3 id="innovationTitle">检测、验证与举证形成完整闭环</h3>
+              <p>主动水印算法提供基础能力，身份、冲突与发布三层可信协议将结果组织成可复核证据。</p>
+            </header>
+            <ol class="innovation-rail">
+              <li>
+                <span class="innovation-no">01</span><svg class="innovation-icon" aria-hidden="true"><use href="./icons/provenance-icons.svg#identity"></use></svg>
+                <div><small>身份证据</small><strong>持钥来源生命周期</strong><p>Ed25519 挑战绑定登记主体、公钥、内容哈希与模型；登记与双签撤销使用同一身份根。</p></div>
+                <a href="#/forensics" aria-label="进入来源核验">查看闭环</a>
+              </li>
+              <li>
+                <span class="innovation-no">02</span><svg class="innovation-icon" aria-hidden="true"><use href="./icons/provenance-icons.svg#conflict"></use></svg>
+                <div><small>冲突证据</small><strong>4×4 有向冲突治理</strong><p>A→B 不等于 B→A；以身份聚类置信区间、96 项约束和 Pareto 可行域约束部署选择。</p></div>
+                <a href="#/benchmark" aria-label="查看红队评测">查看矩阵</a>
+              </li>
+              <li>
+                <span class="innovation-no">03</span><svg class="innovation-icon" aria-hidden="true"><use href="./icons/provenance-icons.svg#claim"></use></svg>
+                <div><small>声明证据</small><strong>声明即代码 · 防回滚审计</strong><p>原始逐样本结果、协议、实现哈希与签名共同放行；任一门禁失败，性能主张自动隐藏。</p></div>
+                <a href="#/audit" aria-label="查看证据审计">查看门禁</a>
+              </li>
             </ol>
           </section>
 
-          <section class="scale-stage" aria-label="项目实证规模">
-            <div><strong>8×</strong><span>H100 80GB</span><small>规模实验算力底座</small></div>
-            <div><strong>256</strong><span>SIMSWAP PAIRS</span><small>64 标定 + 192 留出</small></div>
-            <div><strong>15</strong><span>ATTACKS</span><small>压缩 · 几何 · 噪声 · 深度伪造</small></div>
-            <div><strong>4×4</strong><span>MEA MATRIX</span><small>多水印方向性冲突矩阵</small></div>
-            <div><strong>4,096</strong><span>MEA ROWS</span><small>256 图像 × 16 有向组合</small></div>
-            <div><strong>Ed25519</strong><span>EVIDENCE</span><small>实验、实现与发布验签</small></div>
+          <section class="scale-stage" aria-label="提交版本实证规模">
+            <div><strong>351</strong><span>自动化测试</span><small>47 个测试文件 · 全量通过</small></div>
+            <div><strong>39</strong><span>接口路由</span><small>Web / Android / 小程序能力闭环</small></div>
+            <div><strong>4,096</strong><span>MEA 评测行</span><small>256 图像 × 16 有向组合</small></div>
+            <div><strong>192</strong><span>隔离留出对</span><small>SimSwap 身份隔离留出集</small></div>
+            <div><strong>99.48%</strong><span>KAD-Net 识别率</span><small>固定 SimSwap 留出协议</small></div>
+            <div><strong>0 / 576</strong><span>观察到的误接受</span><small>三类负对照 · 同协议观察值</small></div>
           </section>
 
           <section class="policy-stage" aria-labelledby="policyTitle">
             <div class="policy-stage-head">
               <div>
-                <span class="exhibit">SOCIAL CONTEXT · POLICY RESPONSE</span>
+                <span class="exhibit">社会背景 · 政策响应</span>
                 <h3 id="policyTitle">从“深度合成治理”走向“生成内容全链路标识”</h3>
                 <p>政策要求正在从风险治理延伸到生成、导出、传播环节的显式与隐式标识。鉴源盾进一步研究标识经历攻击后的鲁棒核验与证据追溯。</p>
               </div>
-              <div class="policy-signal" aria-label="政策状态"><i></i><span>POLICY SIGNAL</span><strong id="policyYear">2022</strong></div>
+              <div class="policy-signal" aria-label="政策状态"><i></i><span>政策状态</span><strong id="policyYear">2022</strong></div>
             </div>
             <div class="policy-timeline" id="policyTimeline" role="list">
               <button class="active" type="button" data-policy-index="0" role="listitem">
@@ -197,12 +383,13 @@
             <div class="judge-grid">
               <a href="#/forensics"><span>创新性</span><strong>从算法指标到内容全生命周期取证</strong><small>主动保护 · 盲检核验 · MEA 威胁</small></a>
               <a href="#/benchmark"><span>技术深度</span><strong>四模型统一协议与身份隔离评测</strong><small>真实换脸 · 聚类置信区间 · 硬约束</small></a>
-              <a href="#/audit"><span>完成度</span><strong>可运行、可复算、可验签的工程系统</strong><small>API · 报告 · Manifest · Ed25519</small></a>
+              <a href="#/audit"><span>完成度</span><strong>可运行、可复算、可验签的工程系统</strong><small>接口 · 报告 · 清单 · Ed25519</small></a>
               <a href="#/forensics"><span>社会价值</span><strong>服务创作者确权与平台内容治理</strong><small>版权保护 · 合规审核 · 责任追溯</small></a>
             </div>
           </section>
 
-          <section class="summary-row">
+          <div class="overview-density-grid">
+            <section class="summary-row">
             <div class="stat" data-status-card="hiddenStatus">
               <span>历史弱对照 · HiDDeN</span>
               <strong id="hiddenStatus">-</strong>
@@ -231,110 +418,23 @@
             <div class="stat" data-status-card="reportStatus">
               <span>报告</span>
               <strong id="reportStatus">-</strong>
-              <small>JSON / CSV / Markdown</small>
+            <small>报告格式：JSON · CSV · Markdown</small>
             </div>
           </section>
 
-          <section class="panel asset-status-panel">
+            <section class="panel asset-status-panel">
             <div class="panel-head">
               <div>
                 <h3>本地运行状态</h3>
                 <span id="localStatusSummary">正在同步资产状态</span>
               </div>
-              <span id="localStatusBadge" class="panel-badge muted">checking</span>
+              <span id="localStatusBadge" class="panel-badge muted">检查中</span>
             </div>
             <div class="asset-detail-list" id="assetDetailList"></div>
           </section>
 
-        <section class="panel mea-overview-panel" style="margin-bottom:1.5rem">
-          <div class="panel-head">
-            <div>
-              <h3>MEA 多重嵌入攻击矩阵</h3>
-              <span>行=先嵌入 Source | 列=后嵌入 Attacker</span>
-            </div>
-            <span id="meaMatrixBadge" class="panel-badge">loading</span>
-          </div>
-          <div class="table-wrap">
-            <table id="meaMatrixTable">
-              <thead>
-                <tr id="meaMatrixHead">
-                  <th>Source ↓ / Attacker →</th>
-                  <th>LIDMark</th><th>KAD-Net</th><th>SepMark</th><th>WaveGuard</th>
-                </tr>
-              </thead>
-              <tbody id="meaMatrixBody"></tbody>
-            </table>
-          </div>
-          <p style="font-size:11px;opacity:.6;margin:.5rem 0 0">
-            阈值来自统一协议；不同消息长度和 decoder 语义需分开解释。
-          </p>
-        </section>
-
-        <section class="panel simswap-evidence-panel" style="margin-bottom:1.5rem">
-          <span class="exhibit">REAL FACE-SWAP EVIDENCE</span>
-          <div class="panel-head">
-            <div>
-              <h3>真实换脸证据 · official SimSwap / LFW</h3>
-              <span>第三方换脸引擎评测；项目增量是身份隔离协议、四对照统计、实现哈希与签名验链</span>
-            </div>
-            <span id="simswapEvidenceBadge" class="panel-badge muted">waiting</span>
-          </div>
-          <div id="simswapEvidenceStatus" class="demo-status" aria-live="polite">等待固定 n256 证据</div>
-          <div class="simswap-coverage" aria-label="真实换脸证据覆盖">
-            <div><span>PAIR SPLIT</span><strong id="simswapPairCoverage">—</strong><small>total / calibration / holdout</small></div>
-            <div><span>MODEL ROWS</span><strong id="simswapResultCoverage">—</strong><small>observed / expected</small></div>
-            <div><span>ARCFACE EMBEDDINGS</span><strong id="simswapIdentityCoverage">—</strong><small>observed / expected</small></div>
-            <div><span>RELEASE GATE</span><strong id="simswapClaimState">—</strong><small>claim_valid + implementation + signer</small></div>
-          </div>
-          <div class="table-wrap simswap-table-wrap">
-            <table>
-              <thead><tr>
-                <th>第三方水印模型</th>
-                <th>TAR observed</th>
-                <th>TAR Wilson 95% LCB</th>
-                <th>FAR observed · 3 controls</th>
-                <th>每控制 FAR observed → Wilson 95% UCB</th>
-                <th>流程内身份迁移 Wilson 95% LCB</th>
-                <th>迁移条件下登记恢复 Wilson 95% LCB</th>
-              </tr></thead>
-              <tbody id="simswapEvidenceRows"><tr><td colspan="7">等待 release-core 证据验链</td></tr></tbody>
-            </table>
-          </div>
-          <div id="simswapGateDetails" class="simswap-gate-details"></div>
-        </section>
-
-        <section class="panel collaboration-panel" style="margin-bottom:1.5rem">
-          <span class="exhibit">DEPLOYMENT POLICY</span>
-          <div class="panel-head">
-            <div>
-              <h3>证据驱动策略推荐器 · 单模型部署建议</h3>
-              <span>基于 256 图像 / 217 身份等权聚类 bootstrap、固定 96 项选择族、硬约束与可行域 Pareto；只输出部署建议，不自动执行双水印</span>
-            </div>
-            <span id="collaborationBadge" class="panel-badge muted">waiting</span>
-          </div>
-          <form id="collaborationForm" class="collaboration-form">
-            <fieldset>
-              <legend>二次嵌入威胁</legend>
-              <label><input type="checkbox" name="collaborationThreat" value="LIDMark" checked> LIDMark</label>
-              <label><input type="checkbox" name="collaborationThreat" value="KAD-Net" checked> KAD-Net</label>
-              <label><input type="checkbox" name="collaborationThreat" value="SepMark" checked> SepMark</label>
-              <label><input type="checkbox" name="collaborationThreat" value="WaveGuard" checked> WaveGuard</label>
-            </fieldset>
-            <label>决策偏好
-              <select id="collaborationProfile">
-                <option value="balanced">均衡 · risk 0.6 / quality 0.2 / min normalized margin LCB 0.45</option>
-                <option value="security">安全优先 · risk 0.9 / min normalized margin LCB 0.70（硬约束阻断）</option>
-                <option value="quality">质量优先 · quality 0.45 / min normalized margin LCB 0.45</option>
-              </select>
-            </label>
-            <button id="collaborationRun" class="primary-action" type="submit">生成证据绑定部署建议</button>
-          </form>
-          <div id="collaborationStatus" class="demo-status">等待选择威胁模型</div>
-          <div id="collaborationResult" class="collaboration-result"></div>
-        </section>
-
-          <section class="panel module-registry-panel">
-            <span class="exhibit">MODULE REGISTRY</span>
+            <section class="panel module-registry-panel">
+            <span class="exhibit">模块注册表</span>
             <div class="panel-head">
               <div>
                 <h3>核心模块</h3>
@@ -342,39 +442,65 @@
               </div>
             </div>
             <div class="module-list" id="moduleList"></div>
-          </section>
+            </section>
+          </div>
         </section>
 
         <!-- ──────────── 视图 02 · 互动取证 ──────────── -->
         <section class="view" id="view-forensics" hidden>
           <section class="live-demo-intro provenance-intro">
             <div>
-              <span>PROVENANCE WORKSPACE / H100 ACTIVE</span>
-              <h2>内容溯源工作台</h2>
-              <p>对原始内容建立可信登记，在传播变换后执行盲解码，并生成可核验的证据事件。</p>
+              <span>来源核验 / 在线流程</span>
+              <h2>用一张图片，走完来源证据闭环</h2>
+              <p>先建立来源登记，再模拟真实传播，最后凭观测文件与内容 ID 完成盲核验。来源裁决以模型解码和既有登记记录为依据。</p>
             </div>
-            <div class="demo-rule"><b>验证原则</b><strong>Blind Decode</strong><small>仅使用观测文件与既有内容 ID</small></div>
+            <div class="demo-rule"><b>验证原则</b><strong>盲解码</strong><small>仅使用观测文件与既有内容 ID</small></div>
           </section>
 
-          <div class="process-line" aria-label="内容溯源流程">
-            <span><i>01</i>INGEST</span><b></b><span><i>02</i>REGISTER</span><b></b><span><i>03</i>TRANSFORM</span><b></b><span><i>04</i>VERIFY</span>
+          <section class="evidence-semantics" aria-label="三类证据语义">
+            <div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3 6 21M18 3l-2 18M3 9h18M2 15h18"/></svg><span>字节一致</span><strong>文件哈希</strong><small>判断文件是否逐字节一致</small></div>
+            <i aria-hidden="true">≠</i>
+            <div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 20 6v5c0 5.1-3.2 8.7-8 10-4.8-1.3-8-4.9-8-10V6z"/><path d="m8.5 12 2.2 2.2 4.8-4.8"/></svg><span>来源关系</span><strong>主动水印</strong><small>判断传播后能否恢复登记来源</small></div>
+            <i aria-hidden="true">+</i>
+            <div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l3 3v15H6z"/><path d="M15 3v4h4M9 13l2 2 4-4"/></svg><span>证据可信</span><strong>签名声明</strong><small>判断当前结论是否通过发布门禁</small></div>
+          </section>
+
+            <div class="process-line" aria-label="内容溯源流程">
+              <a href="#/register"><i>01</i>来源登记</a><b></b><a href="#/transform"><i>02</i>传播实验</a><b></b><a href="#/verify"><i>03</i>来源核验</a><b></b><a href="#/audit"><i>04</i>证据收口</a>
           </div>
+
+          <section class="trace-case-panel" aria-labelledby="traceCaseTitle">
+            <div class="trace-case-head">
+              <div>
+                <span class="exhibit">CASE 01 · 可复现溯源</span>
+                <h3 id="traceCaseTitle">一张图片如何留下可验证来源</h3>
+                <p>用自己的图片完成登记，再进行受控二次编辑；最终以内容 ID、盲解码得分、事件编号和签名门禁共同给出结论。</p>
+              </div>
+            </div>
+            <ol class="trace-case-steps" id="traceCaseSteps">
+              <li data-case-step="source"><b>01</b><div><strong>上传原创图</strong><small id="traceCaseSource">选择图片并计算原始哈希</small></div></li>
+              <li data-case-step="registered"><b>02</b><div><strong>来源登记</strong><small id="traceCaseRegistered">绑定主体、模型和内容 ID</small></div></li>
+              <li data-case-step="edited"><b>03</b><div><strong>二次编辑</strong><small id="traceCaseEdited">生成传播后的观测文件</small></div></li>
+              <li data-case-step="submitted"><b>04</b><div><strong>送入核验</strong><small id="traceCaseSubmitted">观测图与内容 ID写入核验事件</small></div></li>
+              <li data-case-step="verified"><b>05</b><div><strong>具体溯源</strong><small id="traceCaseVerified">比对得分、阈值、事件与签名</small></div></li>
+            </ol>
+          </section>
 
           <section class="demo-workspace" id="scenarioPanel">
             <div class="scenario-nav">
-              <div><strong>当前会话</strong><small>变换在浏览器侧生成，保护与核验由 H100 执行</small></div>
-              <div class="session-state"><i></i>SECURE SESSION</div>
+              <div><strong>当前会话</strong><small>变换在浏览器侧生成，保护与核验由算力节点执行</small></div>
+              <div class="session-state"><i></i>安全会话</div>
             </div>
 
             <!-- 场景1: 单图全生命周期 -->
             <div id="scene-creator" class="scene-block evidence-theatre">
               <div class="theatre-grid">
-                <section class="theatre-card source-stage">
-                  <div class="stage-head"><b>01</b><div><strong>原始内容</strong><small>选择现场图片</small></div></div>
+                <section class="theatre-card source-stage" data-workflow-step="register">
+                  <div class="stage-head"><b>01</b><div><strong>来源登记</strong><small>选择内容并建立原始来源</small></div></div>
                   <label class="image-drop" for="protectFile">
-                    <input type="file" id="protectFile" form="protectForm" accept="image/jpeg,image/png,image/webp" required>
-                    <img id="sourcePreview" alt="原始图片预览" hidden>
-                    <span id="sourcePlaceholder"><b>选择一张图片</b><small>PNG / JPEG / WEBP · 最大 5 MB</small></span>
+                    <input type="file" id="protectFile" form="protectForm" accept="image/*,.heic,.heif" required>
+                    <img id="sourcePreview" decoding="async" alt="原始图片预览" hidden>
+                    <span id="sourcePlaceholder"><b>选择或拍摄一张图片</b><small>支持手机 HEIC / HEIF · 大图自动转为兼容 JPEG</small></span>
                   </label>
                   <dl class="file-facts" id="sourceFileMeta">
                     <div><dt>文件</dt><dd>等待上传</dd></div>
@@ -383,20 +509,20 @@
                   </dl>
                   <div class="inline-operator">
                     <form id="protectForm" class="operator-form compact-operator">
-                      <label>创作者引用<input type="text" id="creatorRef" maxlength="128" placeholder="creator-001" required></label>
-                      <label>保护模型<select id="protectModel" disabled>
+                      <label><span class="field-label">登记主体编号 <i title="用于关联同一创作者的多次登记。这里只记录稳定编号；身份证明由持钥签名流程完成。">?</i></span><input type="text" id="creatorRef" maxlength="128" placeholder="例如 creator-001" aria-describedby="creatorRefHelp" required><small class="field-help" id="creatorRefHelp">关联同一主体的多次登记；身份可信度由持钥签名确认</small></label>
+                      <label><span class="field-label">主动水印模型 <i title="权重可用的模型可进入研究模式；只有通过权重、阈值和签名门禁的模型才能形成正式来源声明。">?</i></span><select id="protectModel" disabled>
                         <option value="LIDMark">LIDMark</option><option value="SepMark">SepMark</option><option value="WaveGuard">WaveGuard</option><option value="KAD-Net">KAD-Net</option>
-                      </select></label>
-                      <button id="protectBtn" class="primary-action" type="submit" disabled>建立保护登记</button>
+                      </select><small class="field-help">权重可用即可运行研究模式；通过权重、阈值和签名三项检查后可形成正式来源声明</small></label>
+                      <button id="protectBtn" class="primary-action" type="submit" disabled>完成来源登记</button>
                     </form>
-                    <div id="protectModelStatus" class="model-gate-status" aria-live="polite">正在核验模型可信状态</div>
-                    <div id="protectStatus" class="demo-status" aria-live="polite">等待原始内容</div>
+                    <div id="protectModelStatus" class="model-gate-status" aria-live="polite" hidden>正在检查模型权重、核验阈值与签名清单</div>
+                    <div id="protectStatus" class="demo-status" aria-live="polite">选择图片后生成受保护内容与 Content ID</div>
                     <div id="protectResult" class="demo-artifacts"></div>
                   </div>
                 </section>
 
-                <section class="theatre-card attack-stage">
-                  <div class="stage-head"><b>02</b><div><strong>传播攻击</strong><small>可连续组合，生成真实衍生文件</small></div></div>
+                <section class="theatre-card attack-stage" data-workflow-step="transform">
+                  <div class="stage-head"><b>02</b><div><strong>传播压力</strong><small>连续组合变换，生成真实衍生文件</small></div></div>
                   <div class="attack-preview">
                     <canvas id="attackCanvas" width="720" height="480" aria-label="传播后图片"></canvas>
                     <span id="attackPlaceholder">上传原图后开始传播实验</span>
@@ -406,13 +532,21 @@
                     <button type="button" data-local-attack="crop">中心裁剪 <small>保留 80%</small></button>
                     <button type="button" data-local-attack="resize">缩放传播 <small>降至 75%</small></button>
                     <button type="button" data-local-attack="metadata">去除元数据 <small>重新编码</small></button>
+                    <button type="button" data-local-attack="faceshifter">FaceShifter <small>本地代理</small></button>
+                    <button type="button" data-local-attack="fsgan">FSGAN <small>本地代理</small></button>
                   </div>
+                  <small class="attack-data-note">这里操作的是新上传图片；“本地代理”用于演示公开攻击形态，不代表 H100 上的真实模型推理。</small>
                   <div class="attack-log" id="attackLog"><span>尚未执行传播变换</span></div>
                   <button class="use-attack-button" id="useAttackForVerify" type="button" disabled>设为待核验样本</button>
                 </section>
 
-                <section class="theatre-card verdict-stage">
-                  <div class="stage-head"><b>03</b><div><strong>核验结论</strong><small>四项判据互不替代</small></div></div>
+                <section class="theatre-card verdict-stage" data-workflow-step="verify">
+                  <div class="stage-head"><b>03</b><div><strong>来源裁决</strong><small>四项判据互不替代</small></div></div>
+                  <div class="verdict-hero" id="verdictHero" data-state="waiting" aria-live="polite">
+                    <span>来源裁决</span>
+                    <strong id="verdictHeadline">等待来源核验</strong>
+                    <small id="verdictSummary">文件哈希、水印恢复、内容标识与签名声明将分别判定</small>
+                  </div>
                   <div class="verdict-list">
                     <article data-verdict="exact"><span>01</span><div><strong>文件完全一致</strong><small id="verdictExactNote">等待传播版本</small></div><b id="verdictExact">—</b></article>
                     <article data-verdict="watermark"><span>02</span><div><strong>登记消息恢复</strong><small id="verdictWatermarkNote">必须由真实模型盲解码</small></div><b id="verdictWatermark">待核验</b></article>
@@ -426,9 +560,9 @@
                   </div>
                   <div class="inline-operator verify-operator">
                     <form id="verifyForm" class="operator-form compact-operator">
-                      <label>观测文件<input type="file" id="verifyFile" accept="image/jpeg,image/png,image/webp" required></label>
+                      <label>观测文件<input type="file" id="verifyFile" accept="image/*,.heic,.heif" required></label>
                       <label>内容 ID<input type="text" id="verifyContentId" minlength="32" maxlength="32" pattern="[a-f0-9]{32}" placeholder="登记后自动填入" required></label>
-                      <button id="verifyBtn" class="primary-action" type="submit">开始盲核验</button>
+                      <button id="verifyBtn" class="primary-action" type="submit">执行来源核验</button>
                     </form>
                     <div id="verifyStatus" class="demo-status" aria-live="polite">等待观测文件与内容 ID</div>
                     <div id="verifyResult" class="infer-metrics"></div>
@@ -450,20 +584,112 @@
           </section>
         </section>
 
-        <!-- ──────────── 视图 03 · Benchmark ──────────── -->
+        <!-- ──────────── 视图 03 · 攻击实验 ──────────── -->
         <section class="view" id="view-benchmark" hidden>
-          <section class="panel">
-            <span class="exhibit">MODEL COMPARISON</span>
+          <section class="benchmark-command" aria-labelledby="benchmarkTitle">
+            <div>
+              <span class="exhibit">攻击实验 · 固定协议</span>
+              <h2 id="benchmarkTitle">多类传播压力，验证来源防线。</h2>
+              <p>统一攻击协议、统一统计口径、统一证据门禁。实验结果只在完整证据闭合后进入正式声明。</p>
+            </div>
+            <ol class="benchmark-questions">
+              <li><b>01</b><span>真实换脸后还能认源吗？</span><small>SimSwap 已实证 · 两种公开方法扩展</small></li>
+              <li><b>02</b><span>被二次水印覆盖会怎样？</span><small>4×4 有向冲突矩阵</small></li>
+              <li><b>03</b><span>常规传播后还能恢复吗？</span><small>压缩、几何与噪声变换</small></li>
+            </ol>
+          </section>
+
+          <section class="panel simswap-evidence-panel evidence-feature">
+            <span class="exhibit">问题 01 · 真实换脸</span>
             <div class="panel-head">
               <div>
-                <h3>方法对比</h3>
-                <span id="aggregatePath">pending</span>
+                <h3>真实换脸证据 · SimSwap / LFW</h3>
+                <span>来源恢复、三类负对照与流程内身份迁移，组成三组独立证据</span>
+              </div>
+              <span id="simswapEvidenceBadge" class="panel-badge muted">等待读取</span>
+            </div>
+            <div id="simswapEvidenceStatus" class="demo-status" aria-live="polite">等待固定 n256 证据</div>
+            <div class="simswap-coverage" aria-label="真实换脸证据覆盖">
+              <div><span>样本划分</span><strong id="simswapPairCoverage">—</strong><small>总数 / 校准 / 留出</small></div>
+              <div><span>模型结果</span><strong id="simswapResultCoverage">—</strong><small>已观测 / 预期</small></div>
+              <div><span>身份向量</span><strong id="simswapIdentityCoverage">—</strong><small>已观测 / 预期</small></div>
+              <div><span>证据状态</span><strong id="simswapClaimState">—</strong><small>覆盖 + 实现哈希 + 签名</small></div>
+            </div>
+            <div class="table-wrap simswap-table-wrap">
+              <table>
+                <thead><tr>
+                  <th>主动水印模型</th><th>观察接受率</th><th>接受率下界</th>
+                  <th>误接受率 · 三组对照</th><th>各对照误接受率上界</th>
+                  <th>流程内身份迁移下界</th><th>迁移条件下登记恢复下界</th>
+                </tr></thead>
+                <tbody id="simswapEvidenceRows"><tr><td colspan="7">正在校验证据链</td></tr></tbody>
+              </table>
+            </div>
+            <div id="simswapGateDetails" class="simswap-gate-details"></div>
+          </section>
+
+          <section class="panel mea-overview-panel evidence-feature">
+            <span class="exhibit">问题 02 · 二次嵌入攻击</span>
+            <div class="panel-head">
+              <div>
+                <h3>4×4 有向水印冲突矩阵</h3>
+                <span>行是先嵌入的来源模型，列是后嵌入的攻击模型；方向相反，风险并不对称</span>
+              </div>
+              <span id="meaMatrixBadge" class="panel-badge">读取中</span>
+            </div>
+            <div class="direction-note"><span>Source ↓</span><i>A → B ≠ B → A</i><span>Attacker →</span></div>
+            <div class="table-wrap">
+              <table id="meaMatrixTable">
+                <thead><tr id="meaMatrixHead"><th>Source ↓ / Attacker →</th><th>LIDMark</th><th>KAD-Net</th><th>SepMark</th><th>WaveGuard</th></tr></thead>
+                <tbody id="meaMatrixBody"></tbody>
+              </table>
+            </div>
+            <p class="evidence-footnote">阈值来自统一协议；不同消息长度与解码器语义保持独立解释，跨模型比较采用归一化安全裕量。</p>
+          </section>
+
+          <section class="panel collaboration-panel evidence-feature">
+            <span class="exhibit">从证据到决策</span>
+            <div class="panel-head">
+              <div>
+                <h3>证据绑定的部署策略</h3>
+                <span>256 图像 / 217 身份等权聚类 bootstrap，固定 96 项选择族，以硬约束和 Pareto 可行域输出模型结果</span>
+              </div>
+              <span id="collaborationBadge" class="panel-badge muted">等待读取</span>
+            </div>
+            <form id="collaborationForm" class="collaboration-form">
+              <fieldset>
+                <legend>二次嵌入威胁</legend>
+                <label><input type="checkbox" name="collaborationThreat" value="LIDMark" checked> LIDMark</label>
+                <label><input type="checkbox" name="collaborationThreat" value="KAD-Net" checked> KAD-Net</label>
+                <label><input type="checkbox" name="collaborationThreat" value="SepMark" checked> SepMark</label>
+                <label><input type="checkbox" name="collaborationThreat" value="WaveGuard" checked> WaveGuard</label>
+              </fieldset>
+              <label>决策偏好
+                <select id="collaborationProfile">
+                  <option value="balanced">均衡 · risk 0.6 / quality 0.2 / min normalized margin LCB 0.45</option>
+                  <option value="security">安全优先 · risk 0.9 / min normalized margin LCB 0.70（硬约束阻断）</option>
+                  <option value="quality">质量优先 · quality 0.45 / min normalized margin LCB 0.45</option>
+                </select>
+              </label>
+              <button id="collaborationRun" class="primary-action" type="submit">生成证据绑定结果</button>
+            </form>
+            <div id="collaborationStatus" class="demo-status">等待选择威胁模型</div>
+            <p class="collaboration-guard">只输出部署建议，不自动执行双水印。</p>
+            <div id="collaborationResult" class="collaboration-result"></div>
+          </section>
+
+          <section class="panel">
+            <span class="exhibit">问题 03 · 常规传播攻击</span>
+            <div class="panel-head">
+              <div>
+                <h3>统一协议方法对比</h3>
+                <span id="aggregatePath">固定评测数据：LFW 与签名报告；不自动混入当前上传图片</span>
               </div>
               <div class="segmented" aria-label="method filter">
                 <button class="active" data-filter="all" type="button">全部</button>
                 <button data-filter="real" type="button">证据已验证</button>
-                <button data-filter="smoke" type="button">Smoke</button>
-                <button data-filter="pending" type="button">Pending</button>
+                <button data-filter="smoke" type="button">流程校验</button>
+                <button data-filter="pending" type="button">待补测</button>
               </div>
             </div>
             <div class="table-wrap">
@@ -471,11 +697,12 @@
                 <thead>
                   <tr>
                     <th>方法</th>
-                    <th>checkpoint</th>
+                    <th>攻击</th>
+                    <th>模型权重</th>
                     <th>数据</th>
                     <th class="num-col">样本</th>
-                    <th class="num-col">clean BER</th>
-                    <th class="num-col">clean Acc</th>
+                    <th class="num-col">BER</th>
+                    <th class="num-col">比特准确率</th>
                     <th>证据可用性</th>
                     <th>状态</th>
                   </tr>
@@ -487,58 +714,58 @@
 
           <section class="evidence-grid">
             <article class="panel">
-              <span class="exhibit">SEPMARK / LFW</span>
+              <span class="exhibit">SepMark · 对照结果</span>
               <div class="panel-head">
                 <div>
-                  <h3>SepMark LFW benchmark</h3>
-                  <span>official MEA checkpoint · decoder_C / decoder_RF</span>
+                  <h3>SepMark 对照结果</h3>
+                  <span>统一协议下的双通道恢复结果</span>
                 </div>
-                <span class="panel-badge">主 baseline</span>
+                <span class="panel-badge real">实测已验证</span>
               </div>
               <div class="table-wrap">
                 <table>
                   <thead>
-                    <tr><th>attack</th><th class="num-col">BER-C</th><th class="num-col">Acc-C</th><th class="num-col">BER-RF</th><th class="num-col">Acc-RF</th><th class="num-col">Success</th></tr>
+                    <tr><th>攻击方式</th><th class="num-col">BER-C</th><th class="num-col">Acc-C</th><th class="num-col">BER-RF</th><th class="num-col">Acc-RF</th><th class="num-col">成功率</th></tr>
                   </thead>
                   <tbody id="sepmarkRows"></tbody>
                 </table>
               </div>
-              <img id="sepmarkGrid" class="benchmark-image" alt="SepMark benchmark grid" />
+              <img id="sepmarkGrid" class="benchmark-image" loading="lazy" decoding="async" alt="SepMark benchmark grid" />
             </article>
 
             <article class="panel">
-              <span class="exhibit">HIDDEN / EVIDENCE STATUS</span>
+              <span class="exhibit">HiDDeN · 基线状态</span>
               <div class="panel-head">
                 <div>
-                  <h3>HiDDeN benchmark evidence</h3>
-                  <span>仅在签名 artifact 可用时展示</span>
+                  <h3>HiDDeN 基线</h3>
+                  <span>本轮未纳入正式实测，保留为后续基线补测项</span>
                 </div>
-                <span class="panel-badge muted">弱对照</span>
+                <span class="panel-badge warning">待补测</span>
               </div>
               <div class="table-wrap">
                 <table>
                   <thead>
-                    <tr><th>attack</th><th class="num-col">BER</th><th class="num-col">Bit Acc</th><th class="num-col">PSNR</th><th class="num-col">SSIM</th><th class="num-col">Success</th></tr>
+                    <tr><th>攻击方式</th><th class="num-col">BER</th><th class="num-col">比特准确率</th><th class="num-col">PSNR</th><th class="num-col">SSIM</th><th class="num-col">成功率</th></tr>
                   </thead>
                   <tbody id="hiddenRows"></tbody>
                 </table>
               </div>
-              <img id="hiddenGrid" class="benchmark-image" alt="HiDDeN benchmark grid" />
+              <img id="hiddenGrid" class="benchmark-image" loading="lazy" decoding="async" alt="HiDDeN benchmark grid" />
             </article>
 
             <article class="panel">
-              <span class="exhibit">WAVEGUARD / EVIDENCE STATUS</span>
+              <span class="exhibit">WaveGuard · 证据状态</span>
               <div class="panel-head">
                 <div>
-                  <h3>WaveGuard baseline</h3>
-                  <span>tracer 主通道 / detector 辅通道，双通道分开报告</span>
+                  <h3>WaveGuard 对照结果</h3>
+                  <span>主通道与辅助通道分开报告</span>
                 </div>
-                <span class="panel-badge warning">baseline</span>
+                <span class="panel-badge real">实测已验证</span>
               </div>
               <div class="table-wrap">
                 <table>
                   <thead>
-                    <tr><th>attack</th><th class="num-col">BER-tr</th><th class="num-col">Acc-tr</th><th class="num-col">BER-det</th><th class="num-col">Acc-det</th><th class="num-col">Success</th></tr>
+                    <tr><th>攻击方式</th><th class="num-col">BER-tr</th><th class="num-col">Acc-tr</th><th class="num-col">BER-det</th><th class="num-col">Acc-det</th><th class="num-col">成功率</th></tr>
                   </thead>
                   <tbody id="waveguardRows"></tbody>
                 </table>
@@ -547,18 +774,18 @@
 
 
             <article class="panel">
-              <span class="exhibit">KAD-NET / EVIDENCE STATUS</span>
+              <span class="exhibit">KAD-Net · 证据状态</span>
               <div class="panel-head">
                 <div>
-                  <h3>KAD-Net benchmark evidence</h3>
-                  <span>等待 checkpoint、数据清单与逐图结果共同放行</span>
+                  <h3>KAD-Net 实验结果</h3>
+                  <span>模型权重、数据清单与逐图结果均已完成校验</span>
                 </div>
-                <span class="panel-badge warning">review</span>
+                <span class="panel-badge real">实测已验证</span>
               </div>
               <div class="table-wrap">
                 <table>
                   <thead>
-                    <tr><th>attack</th><th class="num-col">BER</th><th class="num-col">Bit Acc</th><th class="num-col">PSNR</th><th class="num-col">SSIM</th><th class="num-col">Success</th></tr>
+                    <tr><th>攻击方式</th><th class="num-col">BER</th><th class="num-col">比特准确率</th><th class="num-col">PSNR</th><th class="num-col">SSIM</th><th class="num-col">成功率</th></tr>
                   </thead>
                   <tbody id="kadnetRows"></tbody>
                 </table>
@@ -566,34 +793,48 @@
             </article>
 
             <article class="panel wide">
-              <span class="exhibit">ROBUSTNESS CURVE</span>
+              <span class="exhibit">传播退化曲线</span>
               <div class="panel-head">
                 <div>
                   <h3>攻击退化曲线</h3>
-                  <span>clean / JPEG / resize / noise</span>
+                  <span>固定评测数据：原图、压缩、缩放、噪声；上传图片仅用于在线传播实验</span>
                 </div>
                 <div class="report-actions">
-                  <a href="#" data-report-format="json">JSON</a>
-                  <a href="#" data-report-format="csv">CSV</a>
-                  <a href="#" data-report-format="markdown">Markdown</a>
+                  <a href="#" data-report-format="json">下载 JSON</a>
+                  <a href="#" data-report-format="csv">下载 CSV</a>
+                  <a href="#" data-report-format="markdown">下载说明</a>
                 </div>
               </div>
-              <img id="degradationCurve" class="benchmark-image chart-image" alt="attack degradation curve" />
+              <img id="degradationCurve" class="benchmark-image chart-image" loading="lazy" decoding="async" alt="attack degradation curve" />
             </article>
           </section>
         </section>
 
         <!-- ──────────── 视图 04 · 证据审计 ──────────── -->
         <section class="view" id="view-audit" hidden>
+          <section class="audit-command" aria-labelledby="auditCommandTitle">
+            <div>
+              <span class="exhibit">证据中心 · 发布门禁</span>
+              <h2 id="auditCommandTitle">每一条正式结论，都先通过证据核验。</h2>
+              <p>原始结果、实验协议、实现哈希、模型权重和签名身份同时闭合，系统才允许形成正式声明。</p>
+            </div>
+            <ol class="audit-chain" aria-label="证据发布链">
+              <li><b>01</b><span>逐样本结果</span><small>逐样本结果</small></li>
+              <li><b>02</b><span>固定协议</span><small>固定口径与数据清单</small></li>
+              <li><b>03</b><span>实现</span><small>代码与权重哈希</small></li>
+              <li><b>04</b><span>签名声明</span><small>Ed25519 放行</small></li>
+            </ol>
+          </section>
+
           <section class="panel audit-panel">
-            <span class="exhibit">AUTOMATED AUDIT</span>
+            <span class="exhibit">发布门禁 · 自动审计</span>
             <div class="panel-head">
-              <div><h3>证据与实验协议审计</h3><span>自动识别异常指标、协议差异和证据文件哈希</span></div>
-              <span id="auditStatus" class="panel-badge warning" aria-live="polite">loading</span>
+                <div><h3>发布声明门禁</h3><span>自动核对指标、协议、实现版本和证据文件哈希</span></div>
+              <span id="auditStatus" class="panel-badge warning" aria-live="polite">正在检查</span>
             </div>
             <div id="auditFindings" class="audit-findings"></div>
             <div class="report-actions">
-              <a href="#" data-signature-file="manifest">证据 Manifest</a>
+              <a href="#" data-signature-file="manifest">证据清单</a>
               <a href="#" data-signature-file="signature">Ed25519 签名</a>
               <a href="#" data-signature-file="public-key">验证公钥</a>
             </div>
@@ -601,37 +842,37 @@
 
           <section class="evidence-grid">
             <article class="panel">
-              <span class="exhibit">LIDMARK / RAW EVIDENCE</span>
+              <span class="exhibit">LIDMark · 原始证据</span>
               <div class="panel-head">
                 <div>
-                  <h3>LIDMark evaluation evidence</h3>
-                  <span>性能主张由 claims gate 控制</span>
+                  <h3>LIDMark 评测证据</h3>
+                  <span>签名证据与逐样本汇总可展开核查</span>
                 </div>
-                <span class="panel-badge warning">review</span>
+                <span class="panel-badge real">实测已验证</span>
               </div>
-              <details class="evidence-fold" open>
-                <summary>RAW EVIDENCE JSON</summary>
+               <details class="evidence-fold">
+                <summary>原始证据 JSON</summary>
                 <pre id="lidmarkJson">{}</pre>
               </details>
             </article>
 
             <article class="panel">
-              <span class="exhibit">WAVEGUARD / RAW EVIDENCE</span>
+              <span class="exhibit">WaveGuard · 原始证据</span>
               <div class="panel-head">
                 <div>
-                  <h3>WaveGuard baseline</h3>
-                  <span>detector / tracer 指标分离；等待签名 artifact</span>
+                  <h3>WaveGuard 评测证据</h3>
+                  <span>双通道指标分离报告，签名证据已验证</span>
                 </div>
-                <span class="panel-badge warning">review</span>
+                <span class="panel-badge real">实测已验证</span>
               </div>
-              <details class="evidence-fold" open>
-                <summary>RAW EVIDENCE JSON</summary>
+               <details class="evidence-fold">
+                <summary>原始证据 JSON</summary>
                 <pre id="waveguardJson">{}</pre>
               </details>
             </article>
 
             <article class="panel wide">
-              <span class="exhibit">EVIDENCE EXPORTS</span>
+              <span class="exhibit">证据导出</span>
               <div class="panel-head">
                 <div>
                   <h3>证据导出产物</h3>
@@ -642,9 +883,42 @@
             </article>
           </section>
         </section>
+
+        <section class="view" id="view-profile" hidden>
+          <section class="profile-command">
+            <div>
+              <span class="exhibit">个人中心 · 当前会话</span>
+              <h2>管理访问会话与工作偏好。</h2>
+              <p>这里只保留操作所需信息，不展示后台调试数据。</p>
+            </div>
+            <div class="profile-avatar-large" id="profileAvatar">鉴</div>
+          </section>
+          <section class="profile-grid">
+            <article class="panel profile-card">
+              <span class="exhibit">访问身份</span>
+              <h3 id="profileDisplayName">鉴源管理员</h3>
+              <p>平台访问 · 当前会话有效</p>
+              <button class="primary-action" type="button" id="profileLogoutButton">退出登录</button>
+            </article>
+            <article class="panel profile-card">
+              <span class="exhibit">工作入口</span>
+              <div class="profile-links">
+                <a href="#/register">新建来源登记</a>
+                <a href="#/verify">继续来源核验</a>
+                <a href="#/audit">查看证据中心</a>
+              </div>
+            </article>
+            <article class="panel profile-card profile-wide">
+              <span class="exhibit">系统状态</span>
+              <div class="profile-status-row"><span>在线算力</span><strong id="profileGpuStatus">读取中</strong></div>
+              <div class="profile-status-row"><span>证据门禁</span><strong id="profileAuditStatus">读取中</strong></div>
+              <div class="profile-status-row"><span>接口地址</span><code id="profileApiEndpoint">当前服务</code></div>
+            </article>
+          </section>
+        </section>
       </main>
     </div>
-    <script src="./trust-contracts.js?v=20260820-refine-3"></script>
-    <script src="./app.js?v=20260820-refine-3"></script>
+    <script src="./trust-contracts.js?v=1.0.0-20260830"></script>
+    <script src="./app.js?v=1.0.0-20260830"></script>
   </body>
 </html>

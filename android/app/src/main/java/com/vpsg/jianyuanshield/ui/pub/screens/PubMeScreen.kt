@@ -140,7 +140,7 @@ fun PubMeScreen(
                         MenuRow(palette = 2, icon = PubIcons.cloud, title = "服务器设置", sub = "配置地址、测试连接、演示/大字模式", divider = true, onClick = onOpenServer)
                         MenuRow(palette = 3, icon = PubIcons.lock, title = "隐私与数据", sub = "图片如何上传与使用", divider = true, onClick = { onOpenInfo("privacy") })
                         MenuRow(palette = 0, icon = PubIcons.help, title = "帮助中心", sub = "怎么用?结果怎么看?", divider = true, onClick = { onOpenInfo("help") })
-                        MenuRow(indigo = true, icon = PubIcons.info, title = "关于鉴源盾", sub = "版本 V2.0.0 · 我们是谁", divider = false, onClick = { onOpenInfo("about") })
+                        MenuRow(indigo = true, icon = PubIcons.info, title = "关于鉴源盾", sub = "版本 V1.0.0 · 我们是谁", divider = false, onClick = { onOpenInfo("about") })
                     }
                 }
 

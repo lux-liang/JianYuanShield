@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 from contextlib import asynccontextmanager
 from contextlib import suppress
+from threading import Thread
 
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
@@ -23,6 +24,7 @@ from .security import (
 )
 from .settings import settings, validate_server_settings
 from .routes import router
+from .public_snapshots import warm_public_snapshots
 
 
 def _warmup_adapters() -> None:
@@ -48,6 +50,13 @@ async def _artifact_janitor() -> None:
         await asyncio.sleep(interval)
 
 
+def _public_snapshot_warmer() -> None:
+    try:
+        warm_public_snapshots()
+    except Exception as exc:
+        logger.warning("public snapshot warmup error=%s", exc.__class__.__name__)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):  # noqa: ARG001
     if settings.warmup_models:
@@ -55,6 +64,14 @@ async def lifespan(app: FastAPI):  # noqa: ARG001
         await asyncio.to_thread(_warmup_adapters)
         logger.info("adapter warmup completed")
     janitor = asyncio.create_task(_artifact_janitor())
+    # Snapshot generation may need tens of seconds on cold storage. A dedicated
+    # daemon thread keeps application shutdown deterministic: cancelling an
+    # asyncio.to_thread task still makes asyncio wait for the executor worker.
+    Thread(
+        target=_public_snapshot_warmer,
+        name="jys-public-snapshot-warmer",
+        daemon=True,
+    ).start()
     try:
         yield
     finally:
