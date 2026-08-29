@@ -67,4 +67,4 @@ python scripts/build_software_copyright_package.py --check
 python tools/smoke_public_session.py --base-url https://example.invalid/jianyuanshield --username '<管理员账号>' --password-file /run/secrets/jys_ui_password
 ```
 
-V1.0 全量自动化基线共 398 项测试，其中 397 项通过、1 项因环境条件跳过；最终结果以发布 commit 归档的测试输出为准。每次部署和证书、域名或边缘配置变更后，仍须复核 TLS、HSTS、明文跳转、鉴权、资源配额、密钥存储、备份/恢复、日志脱敏、数据删除和模型供应链。
+V1.0 全量自动化基线共 406 项测试，其中 405 项通过、1 项因环境条件跳过；最终结果以发布 commit 归档的测试输出为准。每次部署和证书、域名或边缘配置变更后，仍须复核 TLS、HSTS、明文跳转、鉴权、资源配额、密钥存储、备份/恢复、日志脱敏、数据删除和模型供应链。
