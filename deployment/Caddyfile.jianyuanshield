@@ -1,144 +1,183 @@
+{
+	# Clients connecting to a literal IP commonly omit SNI. Select the same
+	# managed IP certificate for an empty ClientHello server name.
+	default_sni 81.70.178.203
+}
+
 (jianyuanshield_proxy) {
-    redir /jianyuanshield /jianyuanshield/ 308
-    redir /jys /jianyuanshield/ 308
-    redir /jys/ /jianyuanshield/ 308
+	redir /jianyuanshield /jianyuanshield/ 308
+	redir /jys /jianyuanshield/ 308
+	redir /jys/ /jianyuanshield/ 308
 
-    encode zstd gzip
+	encode zstd gzip
 
-    header {
-        Content-Security-Policy "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
-        Cross-Origin-Opener-Policy "same-origin"
-        Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
-        Referrer-Policy "no-referrer"
-        X-Content-Type-Options "nosniff"
-        X-Frame-Options "DENY"
-    }
+	header {
+		Content-Security-Policy "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		Cross-Origin-Opener-Policy "same-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		Referrer-Policy "no-referrer"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+	}
 
-    # Defense in depth: the release builder already omits these paths, but a
-    # recursively matched deny rule prevents an operator mistake or legacy
-    # release from exposing dotfiles, backups, credentials or key material.
-    @private_frontend path_regexp private_frontend `(?i)(?:^|/)(?:\.[^/]+|backups?|credentials?|passwords?|tokens?|secrets?|keys?|key[-_]?materials?|private[-_]?keys?)(?:/|$)|(?:^|/)[^/]*(?:credential|password|secret|token)[^/]*(?:/|$)|(?:^|/)(?:id_(?:rsa|ed25519)[^/]*|authorized_keys|known_hosts|[^/]+\.(?:bak(?:[-._][^/]*)?|orig|tmp|swp|swo|map|pem|key|p12|pfx|pkcs8|jks|keystore|der|pub))(?:/|$)|(?:^|/)[^/]+~(?:/|$)`
-    respond @private_frontend 404
+	# Defense in depth: the release builder already omits these paths, but a
+	# recursively matched deny rule prevents an operator mistake or legacy
+	# release from exposing dotfiles, backups, credentials or key material.
+	@private_frontend path_regexp private_frontend `(?i)(?:^|/)(?:\.[^/]+|backups?|credentials?|passwords?|tokens?|secrets?|keys?|key[-_]?materials?|private[-_]?keys?)(?:/|$)|(?:^|/)[^/]*(?:credential|password|secret|token)[^/]*(?:/|$)|(?:^|/)(?:id_(?:rsa|ed25519)[^/]*|authorized_keys|known_hosts|[^/]+\.(?:bak(?:[-._][^/]*)?|orig|tmp|swp|swo|map|pem|key|p12|pfx|pkcs8|jks|keystore|der|pub))(?:/|$)|(?:^|/)[^/]+~(?:/|$)`
+	# Keep this in the same mutually exclusive handle group as the SPA
+	# fallback. A bare `respond` is sorted after `handle_path` during Caddy
+	# adaptation and would otherwise return index.html with HTTP 200.
+	handle @private_frontend {
+		respond 404
+	}
 
-    # Deployment-time model trust state changes only when weights/evidence are
-    # released. Serve its signed snapshot at the edge so UI polling never
-    # competes with GPU inference or repeatedly hashes large checkpoints.
-    handle /jianyuanshield/api/models/status {
-        root * /opt/JianYuanShield/current/system/edge-api
-        rewrite * /models-status.json
-        header Cache-Control "no-store"
-        header Content-Type "application/json"
-        file_server
-    }
+	# Deployment-time model trust state changes only when weights/evidence are
+	# released. Serve its signed snapshot at the edge so UI polling never
+	# competes with GPU inference or repeatedly hashes large checkpoints.
+	handle /jianyuanshield/api/models/status {
+		root * /opt/JianYuanShield/current/system/edge-api
+		rewrite * /models-status.json
+		header Cache-Control "no-store"
+		header Content-Type "application/json"
+		file_server
+	}
 
-    handle_path /jianyuanshield/api/* {
-        request_body {
-            max_size 96MB
-        }
-        rewrite * /api{path}
-        reverse_proxy 127.0.0.1:18080 {
-            # The edge is the only public proxy. Discard every client supplied
-            # forwarding identity and pass one canonical address to the H100
-            # gateway, which rebuilds X-Forwarded-* for Uvicorn.
-            header_up -Forwarded
-            header_up -Via
-            header_up -X-Forwarded-For
-            header_up -X-Forwarded-Host
-            header_up -X-Forwarded-Port
-            header_up -X-Forwarded-Proto
-            header_up -X-Real-IP
-            header_up X-JYS-Client-IP {remote_host}
-            transport http {
-                dial_timeout 5s
-                response_header_timeout 180s
-            }
-        }
-    }
+	handle_path /jianyuanshield/api/* {
+		request_body {
+			max_size 96MB
+		}
+		rewrite * /api{path}
+		reverse_proxy 127.0.0.1:18080 {
+			# The edge is the only public proxy. Discard every client supplied
+			# forwarding identity and pass one canonical address to the H100
+			# gateway, which rebuilds X-Forwarded-* for Uvicorn.
+			header_up -Forwarded
+			header_up -Via
+			header_up -X-Forwarded-For
+			header_up -X-Forwarded-Host
+			header_up -X-Forwarded-Port
+			header_up -X-Forwarded-Proto
+			header_up -X-Real-IP
+			header_up X-JYS-Client-IP {remote_host}
+			# Normalize edge-owned security headers and do not disclose the
+			# gateway or application server implementation.
+			header_down -Server
+			header_down -Date
+			header_down -Via
+			header_down -Content-Security-Policy
+			header_down -Cross-Origin-Opener-Policy
+			header_down -Permissions-Policy
+			header_down -Referrer-Policy
+			header_down -X-Content-Type-Options
+			header_down -X-Frame-Options
+			transport http {
+				dial_timeout 5s
+				response_header_timeout 180s
+			}
+		}
+	}
 
-    handle_path /jianyuanshield/artifacts/* {
-        rewrite * /api{path}
-        reverse_proxy 127.0.0.1:18080 {
-            header_up -Forwarded
-            header_up -Via
-            header_up -X-Forwarded-For
-            header_up -X-Forwarded-Host
-            header_up -X-Forwarded-Port
-            header_up -X-Forwarded-Proto
-            header_up -X-Real-IP
-            header_up X-JYS-Client-IP {remote_host}
-            transport http {
-                dial_timeout 5s
-                response_header_timeout 180s
-            }
-        }
-    }
+	handle_path /jianyuanshield/artifacts/* {
+		rewrite * /api{path}
+		reverse_proxy 127.0.0.1:18080 {
+			header_up -Forwarded
+			header_up -Via
+			header_up -X-Forwarded-For
+			header_up -X-Forwarded-Host
+			header_up -X-Forwarded-Port
+			header_up -X-Forwarded-Proto
+			header_up -X-Real-IP
+			header_up X-JYS-Client-IP {remote_host}
+			header_down -Server
+			header_down -Date
+			header_down -Via
+			header_down -Content-Security-Policy
+			header_down -Cross-Origin-Opener-Policy
+			header_down -Permissions-Policy
+			header_down -Referrer-Policy
+			header_down -X-Content-Type-Options
+			header_down -X-Frame-Options
+			transport http {
+				dial_timeout 5s
+				response_header_timeout 180s
+			}
+		}
+	}
 
-    @versioned_assets path \
-        /jianyuanshield/assets/* \
-        /jianyuanshield/icons/* \
-        /jianyuanshield/vendor/*
-    handle @versioned_assets {
-        uri strip_prefix /jianyuanshield
-        root * /opt/JianYuanShield/current/system/frontend
-        # These paths are not content-hashed yet. Revalidate hourly so an
-        # atomic deploy cannot leave a browser on a year-old icon or image.
-        header Cache-Control "public, max-age=3600, must-revalidate"
-        file_server
-    }
+	@versioned_assets path \
+ /jianyuanshield/assets/* \
+ /jianyuanshield/icons/* \
+ /jianyuanshield/vendor/*
+	handle @versioned_assets {
+		uri strip_prefix /jianyuanshield
+		root * /opt/JianYuanShield/current/system/frontend
+		# These paths are not content-hashed yet. Revalidate hourly so an
+		# atomic deploy cannot leave a browser on a year-old icon or image.
+		header Cache-Control "public, max-age=3600, must-revalidate"
+		file_server
+	}
 
-    handle_path /jianyuanshield/* {
-        root * /opt/JianYuanShield/current/system/frontend
-        header Cache-Control "no-cache"
-        try_files {path} /index.html
-        file_server
-    }
+	handle_path /jianyuanshield/* {
+		root * /opt/JianYuanShield/current/system/frontend
+		header Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
 }
 
 # Keep the historical IP entry point, but never accept image uploads over
 # plaintext HTTP. Other applications on this host retain their existing paths.
 :80 {
-    @jianyuanshield path /jianyuanshield /jianyuanshield/*
-    redir @jianyuanshield https://jianyuanshield.81.70.178.203.nip.io{uri} 308
-    redir /jys https://jianyuanshield.81.70.178.203.nip.io/jianyuanshield/ 308
-    redir /jys/ https://jianyuanshield.81.70.178.203.nip.io/jianyuanshield/ 308
+	@jianyuanshield path /jianyuanshield /jianyuanshield/*
+	redir @jianyuanshield https://81.70.178.203{uri} 308
+	redir /jys https://81.70.178.203/jianyuanshield/ 308
+	redir /jys/ https://81.70.178.203/jianyuanshield/ 308
 
-    redir /sjtu /sjtu/ 308
-    handle_path /sjtu/* {
-        reverse_proxy 127.0.0.1:8091
-    }
+	redir /sjtu /sjtu/ 308
+	handle_path /sjtu/* {
+		reverse_proxy 127.0.0.1:8091
+	}
 
-    redir /xigao /xigao/ 308
-    handle_path /xigao/* {
-        reverse_proxy 127.0.0.1:18028
-    }
+	redir /xigao /xigao/ 308
+	handle_path /xigao/* {
+		reverse_proxy 127.0.0.1:18028
+	}
 
-    log {
-        output file /var/lib/caddy/caddy-access.log {
-            roll_size 10mb
-            roll_keep 5
-        }
-    }
+	log {
+		output file /var/lib/caddy/caddy-access.log {
+			roll_size 10mb
+			roll_keep 5
+		}
+	}
 }
 
-# nip.io resolves this host name to the public IP, allowing Caddy to obtain and
-# renew a standard TLS certificate without coupling the app to a paid domain.
-jianyuanshield.81.70.178.203.nip.io {
-    redir / /jianyuanshield/ 308
-    import jianyuanshield_proxy
+# Let’s Encrypt has generally available short-lived IP certificates. Using the
+# literal address avoids third-party wildcard DNS and the cloud provider's
+# unregistered-domain interception while retaining browser-trusted TLS.
+https://81.70.178.203 {
+	tls {
+		issuer acme https://acme-v02.api.letsencrypt.org/directory {
+			profile shortlived
+			disable_tlsalpn_challenge
+		}
+	}
 
-    header Strict-Transport-Security "max-age=31536000; includeSubDomains"
-    log {
-        output file /var/lib/caddy/jianyuanshield-access.log {
-            roll_size 10mb
-            roll_keep 5
-        }
-    }
+	redir / /jianyuanshield/ 308
+	import jianyuanshield_proxy
+
+	header Strict-Transport-Security "max-age=31536000"
+	log {
+		output file /var/lib/caddy/jianyuanshield-access.log {
+			roll_size 10mb
+			roll_keep 5
+		}
+	}
 }
 
 http://xigao.81.70.178.203.nip.io {
-    reverse_proxy 127.0.0.1:18028
+	reverse_proxy 127.0.0.1:18028
 }
 
 http://xigao-school.81.70.178.203.nip.io {
-    reverse_proxy 127.0.0.1:18028
+	reverse_proxy 127.0.0.1:18028
 }

@@ -36,10 +36,11 @@
 9. 建立原图上传、受保护图、来源记录、创作者引用、日志和备份的字段级留存、删除、访问和事件响应规则。
 10. 将 GPU 推理放在可回收 worker 与有界队列中，对多副本的总并发、显存、CPU、内存和磁盘设置配额。
 11. 静态资源使用不可变版本目录和原子 `current` 链接发布，发布前校验 SHA-256 清单，切换失败时保持或显式恢复上一版本。
+12. 在 SPA fallback 之前显式拒绝 dotfile、备份、凭据、密钥、source map 和临时文件路径；部署后必须从公网逐项验证返回 404，而不是只检查磁盘内容或 Caddyfile 文本。
 
 ## 当前安全边界
 
-- V1.0 在线入口为 [https://jianyuanshield.81.70.178.203.nip.io/jianyuanshield/](https://jianyuanshield.81.70.178.203.nip.io/jianyuanshield/)，由边缘层提供 TLS 与 HSTS；应用进程和同源网关之间的 HTTP 只限受控内网链路，不得绕过边缘入口上传用户图像或凭证。
+- V1.0 在线入口为 [https://81.70.178.203/jianyuanshield/](https://81.70.178.203/jianyuanshield/)，由边缘层使用自动续期的短期公网 IP 证书提供 TLS 与 HSTS；应用进程和同源网关之间的 HTTP 只限受控内网链路，不得绕过边缘入口上传用户图像或凭证。
 - 当前 UI 会话是单管理员部署模型，采用服务端 HMAC 签名会话、Secure/HttpOnly/SameSite Cookie、CSRF 校验和登录失败限速；公开只读状态接口仍可匿名访问，且它不提供租户隔离、对象所有权或用户生命周期管理。
 - 当前仓库前端契约只将 KAD-Net 设为 `provenance_ready` 正例；适配器列出其他模型不代表它们已受信。实际状态以 `/api/models/status` 为准。
 - 后端与 Android 已实现一次性 Ed25519 创作者挑战；Web 和小程序直连保护表单尚未提交挑战字段，生产模式应拒绝这类请求。
@@ -63,6 +64,7 @@ python -m unittest discover -s tests -p 'test_*.py' -v
 python -m unittest -v tests.test_security tests.test_api_hardening tests.test_creator_identity tests.test_signing
 python scripts/check_documentation.py
 python scripts/build_software_copyright_package.py --check
+python tools/smoke_public_session.py --base-url https://example.invalid/jianyuanshield --username '<管理员账号>' --password-file /run/secrets/jys_ui_password
 ```
 
 V1.0 全量自动化基线共 398 项测试，其中 397 项通过、1 项因环境条件跳过；最终结果以发布 commit 归档的测试输出为准。每次部署和证书、域名或边缘配置变更后，仍须复核 TLS、HSTS、明文跳转、鉴权、资源配额、密钥存储、备份/恢复、日志脱敏、数据删除和模型供应链。

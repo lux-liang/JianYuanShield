@@ -45,7 +45,8 @@
 - 提供 Web 可视化系统、Android 客户端和原生微信小程序。
 - 提供同源静态/API 网关，使浏览器不需获取后端 API Key。
 - 将 Web 明文硬编码演示口令替换为服务端 HMAC 签名会话、HttpOnly/Secure Cookie、CSRF 校验和有界登录失败限速；生产口令与会话密钥只从权限受控的 secret file 读取。
-- 将 [V1.0 在线演示](https://jianyuanshield.81.70.178.203.nip.io/jianyuanshield/) 统一到 HTTPS；边缘层终止 TLS、启用 HSTS，并将明文访问跳转到 HTTPS。
+- 将 [V1.0 在线演示](https://81.70.178.203/jianyuanshield/) 统一到 HTTPS；边缘层使用自动续期的短期公网 IP 证书终止 TLS、启用 HSTS，并将明文访问跳转到 HTTPS。
+- 将公网边缘升级到 Caddy 2.11.4；私有/备份/密钥命名路径在 SPA fallback 前显式返回 404，并统一移除上游实现标识及重复安全响应头。
 - 公网静态资源改为不可变版本目录与原子 `current` 链接发布，切换前校验 SHA-256 清单，并保留旧版本用于显式回滚。
 - 提供容器、供应链、签名离线包和恢复自检工具。
 - 提供软著专用文档、原创/第三方边界和默认排除敏感/第三方材料的可验证源码包工具。

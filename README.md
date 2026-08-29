@@ -14,7 +14,7 @@
 
 **创作者持钥证明 · 四模型主动水印 · AIGC 双重标识 · 自包含来源凭证 · 防回滚审计 · 签名撤销 · MEA 4×4 红队评测**
 
-**[V1.0 HTTPS 在线演示](https://jianyuanshield.81.70.178.203.nip.io/jianyuanshield/)** · [三分钟答辩](docs/DEFENSE_SCRIPT_3MIN.md) · [国一对标卡](docs/NATIONAL_FIRST_SCORECARD.md) · [证据索引](docs/EVIDENCE_INDEX.md) · [核心创新](#核心创新) · [正式实验](#已完成的正式实验) · [快速开始](#快速开始)
+**[V1.0 HTTPS 在线演示](https://81.70.178.203/jianyuanshield/)** · [三分钟答辩](docs/DEFENSE_SCRIPT_3MIN.md) · [国一对标卡](docs/NATIONAL_FIRST_SCORECARD.md) · [证据索引](docs/EVIDENCE_INDEX.md) · [核心创新](#核心创新) · [正式实验](#已完成的正式实验) · [快速开始](#快速开始)
 
 </div>
 

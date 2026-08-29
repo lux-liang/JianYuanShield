@@ -471,6 +471,11 @@ def _add_table(document: Document, rows: list[list[str]]) -> None:
             paragraph = cell.paragraphs[0]
             paragraph.style = "JYS Table"
             paragraph.paragraph_format.space_after = Pt(0)
+            if row_index == 0 and len(normalized) > 1:
+                # Keep the heading attached to at least one data row. Word's
+                # repeating-header flag alone can still strand a header at the
+                # bottom of a page before the first table body row.
+                paragraph.paragraph_format.keep_with_next = True
             paragraph.alignment = (
                 WD_ALIGN_PARAGRAPH.CENTER
                 if row_index == 0 or (column_index == 0 and len(value) <= 12)

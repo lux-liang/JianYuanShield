@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+from contextlib import redirect_stderr, redirect_stdout
 import hashlib
+import io
+import json
 from pathlib import Path
+import subprocess
 import tempfile
 import unittest
 import zipfile
@@ -48,9 +52,39 @@ class SoftwareCopyrightPackageTests(unittest.TestCase):
                 content = f"# {package.SOFTWARE_NAME}\n"
             self.write(relative, content)
 
+    def init_git_repository(self) -> str:
+        commands = (
+            ("init",),
+            ("config", "user.name", "Package Test"),
+            ("config", "user.email", "package-test@example.invalid"),
+            ("add", "--all"),
+            ("commit", "-m", "fixture"),
+        )
+        for command in commands:
+            completed = subprocess.run(
+                ["git", *command],
+                cwd=self.root,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+            )
+            if completed.returncode != 0:
+                self.fail(f"git {' '.join(command)} failed: {completed.stderr}")
+        return subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            cwd=self.root,
+            text=True,
+            encoding="ascii",
+        ).strip()
+
     def test_default_policy_excludes_upstream_models_runtime_and_private_media(self) -> None:
         self.write("KAD-Net/network.py", "upstream = True\n")
         self.write("model-sources/WaveGuard/model.py", "upstream = True\n")
+        self.write("third_party/KAD-Net/nested.py", "upstream = True\n")
         self.write("system/frontend/vendor/library.js", "thirdParty();\n")
         self.write("weights/model.pth", b"checkpoint")
         self.write("datasets/LFW/person.jpg", b"portrait")
@@ -93,6 +127,7 @@ class SoftwareCopyrightPackageTests(unittest.TestCase):
         for forbidden in (
             "KAD-Net/network.py",
             "model-sources/WaveGuard/model.py",
+            "third_party/KAD-Net/nested.py",
             "system/frontend/vendor/library.js",
             "weights/model.pth",
             "datasets/LFW/person.jpg",
@@ -118,7 +153,16 @@ class SoftwareCopyrightPackageTests(unittest.TestCase):
             "miniprogram/assets/sound.mp3",
         ):
             self.assertNotIn(forbidden, paths)
-        manifest = package._manifest_bytes(collection.entries)
+        manifest = package._manifest_bytes(
+            collection.entries,
+            source_state=package.SourceState(
+                kind="exported_tree",
+                source_commit=None,
+                working_tree_clean=None,
+                dirty_override_used=False,
+            ),
+            final=False,
+        )
         self.assertNotIn(windows_home.encode("utf-8"), manifest)
         self.assertNotIn(h100_home.encode("utf-8"), manifest)
         self.assertGreater(collection.exclusions.get("third_party_model_source", 0), 0)
@@ -131,16 +175,28 @@ class SoftwareCopyrightPackageTests(unittest.TestCase):
     def test_build_outputs_archive_source_inventory_and_verifiable_hashes(self) -> None:
         output = self.base / "delivery/JianYuanShield-V1.0-source.zip"
         result = package.build_package(self.root, output)
+        metadata_path = Path(result["build_metadata"])
         manifest_path = Path(result["source_manifest"])
         sums_path = Path(result["sha256_manifest"])
         package_hash_path = Path(result["archive_sha256_file"])
 
         self.assertTrue(output.is_file())
+        self.assertTrue(metadata_path.is_file())
         self.assertTrue(manifest_path.is_file())
         self.assertTrue(sums_path.is_file())
         self.assertTrue(package_hash_path.is_file())
         self.assertIn(package.SOFTWARE_NAME, manifest_path.read_text(encoding="utf-8"))
         self.assertIn("system/backend/app.py", manifest_path.read_text(encoding="utf-8"))
+        self.assertIn(
+            "# source_commit\tnot_available_exported_tree",
+            manifest_path.read_text(encoding="utf-8"),
+        )
+        metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        self.assertEqual(metadata["source_kind"], "exported_tree")
+        self.assertIsNone(metadata["source_commit"])
+        self.assertIsNone(metadata["working_tree_clean"])
+        self.assertEqual(result["source_kind"], "exported_tree")
+        self.assertIsNone(result["source_commit"])
 
         package_hash, package_name = package_hash_path.read_text(encoding="ascii").split()
         self.assertEqual(package_name, output.name)
@@ -148,10 +204,19 @@ class SoftwareCopyrightPackageTests(unittest.TestCase):
 
         with zipfile.ZipFile(output, "r") as archive:
             names = set(archive.namelist())
+            self.assertIn(f"{package.ARCHIVE_ROOT}/BUILD_METADATA.json", names)
             self.assertIn(f"{package.ARCHIVE_ROOT}/SOURCE_MANIFEST.tsv", names)
             self.assertIn(f"{package.ARCHIVE_ROOT}/SHA256SUMS", names)
             self.assertIn(f"{package.ARCHIVE_ROOT}/source/system/backend/app.py", names)
             self.assertNotIn(f"{package.ARCHIVE_ROOT}/source/.env", names)
+            self.assertEqual(
+                metadata,
+                json.loads(
+                    archive.read(f"{package.ARCHIVE_ROOT}/BUILD_METADATA.json").decode(
+                        "utf-8"
+                    )
+                ),
+            )
             sums = archive.read(f"{package.ARCHIVE_ROOT}/SHA256SUMS").decode("utf-8")
             for line in sums.splitlines():
                 digest, relative = line.split("  ", 1)
@@ -206,6 +271,134 @@ class SoftwareCopyrightPackageTests(unittest.TestCase):
             "apparent personal absolute path",
         ):
             package.collect_source_files(self.root)
+
+    def test_appdata_and_root_runtime_absolute_paths_fail_closed(self) -> None:
+        cases = {
+            "Windows AppData": (
+                "C:" + "\\Users\\alice\\AppData\\Local\\JianYuanShield"
+            ),
+            "root runtime": "/root/" + "jialiang_liang/runtime/JianYuanShield",
+        }
+        for label, absolute_path in cases.items():
+            with self.subTest(label=label):
+                path = self.write(
+                    "system/backend/local_runtime.py",
+                    f'LOCAL_RUNTIME = r"{absolute_path}"\n',
+                )
+                with self.assertRaisesRegex(
+                    package.PackageError,
+                    "apparent personal absolute path",
+                ):
+                    package.collect_source_files(self.root)
+                path.unlink()
+
+    def test_plaintext_secret_assignments_fail_but_placeholders_are_allowed(self) -> None:
+        self.write("configs/runtime.yaml", 'api_key: "sk-live-secret-value"\n')
+        with self.assertRaisesRegex(package.PackageError, "apparent plaintext"):
+            package.collect_source_files(self.root)
+
+        self.write("configs/runtime.yaml", 'api_key: "${JYS_API_KEY}"\n')
+        collection = package.collect_source_files(self.root)
+        self.assertIn(
+            "configs/runtime.yaml",
+            {entry.relative_path for entry in collection.entries},
+        )
+
+        self.write(
+            "tests/test_fixture.py",
+            'api_key = "a" * 32\ntoken = "expected-test-key"\n'
+            "session_secret = session_secret\n",
+        )
+        package.collect_source_files(self.root)
+
+        self.write("configs/runtime.yaml", "SESSION_SECRET=Abc!1234-secret\n")
+        with self.assertRaisesRegex(package.PackageError, "apparent plaintext"):
+            package.collect_source_files(self.root)
+
+    def test_final_gate_rejects_unresolved_placeholders_but_draft_allows_them(self) -> None:
+        self.write(
+            "docs/software-copyright/申请信息清单.md",
+            f"# {package.SOFTWARE_NAME}\n申请人：[待填写]\n",
+        )
+        draft = package.check_project(self.root)
+        self.assertEqual(draft["build_mode"], "draft")
+        with self.assertRaisesRegex(package.PackageError, r"unresolved \[待…\]"):
+            package.check_project(self.root, final=True)
+        with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            self.assertEqual(
+                package.main(["--root", str(self.root), "--check", "--final"]),
+                2,
+            )
+
+    def test_dependency_lock_and_sbom_are_evidence_not_first_party_source(self) -> None:
+        self.write("requirements.lock", "dependency==1.0 --hash=sha256:fixture\n")
+        self.write(
+            "supply-chain/python-dependencies.cdx.json",
+            '{"bomFormat":"CycloneDX"}\n',
+        )
+        categories = {
+            entry.relative_path: entry.category
+            for entry in package.collect_source_files(self.root).entries
+        }
+        self.assertEqual(
+            categories["requirements.lock"],
+            "第三方依赖清单/证据",
+        )
+        self.assertEqual(
+            categories["supply-chain/python-dependencies.cdx.json"],
+            "第三方依赖清单/证据",
+        )
+
+    def test_clean_git_commit_and_state_are_recorded_in_manifest_and_json(self) -> None:
+        self.write(".gitignore", "dist/\n")
+        commit = self.init_git_repository()
+        self.write("dist/prior-package.zip", b"ignored output")
+        output = self.base / "delivery/clean-source.zip"
+
+        result = package.build_package(self.root, output)
+
+        self.assertEqual(result["source_commit"], commit)
+        self.assertTrue(result["working_tree_clean"])
+        manifest = Path(result["source_manifest"]).read_text(encoding="utf-8")
+        self.assertIn(f"# source_commit\t{commit}", manifest)
+        self.assertIn("# working_tree_clean\ttrue", manifest)
+        metadata = json.loads(Path(result["build_metadata"]).read_text(encoding="utf-8"))
+        self.assertEqual(metadata["source_commit"], commit)
+        self.assertTrue(metadata["working_tree_clean"])
+        self.assertFalse(metadata["dirty_override_used"])
+
+    def test_dirty_git_tree_is_rejected_except_development_check_override(self) -> None:
+        commit = self.init_git_repository()
+        self.write("system/backend/app.py", "print('dirty change')\n")
+        self.write("untracked.py", "untracked = True\n")
+
+        with self.assertRaisesRegex(package.PackageError, "Git worktree is dirty"):
+            package.check_project(self.root)
+        with self.assertRaisesRegex(package.PackageError, "Git worktree is dirty"):
+            package.build_package(self.root, self.base / "dirty.zip")
+
+        result = package.check_project(self.root, allow_dirty=True)
+        self.assertEqual(result["source_commit"], commit)
+        self.assertFalse(result["working_tree_clean"])
+        self.assertTrue(result["dirty_override_used"])
+        stdout = io.StringIO()
+        with redirect_stdout(stdout), redirect_stderr(io.StringIO()):
+            self.assertEqual(
+                package.main(
+                    ["--root", str(self.root), "--check", "--allow-dirty"]
+                ),
+                0,
+            )
+        cli_result = json.loads(stdout.getvalue())
+        self.assertFalse(cli_result["working_tree_clean"])
+        self.assertTrue(cli_result["dirty_override_used"])
+        with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
+            self.assertEqual(
+                package.main(["--root", str(self.root), "--allow-dirty"]),
+                2,
+            )
+        with self.assertRaisesRegex(package.PackageError, "cannot be combined"):
+            package.check_project(self.root, allow_dirty=True, final=True)
 
     def test_existing_outputs_require_force(self) -> None:
         output = self.base / "delivery/source.zip"

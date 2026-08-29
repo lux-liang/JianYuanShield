@@ -21,6 +21,7 @@ import os
 from pathlib import Path, PurePosixPath
 import re
 import stat
+import subprocess
 import sys
 import tempfile
 from typing import Iterable
@@ -246,11 +247,41 @@ PRIVATE_KEY_RE = re.compile(
 PERSONAL_ABSOLUTE_PATH_RE = re.compile(
     rb"(?i)(?:"
     rb"[a-z]:[\\/]+users[\\/]+[a-z0-9._ -]+[\\/]+"
-    rb"(?:desktop|documents|downloads|projects?|workspaces?)[\\/]"
+    rb"(?:appdata|desktop|documents|downloads|projects?|workspaces?)[\\/]"
     rb"|/(?:home|users)/[a-z0-9._-]+/"
     rb"(?:desktop|documents|downloads|projects?|workspaces?)/"
-    rb"|/root/[a-z0-9._-]+/(?:desktop|documents|downloads|projects?|workspaces?)/"
+    rb"|/root/[a-z0-9._-]+/"
+    rb"(?:desktop|documents|downloads|projects?|runtime|workspaces?)/"
     rb")"
+)
+PLAINTEXT_SECRET_ASSIGNMENT_RE = re.compile(
+    r'''(?im)^[ \t]*["']?'''
+    r'''(?:[a-z0-9]+[_-])*'''
+    r'''(?:password|passwd|pwd|token|api[_-]?key|secret|secret[_-]?key|client[_-]?secret)'''
+    r'''["']?[ \t]*(?:=|:)[ \t]*["'](?P<value>[^"'\r\n]+)["']'''
+)
+PLAINTEXT_SECRET_BARE_ASSIGNMENT_RE = re.compile(
+    r'''(?im)^[ \t]*["']?'''
+    r'''(?:[a-z0-9]+[_-])*'''
+    r'''(?:password|passwd|pwd|token|api[_-]?key|secret|secret[_-]?key|client[_-]?secret)'''
+    r'''["']?[ \t]*(?:=|:)[ \t]*(?P<value>[a-z0-9!@$%^&*+_=.?/-]{8,})[ \t]*(?:[#;].*)?\r?$'''
+)
+FINAL_PLACEHOLDER_RE = re.compile(r"\[\u5f85[^\]\r\n]{0,120}\]")
+SAFE_SECRET_VALUE_RE = re.compile(
+    r"(?i)^(?:"
+    r"attacker-controlled|change-?me|dummy(?:-?value)?|example(?:-?value)?|"
+    r"not-?set|placeholder|"
+    r"false|none|null|redacted|replace-?me|sample(?:-?value)?|test(?:-?value)?|"
+    r"true|(?:expected-)?test(?:-[a-z0-9._-]+)*|x+|\*+|"
+    r"<[^>]+>|\$\{[^}]+\}"
+    r")$"
+)
+
+THIRD_PARTY_EVIDENCE_FILES = frozenset(
+    {
+        "requirements.lock",
+        "supply-chain/python-dependencies.cdx.json",
+    }
 )
 
 SOURCE_SUFFIX_LABELS = {
@@ -320,6 +351,128 @@ class Collection:
     exclusions: dict[str, int]
 
 
+@dataclass(frozen=True)
+class SourceState:
+    kind: str
+    source_commit: str | None
+    working_tree_clean: bool | None
+    dirty_override_used: bool
+    porcelain: str = ""
+
+
+def _run_git(root: Path, *arguments: str) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(
+            ["git", "-C", str(root), "-c", "core.quotepath=false", *arguments],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=30,
+            check=False,
+        )
+    except FileNotFoundError as exc:
+        raise PackageError(
+            "Git metadata is present but the git executable is unavailable"
+        ) from exc
+    except subprocess.TimeoutExpired as exc:
+        raise PackageError("timed out while inspecting the Git worktree") from exc
+
+
+def inspect_source_state(root: Path, *, allow_dirty: bool = False) -> SourceState:
+    """Return an auditable Git snapshot, or explicit export-tree metadata."""
+
+    try:
+        root = root.expanduser().resolve(strict=True)
+    except OSError as exc:
+        raise PackageError(f"project root is missing or unreadable: {root}") from exc
+    if not root.is_dir():
+        raise PackageError(f"project root is not a directory: {root}")
+
+    git_marker = root / ".git"
+    if not git_marker.exists() and not git_marker.is_symlink():
+        return SourceState(
+            kind="exported_tree",
+            source_commit=None,
+            working_tree_clean=None,
+            dirty_override_used=False,
+        )
+
+    top_level = _run_git(root, "rev-parse", "--show-toplevel")
+    if top_level.returncode != 0:
+        raise PackageError("project contains .git metadata but is not a valid Git worktree")
+    try:
+        repository_root = Path(top_level.stdout.strip()).resolve(strict=True)
+    except OSError as exc:
+        raise PackageError("Git reported an unreadable worktree root") from exc
+    if repository_root != root:
+        raise PackageError(
+            "package root must equal the Git worktree root so the commit covers every source file"
+        )
+
+    commit_result = _run_git(root, "rev-parse", "--verify", "HEAD^{commit}")
+    source_commit = commit_result.stdout.strip().lower()
+    if commit_result.returncode != 0 or not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", source_commit):
+        raise PackageError("Git worktree has no complete, verifiable HEAD commit")
+
+    status_result = _run_git(
+        root,
+        "status",
+        "--porcelain=v1",
+        "--untracked-files=all",
+        "--ignore-submodules=none",
+    )
+    if status_result.returncode != 0:
+        raise PackageError("unable to determine whether the Git worktree is clean")
+    porcelain = status_result.stdout
+    clean = not porcelain.strip()
+    if not clean and not allow_dirty:
+        changed_count = len([line for line in porcelain.splitlines() if line.strip()])
+        raise PackageError(
+            "Git worktree is dirty; commit or remove tracked/untracked changes before "
+            f"building the filing package ({changed_count} status entr"
+            f"{'y' if changed_count == 1 else 'ies'}). "
+            "Use --allow-dirty only for a non-final development check."
+        )
+    return SourceState(
+        kind="git_worktree",
+        source_commit=source_commit,
+        working_tree_clean=clean,
+        dirty_override_used=bool(allow_dirty and not clean),
+        porcelain=porcelain,
+    )
+
+
+def _assert_source_state_stable(root: Path, initial: SourceState) -> None:
+    current = inspect_source_state(root, allow_dirty=True)
+    if (
+        current.kind != initial.kind
+        or current.source_commit != initial.source_commit
+        or current.working_tree_clean != initial.working_tree_clean
+        or current.porcelain != initial.porcelain
+    ):
+        raise PackageError("source tree or Git state changed while the package was being built")
+
+
+def _contains_plaintext_secret(text: str) -> bool:
+    for pattern, bare_value in (
+        (PLAINTEXT_SECRET_ASSIGNMENT_RE, False),
+        (PLAINTEXT_SECRET_BARE_ASSIGNMENT_RE, True),
+    ):
+        for match in pattern.finditer(text):
+            value = match.group("value").strip()
+            if bare_value and re.fullmatch(r"[a-z_][a-z0-9_]*", value, re.IGNORECASE):
+                # A Python/JavaScript variable reference is not embedded secret material.
+                continue
+            if re.match(r"[ \t]*\*[ \t]*[1-9][0-9]*", text[match.end() :]):
+                continue
+            if not SAFE_SECRET_VALUE_RE.fullmatch(value):
+                return True
+    return False
+
+
 def _has_prefix(parts: tuple[str, ...], prefix: tuple[str, ...]) -> bool:
     return len(parts) >= len(prefix) and parts[: len(prefix)] == prefix
 
@@ -345,7 +498,7 @@ def _directory_exclusion(parts: tuple[str, ...]) -> str | None:
     if not parts:
         return None
     leaf = parts[-1]
-    if len(parts) == 1 and leaf in THIRD_PARTY_MODEL_ROOTS:
+    if leaf in THIRD_PARTY_MODEL_ROOTS:
         return "third_party_model_source"
     if len(parts) == 1 and leaf in TOP_LEVEL_RUNTIME_ROOTS:
         return "runtime_or_data"
@@ -451,6 +604,8 @@ def _read_stable_text(path: Path) -> tuple[bytes, os.stat_result]:
 def _source_category(relative_path: str) -> str:
     path = PurePosixPath(relative_path)
     suffix = path.suffix.lower()
+    if relative_path in THIRD_PARTY_EVIDENCE_FILES:
+        return "第三方依赖清单/证据"
     if suffix in SOURCE_SUFFIX_LABELS:
         return SOURCE_SUFFIX_LABELS[suffix]
     if suffix in {".md", ".rst", ".txt"} or path.name == "COPYRIGHT":
@@ -492,7 +647,7 @@ def validate_required_files(root: Path) -> None:
         raise PackageError("COPYRIGHT must not silently grant an open-source license")
 
 
-def collect_source_files(root: Path) -> Collection:
+def collect_source_files(root: Path, *, final: bool = False) -> Collection:
     """Collect a stable, filtered, UTF-8 source snapshot."""
 
     try:
@@ -553,6 +708,17 @@ def collect_source_files(root: Path) -> Collection:
                     "candidate source file contains an apparent personal absolute path: "
                     f"{relative}"
                 )
+            text = data.decode("utf-8-sig")
+            if _contains_plaintext_secret(text):
+                raise PackageError(
+                    "candidate source file contains an apparent plaintext password/token/"
+                    f"api_key/secret assignment: {relative}"
+                )
+            if final and FINAL_PLACEHOLDER_RE.search(text):
+                raise PackageError(
+                    "final filing package contains an unresolved [待…] placeholder: "
+                    f"{relative}"
+                )
             folded = relative.casefold()
             previous = seen_casefold.get(folded)
             if previous is not None:
@@ -585,10 +751,25 @@ def collect_source_files(root: Path) -> Collection:
     return Collection(entries=tuple(entries), exclusions=dict(sorted(exclusions.items())))
 
 
-def _manifest_bytes(entries: Iterable[SourceEntry]) -> bytes:
+def _manifest_bytes(
+    entries: Iterable[SourceEntry],
+    *,
+    source_state: SourceState,
+    final: bool,
+) -> bytes:
+    clean_label = (
+        "not_applicable"
+        if source_state.working_tree_clean is None
+        else str(source_state.working_tree_clean).lower()
+    )
     lines = [
         f"# 软件名称\t{SOFTWARE_NAME}",
         f"# 版本\t{SOFTWARE_VERSION}",
+        f"# build_mode\t{'final' if final else 'draft'}",
+        f"# source_kind\t{source_state.kind}",
+        f"# source_commit\t{source_state.source_commit or 'not_available_exported_tree'}",
+        f"# working_tree_clean\t{clean_label}",
+        f"# dirty_override_used\t{str(source_state.dirty_override_used).lower()}",
         "# 说明\t默认排除第三方模型/构建工具、部署拓扑、演示生成物、权重/数据、运行环境、日志、备份、密钥和常见媒体文件",
         "序号\t相对路径\t类型\t字节数\tSHA256",
     ]
@@ -600,7 +781,36 @@ def _manifest_bytes(entries: Iterable[SourceEntry]) -> bytes:
     return ("\n".join(lines) + "\n").encode("utf-8")
 
 
-def _package_readme_bytes(collection: Collection) -> bytes:
+def _build_metadata_bytes(
+    collection: Collection,
+    *,
+    source_state: SourceState,
+    final: bool,
+) -> bytes:
+    metadata = {
+        "schema_version": 1,
+        "software_name": SOFTWARE_NAME,
+        "software_version": SOFTWARE_VERSION,
+        "build_mode": "final" if final else "draft",
+        "source_kind": source_state.kind,
+        "source_commit": source_state.source_commit,
+        "working_tree_clean": source_state.working_tree_clean,
+        "dirty_override_used": source_state.dirty_override_used,
+        "source_file_count": len(collection.entries),
+        "source_size_bytes": sum(item.size_bytes for item in collection.entries),
+        "excluded": collection.exclusions,
+    }
+    return (
+        json.dumps(metadata, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    ).encode("utf-8")
+
+
+def _package_readme_bytes(
+    collection: Collection,
+    *,
+    source_state: SourceState,
+    final: bool,
+) -> bytes:
     exclusion_summary = "、".join(
         f"{reason}={count}" for reason, count in sorted(collection.exclusions.items())
     ) or "无"
@@ -610,7 +820,8 @@ def _package_readme_bytes(collection: Collection) -> bytes:
         "包体结构：\n"
         "- source/：经默认安全过滤的可读源码、配置、测试和说明文档；\n"
         "- SOURCE_MANIFEST.tsv：源码清单、类型、大小和 SHA-256；\n"
-        "- SHA256SUMS：对 source/、本说明和源码清单的标准 SHA-256 清单。\n"
+        "- BUILD_METADATA.json：构建模式、完整 Git commit 与工作树干净状态；\n"
+        "- SHA256SUMS：对 source/、本说明、构建元数据和源码清单的标准 SHA-256 清单。\n"
         "\n"
         "默认不包含：第三方模型源码、vendor 与 Gradle wrapper，部署拓扑，演示生成物，权重、数据集、运行时资产/"
         "报告，venv，缓存与构建产物，日志，备份，密钥/本地凭据，常见图片、音频和视频。\n"
@@ -618,6 +829,10 @@ def _package_readme_bytes(collection: Collection) -> bytes:
         "本项目尚未选定统一对外开源许可；包体可见性不授予额外使用权。\n"
         "本包用于软件著作权源程序审查，不是可运行离线发行包或完整模型复现包。\n"
         "\n"
+        f"构建模式：{'终稿' if final else '草案'}\n"
+        f"来源类型：{source_state.kind}\n"
+        f"来源提交：{source_state.source_commit or '导出树无 Git 元数据'}\n"
+        f"工作树干净状态：{source_state.working_tree_clean}\n"
         f"源文件数：{len(collection.entries)}\n"
         f"源文件字节数：{sum(item.size_bytes for item in collection.entries)}\n"
         f"构建时排除统计：{exclusion_summary}\n"
@@ -627,10 +842,12 @@ def _package_readme_bytes(collection: Collection) -> bytes:
 def _sha256sums_bytes(
     entries: Iterable[SourceEntry],
     *,
+    metadata_bytes: bytes,
     readme_bytes: bytes,
     manifest_bytes: bytes,
 ) -> bytes:
     records = [
+        (_sha256_bytes(metadata_bytes), "BUILD_METADATA.json"),
         (_sha256_bytes(readme_bytes), "PACKAGE_README.txt"),
         (_sha256_bytes(manifest_bytes), "SOURCE_MANIFEST.tsv"),
     ]
@@ -651,12 +868,14 @@ def _write_zip(
     path: Path,
     collection: Collection,
     *,
+    metadata_bytes: bytes,
     readme_bytes: bytes,
     manifest_bytes: bytes,
     sha256sums_bytes: bytes,
 ) -> None:
     with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         generated = {
+            f"{ARCHIVE_ROOT}/BUILD_METADATA.json": metadata_bytes,
             f"{ARCHIVE_ROOT}/PACKAGE_README.txt": readme_bytes,
             f"{ARCHIVE_ROOT}/SHA256SUMS": sha256sums_bytes,
             f"{ARCHIVE_ROOT}/SOURCE_MANIFEST.tsv": manifest_bytes,
@@ -688,9 +907,10 @@ def _atomic_write(path: Path, data: bytes) -> None:
         temporary.unlink(missing_ok=True)
 
 
-def _sidecar_paths(output: Path) -> tuple[Path, Path, Path]:
+def _sidecar_paths(output: Path) -> tuple[Path, Path, Path, Path]:
     stem = output.name[:-4] if output.name.lower().endswith(".zip") else output.name
     return (
+        output.with_name(f"{stem}.BUILD_METADATA.json"),
         output.with_name(f"{stem}.SOURCE_MANIFEST.tsv"),
         output.with_name(f"{stem}.SHA256SUMS"),
         output.with_name(f"{output.name}.sha256"),
@@ -701,11 +921,13 @@ def _verify_built_archive(
     archive_path: Path,
     entries: Iterable[SourceEntry],
     *,
+    metadata_bytes: bytes,
     readme_bytes: bytes,
     manifest_bytes: bytes,
     sha256sums_bytes: bytes,
 ) -> None:
     expected: dict[str, str] = {
+        f"{ARCHIVE_ROOT}/BUILD_METADATA.json": _sha256_bytes(metadata_bytes),
         f"{ARCHIVE_ROOT}/PACKAGE_README.txt": _sha256_bytes(readme_bytes),
         f"{ARCHIVE_ROOT}/SOURCE_MANIFEST.tsv": _sha256_bytes(manifest_bytes),
         f"{ARCHIVE_ROOT}/SHA256SUMS": _sha256_bytes(sha256sums_bytes),
@@ -727,12 +949,26 @@ def _verify_built_archive(
                 raise PackageError(f"archive member hash mismatch: {name}")
 
 
-def check_project(root: Path) -> dict[str, object]:
-    collection = collect_source_files(root)
+def check_project(
+    root: Path,
+    *,
+    allow_dirty: bool = False,
+    final: bool = False,
+) -> dict[str, object]:
+    if final and allow_dirty:
+        raise PackageError("--final cannot be combined with the development-only --allow-dirty")
+    source_state = inspect_source_state(root, allow_dirty=allow_dirty)
+    collection = collect_source_files(root, final=final)
+    _assert_source_state_stable(root, source_state)
     return {
         "status": "valid",
         "mode": "check",
+        "build_mode": "final" if final else "draft",
         "software_name": SOFTWARE_NAME,
+        "source_kind": source_state.kind,
+        "source_commit": source_state.source_commit,
+        "working_tree_clean": source_state.working_tree_clean,
+        "dirty_override_used": source_state.dirty_override_used,
         "source_file_count": len(collection.entries),
         "source_size_bytes": sum(item.size_bytes for item in collection.entries),
         "excluded": collection.exclusions,
@@ -740,13 +976,21 @@ def check_project(root: Path) -> dict[str, object]:
     }
 
 
-def build_package(root: Path, output: Path, *, force: bool = False) -> dict[str, object]:
-    collection = collect_source_files(root)
+def build_package(
+    root: Path,
+    output: Path,
+    *,
+    force: bool = False,
+    final: bool = False,
+) -> dict[str, object]:
+    source_state = inspect_source_state(root)
+    collection = collect_source_files(root, final=final)
+    _assert_source_state_stable(root, source_state)
     output = output.expanduser().resolve()
     if output.suffix.lower() != ".zip":
         raise PackageError("output path must end in .zip")
-    manifest_path, sums_path, package_hash_path = _sidecar_paths(output)
-    destinations = (output, manifest_path, sums_path, package_hash_path)
+    metadata_path, manifest_path, sums_path, package_hash_path = _sidecar_paths(output)
+    destinations = (output, metadata_path, manifest_path, sums_path, package_hash_path)
     existing = [str(path) for path in destinations if path.exists()]
     if existing and not force:
         raise PackageError(
@@ -754,10 +998,24 @@ def build_package(root: Path, output: Path, *, force: bool = False) -> dict[str,
         )
     output.parent.mkdir(parents=True, exist_ok=True)
 
-    manifest_bytes = _manifest_bytes(collection.entries)
-    readme_bytes = _package_readme_bytes(collection)
+    manifest_bytes = _manifest_bytes(
+        collection.entries,
+        source_state=source_state,
+        final=final,
+    )
+    metadata_bytes = _build_metadata_bytes(
+        collection,
+        source_state=source_state,
+        final=final,
+    )
+    readme_bytes = _package_readme_bytes(
+        collection,
+        source_state=source_state,
+        final=final,
+    )
     sums_bytes = _sha256sums_bytes(
         collection.entries,
+        metadata_bytes=metadata_bytes,
         readme_bytes=readme_bytes,
         manifest_bytes=manifest_bytes,
     )
@@ -770,6 +1028,7 @@ def build_package(root: Path, output: Path, *, force: bool = False) -> dict[str,
         _write_zip(
             temporary,
             collection,
+            metadata_bytes=metadata_bytes,
             readme_bytes=readme_bytes,
             manifest_bytes=manifest_bytes,
             sha256sums_bytes=sums_bytes,
@@ -777,6 +1036,7 @@ def build_package(root: Path, output: Path, *, force: bool = False) -> dict[str,
         _verify_built_archive(
             temporary,
             collection.entries,
+            metadata_bytes=metadata_bytes,
             readme_bytes=readme_bytes,
             manifest_bytes=manifest_bytes,
             sha256sums_bytes=sums_bytes,
@@ -786,6 +1046,7 @@ def build_package(root: Path, output: Path, *, force: bool = False) -> dict[str,
     finally:
         temporary.unlink(missing_ok=True)
 
+    _atomic_write(metadata_path, metadata_bytes)
     _atomic_write(manifest_path, manifest_bytes)
     _atomic_write(sums_path, sums_bytes)
     _atomic_write(
@@ -794,9 +1055,15 @@ def build_package(root: Path, output: Path, *, force: bool = False) -> dict[str,
     )
     return {
         "status": "built",
+        "build_mode": "final" if final else "draft",
         "software_name": SOFTWARE_NAME,
+        "source_kind": source_state.kind,
+        "source_commit": source_state.source_commit,
+        "working_tree_clean": source_state.working_tree_clean,
+        "dirty_override_used": source_state.dirty_override_used,
         "archive": str(output),
         "archive_sha256": archive_hash,
+        "build_metadata": str(metadata_path),
         "source_manifest": str(manifest_path),
         "sha256_manifest": str(sums_path),
         "archive_sha256_file": str(package_hash_path),
@@ -817,6 +1084,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="只验证必要文档、路径与默认排除，不创建任何文件",
     )
+    parser.add_argument(
+        "--final",
+        action="store_true",
+        help="启用送审终稿门禁：拒绝任何未解析的 [待…] 占位符",
+    )
+    parser.add_argument(
+        "--allow-dirty",
+        action="store_true",
+        help="仅供开发期 --check：允许检查脏工作树并在 JSON 中明确记录",
+    )
     parser.add_argument("--force", action="store_true", help="覆盖已存在的输出和清单")
     return parser.parse_args(argv)
 
@@ -825,15 +1102,21 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     try:
         root = args.root.expanduser().resolve(strict=True)
+        if args.allow_dirty and not args.check:
+            raise PackageError("--allow-dirty is permitted only with development --check")
         if args.check:
-            result = check_project(root)
+            result = check_project(
+                root,
+                allow_dirty=args.allow_dirty,
+                final=args.final,
+            )
         else:
             output = args.output
             if output is None:
                 output = root / "dist/software-copyright/JianYuanShield-V1.0-source.zip"
             elif not output.is_absolute():
                 output = Path.cwd() / output
-            result = build_package(root, output, force=args.force)
+            result = build_package(root, output, force=args.force, final=args.final)
     except (OSError, PackageError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2

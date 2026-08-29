@@ -232,7 +232,41 @@ class DeploymentContractTests(unittest.TestCase):
             "pem|key|p12|pfx|pkcs8|jks|keystore|der|pub",
         ):
             self.assertIn(marker, source)
-        self.assertIn("respond @private_frontend 404", source)
+        private_handle = source.index("handle @private_frontend {")
+        private_response = source.index("respond 404", private_handle)
+        spa_fallback = source.index("handle_path /jianyuanshield/*")
+        self.assertLess(private_handle, private_response)
+        self.assertLess(private_response, spa_fallback)
+        self.assertNotIn("respond @private_frontend 404", source)
+
+    def test_caddy_pins_short_lived_public_ip_certificate_issuer(self) -> None:
+        source = (ROOT / "deployment" / "Caddyfile.jianyuanshield").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("https://81.70.178.203 {", source)
+        self.assertIn(
+            "issuer acme https://acme-v02.api.letsencrypt.org/directory {",
+            source,
+        )
+        self.assertIn("profile shortlived", source)
+        self.assertIn("default_sni 81.70.178.203", source)
+
+    def test_caddy_normalizes_proxy_security_headers(self) -> None:
+        source = (ROOT / "deployment" / "Caddyfile.jianyuanshield").read_text(
+            encoding="utf-8"
+        )
+        for header in (
+            "Server",
+            "Date",
+            "Via",
+            "Content-Security-Policy",
+            "Cross-Origin-Opener-Policy",
+            "Permissions-Policy",
+            "Referrer-Policy",
+            "X-Content-Type-Options",
+            "X-Frame-Options",
+        ):
+            self.assertEqual(source.count(f"header_down -{header}"), 2)
 
     def test_frontend_uses_same_origin_api_gateway_in_browser_mode(self) -> None:
         source = (ROOT / "system" / "frontend" / "app.js").read_text(encoding="utf-8")

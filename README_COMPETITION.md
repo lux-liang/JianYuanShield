@@ -6,7 +6,7 @@
 
 - 软件全称：鉴源盾内容来源可信取证系统；版本号：V1.0。
 - 全量自动化测试基线：398 项测试，其中 397 项通过、1 项因环境条件跳过；最终交付以发布 commit 归档的测试输出为准。
-- 在线演示：[https://jianyuanshield.81.70.178.203.nip.io/jianyuanshield/](https://jianyuanshield.81.70.178.203.nip.io/jianyuanshield/)。边缘层终止 TLS、启用 HSTS 并将明文访问跳转到 HTTPS。
+- 在线演示：[https://81.70.178.203/jianyuanshield/](https://81.70.178.203/jianyuanshield/)。边缘层使用自动续期的短期公网 IP 证书终止 TLS、启用 HSTS，并将明文访问跳转到 HTTPS。
 - Web 管理入口采用单管理员服务端 HMAC 签名会话，浏览器只持有 Secure/HttpOnly/SameSite Cookie；CSRF 校验、登录失败限速和后端 API Key 的网关注入均在服务端完成。
 - 公网静态资源按不可变版本目录构建并通过原子 `current` 链接切换，旧版本保留用于显式回滚。
 
