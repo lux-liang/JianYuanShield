@@ -244,18 +244,23 @@ def _sha256_stable_file_identity(
     size: int,
     mtime_ns: int,
     ctime_ns: int,
+    mode: int,
 ) -> str:
-    """Hash one immutable stat identity and reuse it across evidence probes."""
+    """Hash one read-only stat identity and reuse it across evidence probes."""
 
-    del device, inode, size, mtime_ns, ctime_ns
+    del device, inode, size, mtime_ns, ctime_ns, mode
+    return _sha256_file_contents(Path(path_text))
+
+
+def _sha256_file_contents(path: Path) -> str:
     digest = hashlib.sha256()
-    with Path(path_text).open("rb") as handle:
+    with path.open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
 
 
-def _file_identity(path: Path) -> tuple[int, int, int, int, int]:
+def _file_identity(path: Path) -> tuple[int, int, int, int, int, int]:
     metadata = path.stat()
     return (
         metadata.st_dev,
@@ -263,21 +268,27 @@ def _file_identity(path: Path) -> tuple[int, int, int, int, int]:
         metadata.st_size,
         metadata.st_mtime_ns,
         metadata.st_ctime_ns,
+        metadata.st_mode,
     )
 
 
 def sha256_file(path: Path) -> str:
     """Return a digest cached by stable file identity, never by path alone.
 
-    Device, inode, size, mtime and ctime invalidate the cache after replacement
-    or in-place mutation.  The second stat rejects files that changed while the
-    digest was being read.
+    Read-only files may reuse a digest keyed by device, inode, size, times and
+    mode. Writable files are always rehashed because some filesystems can
+    report the same timestamps for rapid, same-size in-place edits. A second
+    stat rejects files whose metadata changed during hashing.
     """
 
     resolved = path.expanduser().resolve(strict=True)
     for _attempt in range(3):
         before = _file_identity(resolved)
-        digest = _sha256_stable_file_identity(str(resolved), *before)
+        digest = (
+            _sha256_file_contents(resolved)
+            if before[-1] & 0o222
+            else _sha256_stable_file_identity(str(resolved), *before)
+        )
         after = _file_identity(resolved)
         if before == after:
             return digest

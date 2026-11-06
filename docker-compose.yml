@@ -59,6 +59,9 @@ services:
       JYS_GATEWAY_UPSTREAM: http://api:8026
       JYS_GATEWAY_REQUIRE_API_KEY: "false"
       JYS_GATEWAY_STATIC_ROOT: /app/system/frontend
+      JYS_GATEWAY_USERNAME: ${JYS_GATEWAY_USERNAME:?Set JYS_GATEWAY_USERNAME in .env}
+      JYS_GATEWAY_PASSWORD: ${JYS_GATEWAY_PASSWORD:?Set JYS_GATEWAY_PASSWORD in .env}
+      JYS_GATEWAY_COOKIE_SECURE: "false"
     read_only: true
     tmpfs:
       - /tmp

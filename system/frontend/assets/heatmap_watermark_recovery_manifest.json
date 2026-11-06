@@ -1,0 +1,29 @@
+{
+  "schema_version": "presentation-heatmap-manifest.v1",
+  "spec": "configs/presentation_heatmap.v1.json",
+  "source": {
+    "kind": "presentation_reconstruction",
+    "description": "Values transcribed from the supplied 789×579 presentation figure.",
+    "sha256": "a21867ae87f14523016cb1bc4e348beca8cb6c0ae1a2bb1f4dd74b74c1e752d8",
+    "dimensions": [
+      789,
+      579
+    ]
+  },
+  "source_image_sha256": "a21867ae87f14523016cb1bc4e348beca8cb6c0ae1a2bb1f4dd74b74c1e752d8",
+  "font": {
+    "path": "/mnt/c/Windows/Fonts/msyh.ttc",
+    "name": "msyh.ttc",
+    "cjk_capable": true
+  },
+  "dimensions": {
+    "width": 3840,
+    "height": 2400,
+    "dpi": 300
+  },
+  "outputs": {
+    "png": "heatmap_watermark_recovery_4k.png",
+    "svg": "heatmap_watermark_recovery_editable.svg"
+  },
+  "scope": "presentation_only_not_signed_benchmark_evidence"
+}

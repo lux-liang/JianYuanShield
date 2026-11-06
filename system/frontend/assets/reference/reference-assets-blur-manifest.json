@@ -1,0 +1,42 @@
+{
+  "schema_version": "reference-assets-blur.v1",
+  "source_directory": "/tmp/jys-frontend-reference-20260820/鉴源盾前端参考",
+  "processing": "Pillow ImageFilter.GaussianBlur",
+  "purpose": "decorative_visual_layer_only",
+  "assets": {
+    "background": {
+      "source": "统一背景.png",
+      "source_sha256": "4294941a531dddb26fed55966b4f8e521326e5168b97a29414094cbc25d8ef54",
+      "source_dimensions": [
+        1536,
+        1024
+      ],
+      "output": "unified-background-blur.png",
+      "output_sha256": "b0d4212679c88a9f3d1603311845a46e6ad57cd5526f79c3902fb1d33de269ed",
+      "blur_radius": 22.0
+    },
+    "logo_candidate_1": {
+      "source": "LOGO候选1.png",
+      "source_sha256": "67c5b6489bdcd34a9fcd0a15c55ef76e0798a65f8bae4e2de7e9cf5bac635fe2",
+      "source_dimensions": [
+        1254,
+        1254
+      ],
+      "output": "logo-candidate-1-soft.png",
+      "output_sha256": "fbd7f32ccd2661fd89ddf487de40aac8b0d5bc7a0fe2d4db87b973af8db24693",
+      "blur_radius": 3.5
+    },
+    "logo_candidate_2": {
+      "source": "LOGO候选2.png",
+      "source_sha256": "83dea8b356c6e80f7dfeaccbb3a9eaabab23ecab56a481e2a6bdd45f45ea5369",
+      "source_dimensions": [
+        1304,
+        1206
+      ],
+      "output": "logo-candidate-2-soft.png",
+      "output_sha256": "3c4b1a528c9e823f87b337b66f3a5463d0f56c9163d4298d0a32f258b5e52bbf",
+      "blur_radius": 3.5
+    }
+  },
+  "original_assets_preserved": true
+}

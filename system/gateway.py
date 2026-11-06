@@ -10,20 +10,33 @@ tree.
 from __future__ import annotations
 
 import argparse
+from dataclasses import dataclass
+from http.cookies import SimpleCookie
+import hashlib
+import hmac
 import http.client
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import json
 import mimetypes
 import os
 from pathlib import Path, PurePosixPath
 import re
+import secrets
 import socket
 import stat
+import threading
+import time
 from typing import ClassVar
 from urllib.parse import unquote, urlsplit
 
 
 API_PREFIX = "/api"
 DEFAULT_MAX_BODY_BYTES = 96 * 1024 * 1024
+SESSION_COOKIE = "jys_session"
+SESSION_SECONDS = 12 * 60 * 60
+REMEMBER_SESSION_SECONDS = 30 * 24 * 60 * 60
+LOGIN_FAILURE_LIMIT = 5
+LOGIN_FAILURE_WINDOW_SECONDS = 60
 _HOST_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,251}[A-Za-z0-9])?$")
 _HOP_BY_HOP = frozenset(
     {
@@ -54,6 +67,64 @@ _STATIC_SECURITY_HEADERS = {
 
 class GatewayConfigurationError(ValueError):
     """Raised when the gateway is not configured fail-closed."""
+
+
+@dataclass(frozen=True)
+class GatewaySession:
+    username: str
+    csrf: str
+    expires_at: int
+
+
+class GatewaySessions:
+    """Keep browser sessions and failed-login counters in gateway memory."""
+
+    def __init__(self, username: str, password: str) -> None:
+        self.username = username
+        self._password_digest = hashlib.sha256(password.encode("utf-8")).digest()
+        self._sessions: dict[str, GatewaySession] = {}
+        self._failures: dict[str, list[float]] = {}
+        self._lock = threading.Lock()
+
+    def login(self, username: str, password: str, *, remember: bool, client: str) -> tuple[str, GatewaySession] | str:
+        now = time.time()
+        with self._lock:
+            failures = [when for when in self._failures.get(client, []) if now - when < LOGIN_FAILURE_WINDOW_SECONDS]
+            if len(failures) >= LOGIN_FAILURE_LIMIT:
+                self._failures[client] = failures
+                return "rate_limited"
+            username_valid = hmac.compare_digest(username, self.username)
+            password_valid = hmac.compare_digest(
+                hashlib.sha256(password.encode("utf-8")).digest(), self._password_digest
+            )
+            valid = username_valid and password_valid
+            if not valid:
+                failures.append(now)
+                self._failures[client] = failures
+                return "invalid"
+            self._failures.pop(client, None)
+            token = secrets.token_urlsafe(32)
+            session = GatewaySession(
+                username=self.username,
+                csrf=secrets.token_urlsafe(32),
+                expires_at=int(now + (REMEMBER_SESSION_SECONDS if remember else SESSION_SECONDS)),
+            )
+            self._sessions[token] = session
+            return token, session
+
+    def get(self, token: str | None) -> GatewaySession | None:
+        if not token:
+            return None
+        with self._lock:
+            session = self._sessions.get(token)
+            if session and session.expires_at <= time.time():
+                self._sessions.pop(token, None)
+                return None
+            return session
+
+    def revoke(self, token: str) -> None:
+        with self._lock:
+            self._sessions.pop(token, None)
 
 
 def _positive_int(value: str, *, label: str) -> int:
@@ -107,6 +178,9 @@ class GatewayConfiguration:
         upstream_host: str,
         upstream_port: int,
         api_key: str | None,
+        session_username: str | None = None,
+        session_password: str | None = None,
+        session_cookie_secure: bool = False,
         max_body_bytes: int = DEFAULT_MAX_BODY_BYTES,
         upstream_timeout_seconds: int = 180,
     ) -> None:
@@ -122,10 +196,18 @@ class GatewayConfiguration:
             raise GatewayConfigurationError("upstream port is invalid")
         if max_body_bytes <= 0 or upstream_timeout_seconds <= 0:
             raise GatewayConfigurationError("gateway limits must be positive")
+        if bool(session_username) != bool(session_password):
+            raise GatewayConfigurationError("gateway session username and password must be set together")
         self.static_root = root
         self.upstream_host = upstream_host
         self.upstream_port = upstream_port
         self.api_key = api_key
+        self.session_cookie_secure = session_cookie_secure
+        self.sessions = (
+            GatewaySessions(session_username, session_password)
+            if session_username and session_password
+            else None
+        )
         self.max_body_bytes = max_body_bytes
         self.upstream_timeout_seconds = upstream_timeout_seconds
 
@@ -161,6 +243,24 @@ class GatewayConfiguration:
             if key_path_value
             else None
         )
+        session_password = os.getenv("JYS_GATEWAY_PASSWORD") or None
+        session_password_file = os.getenv("JYS_GATEWAY_PASSWORD_FILE", "").strip()
+        if session_password and session_password_file:
+            raise GatewayConfigurationError(
+                "JYS_GATEWAY_PASSWORD and JYS_GATEWAY_PASSWORD_FILE are mutually exclusive"
+            )
+        if session_password_file:
+            session_password = read_api_key(Path(session_password_file), required=False)
+            if session_password is None:
+                raise GatewayConfigurationError("gateway session password file is missing")
+        session_username = os.getenv("JYS_GATEWAY_USERNAME", "").strip()
+        if not session_username or not session_password or not session_password.strip():
+            raise GatewayConfigurationError(
+                "JYS_GATEWAY_USERNAME and a gateway session password are required"
+            )
+        secure_cookie_value = os.getenv("JYS_GATEWAY_COOKIE_SECURE", "false").strip().lower()
+        if secure_cookie_value not in {"true", "false"}:
+            raise GatewayConfigurationError("JYS_GATEWAY_COOKIE_SECURE must be true or false")
         return cls(
             static_root=Path(
                 os.getenv("JYS_GATEWAY_STATIC_ROOT", "/app/system/frontend")
@@ -168,6 +268,9 @@ class GatewayConfiguration:
             upstream_host=upstream.hostname,
             upstream_port=upstream_port,
             api_key=api_key,
+            session_username=session_username,
+            session_password=session_password,
+            session_cookie_secure=secure_cookie_value == "true",
             max_body_bytes=_positive_int(
                 os.getenv(
                     "JYS_GATEWAY_MAX_BODY_BYTES",
@@ -270,6 +373,136 @@ def make_gateway_handler(configuration: GatewayConfiguration) -> type[BaseHTTPRe
             if self.command != "HEAD":
                 self.wfile.write(body)
 
+        def _session_json(
+            self, status: int, payload: dict[str, object], *, cookie: str | None = None
+        ) -> None:
+            body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Connection", "close")
+            if cookie is not None:
+                self.send_header("Set-Cookie", cookie)
+            self.end_headers()
+            self.close_connection = True
+            if self.command != "HEAD":
+                self.wfile.write(body)
+
+        def _session_error(self, status: int, code: str, message: str) -> None:
+            self._session_json(status, {"error": {"code": code, "message": message}})
+
+        def _cookie_token(self) -> str | None:
+            values = self.headers.get_all("Cookie", [])
+            if len(values) != 1:
+                return None
+            try:
+                cookies = SimpleCookie()
+                cookies.load(values[0])
+                token = cookies[SESSION_COOKIE].value
+            except (KeyError, ValueError):
+                return None
+            return token if re.fullmatch(r"[A-Za-z0-9_-]{20,100}", token) else None
+
+        def _authorized_session(self, *, require_csrf: bool) -> tuple[str, GatewaySession] | None:
+            sessions = self.config.sessions
+            token = self._cookie_token()
+            session = sessions.get(token) if sessions else None
+            if session is None:
+                self._session_error(401, "unauthorized", "请先登录")
+                return None
+            if require_csrf:
+                values = self.headers.get_all("X-JYS-CSRF", [])
+                if len(values) != 1 or not hmac.compare_digest(values[0], session.csrf):
+                    self._session_error(403, "invalid_csrf", "会话校验失败")
+                    return None
+            return token, session
+
+        def _session_payload(self, session: GatewaySession) -> dict[str, object]:
+            return {
+                "session": {
+                    "username": session.username,
+                    "display_name": "鉴源管理员",
+                    "role": "管理员",
+                    "expires_at": session.expires_at,
+                },
+                "csrf": session.csrf,
+            }
+
+        def _session_endpoint(self, path: str) -> None:
+            sessions = self.config.sessions
+            if sessions is None:
+                self._session_error(503, "session_unavailable", "登录服务未配置")
+                return
+            if path == "/api/session" and self.command == "GET":
+                authorized = self._authorized_session(require_csrf=False)
+                if authorized:
+                    self._session_json(200, self._session_payload(authorized[1]))
+                return
+            if path == "/api/session/login" and self.command == "POST":
+                if not self.headers.get("Content-Type", "").lower().startswith("application/json"):
+                    self._session_error(415, "invalid_content_type", "需要 JSON 请求")
+                    return
+                try:
+                    body = self._request_body()
+                    if len(body) > 4096:
+                        raise OverflowError
+                    payload = json.loads(body)
+                except OverflowError:
+                    self._session_error(413, "body_too_large", "登录请求过大")
+                    return
+                except (OSError, ValueError, UnicodeError):
+                    self._session_error(400, "invalid_json", "登录请求无效")
+                    return
+                if not isinstance(payload, dict):
+                    self._session_error(400, "invalid_json", "登录请求无效")
+                    return
+                username = payload.get("username")
+                password = payload.get("password")
+                remember = payload.get("remember", False)
+                if (
+                    not isinstance(username, str) or not isinstance(password, str)
+                    or not isinstance(remember, bool)
+                    or len(username) > 128 or len(password) > 1024
+                ):
+                    self._session_error(400, "invalid_credentials", "登录请求无效")
+                    return
+                result = sessions.login(username, password, remember=remember, client=self.client_address[0])
+                if result == "rate_limited":
+                    self._session_error(429, "rate_limited", "尝试次数过多，请稍后再试")
+                    return
+                if result == "invalid":
+                    self._session_error(401, "unauthorized", "账号或访问口令有误")
+                    return
+                token, session = result
+                cookie = f"{SESSION_COOKIE}={token}; HttpOnly; SameSite=Lax; Path=/"
+                if remember:
+                    cookie += f"; Max-Age={REMEMBER_SESSION_SECONDS}"
+                if self.config.session_cookie_secure:
+                    cookie += "; Secure"
+                self._session_json(200, self._session_payload(session), cookie=cookie)
+                return
+            if path == "/api/session/logout" and self.command == "POST":
+                authorized = self._authorized_session(require_csrf=True)
+                if not authorized:
+                    return
+                try:
+                    self._request_body()
+                except OverflowError:
+                    self._session_error(413, "body_too_large", "请求过大")
+                    return
+                except (OSError, ValueError):
+                    self._session_error(400, "invalid_request", "请求无效")
+                    return
+                sessions.revoke(authorized[0])
+                cookie = f"{SESSION_COOKIE}=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0"
+                if self.config.session_cookie_secure:
+                    cookie += "; Secure"
+                self._session_json(200, {"ok": True}, cookie=cookie)
+                return
+            self._session_error(405, "method_not_allowed", "请求方法不支持")
+
         def _static(self, *, head_only: bool) -> None:
             if self.command not in {"GET", "HEAD"}:
                 self._plain_error(405, "method not allowed")
@@ -315,7 +548,9 @@ def make_gateway_handler(configuration: GatewayConfiguration) -> type[BaseHTTPRe
 
         def _proxy_headers(self, body: bytes) -> dict[str, str]:
             connection_headers = _connection_tokens(self.headers.get_all("Connection", []))
-            forbidden = _HOP_BY_HOP | connection_headers | {"host", "x-api-key"}
+            forbidden = _HOP_BY_HOP | connection_headers | {
+                "host", "x-api-key", "cookie", "x-jys-csrf"
+            }
             headers: dict[str, str] = {}
             seen: set[str] = set()
             for name in self.headers:
@@ -337,6 +572,10 @@ def make_gateway_handler(configuration: GatewayConfiguration) -> type[BaseHTTPRe
                 path, query = _request_target(self.path)
                 if not _is_api_path(path):
                     raise ValueError("non-API proxy target")
+                if self.config.sessions and not self._authorized_session(
+                    require_csrf=self.command not in {"GET", "HEAD", "OPTIONS"}
+                ):
+                    return
                 body = self._request_body()
                 headers = self._proxy_headers(body)
             except OverflowError:
@@ -389,15 +628,24 @@ def make_gateway_handler(configuration: GatewayConfiguration) -> type[BaseHTTPRe
 
         def do_GET(self) -> None:  # noqa: N802
             path = urlsplit(self.path).path
-            self._proxy() if _is_api_path(path) else self._static(head_only=False)
+            if path in {"/api/session", "/api/session/login", "/api/session/logout"}:
+                self._session_endpoint(path)
+            else:
+                self._proxy() if _is_api_path(path) else self._static(head_only=False)
 
         def do_HEAD(self) -> None:  # noqa: N802
             path = urlsplit(self.path).path
-            self._proxy() if _is_api_path(path) else self._static(head_only=True)
+            if path in {"/api/session", "/api/session/login", "/api/session/logout"}:
+                self._session_endpoint(path)
+            else:
+                self._proxy() if _is_api_path(path) else self._static(head_only=True)
 
         def do_POST(self) -> None:  # noqa: N802
             path = urlsplit(self.path).path
-            self._proxy() if _is_api_path(path) else self._plain_error(405, "method not allowed")
+            if path in {"/api/session", "/api/session/login", "/api/session/logout"}:
+                self._session_endpoint(path)
+            else:
+                self._proxy() if _is_api_path(path) else self._plain_error(405, "method not allowed")
 
         def do_OPTIONS(self) -> None:  # noqa: N802
             path = urlsplit(self.path).path

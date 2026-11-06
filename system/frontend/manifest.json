@@ -1,11 +1,11 @@
 {
-  "name": "鉴源盾 · 取证证据工作台",
+  "name": "鉴源盾内容来源可信取证系统 V1.0",
   "short_name": "鉴源盾",
-  "description": "主动取证与抗攻击溯源平台 · Deepfake Active Forensics",
+  "description": "面向数字内容的来源登记、传播变换、盲解码核验与签名证据审计系统",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "orientation": "portrait",
+  "orientation": "any",
   "background_color": "#0a0f14",
   "theme_color": "#0a0f14",
   "icons": [

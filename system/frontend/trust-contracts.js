@@ -78,7 +78,7 @@
   }
 
   function hash(value, label) {
-    if (typeof value !== "string" || !/^[0-9a-f]{64}$/.test(value)) fail(`${label} 不是 SHA-256`);
+    if (typeof value !== "string" || !/^[0-9a-f]{64}$/.test(value)) fail(`${label} 必须为 SHA-256`);
     return value;
   }
 
@@ -117,7 +117,7 @@
     const response = object(payload, "SimSwap 响应");
     if (response.schema_version !== "simswap-lfw-benchmark.v1") fail("SimSwap API schema 不匹配");
     if (response.evidence_schema_version !== "simswap-lfw-robustness-summary.v1") fail("SimSwap summary schema 不匹配");
-    if (response.run_class !== "real_n256_evidence") fail("SimSwap run_class 不是真实 n256 证据");
+    if (response.run_class !== "real_n256_evidence") fail("SimSwap run_class 必须为真实 n256 证据");
     if (response.run_id !== SIMSWAP_RUN_ID) fail("SimSwap run_id 不匹配固定证据");
     if (response.method !== "official SimSwap") fail("换脸引擎声明不匹配");
     if (response.status !== "verified" || response.claim_valid !== true
@@ -126,7 +126,7 @@
     }
 
     const scope = object(response.scope, "scope");
-    if (scope.dataset !== "LFW") fail("数据集不是 LFW");
+    if (scope.dataset !== "LFW") fail("数据集必须为 LFW");
     exactInteger(scope.num_pairs, 256, "scope.num_pairs");
     exactInteger(scope.calibration_pairs, 64, "scope.calibration_pairs");
     exactInteger(scope.holdout_pairs, 192, "scope.holdout_pairs");
@@ -332,7 +332,7 @@
     });
     const readyModels = options.filter((item) => item.provenance_ready);
     const expectedPreferred = readyModels.length ? readyModels[0].model : null;
-    if (response.preferred_model !== expectedPreferred) fail("preferred_model 未指向首个 provenance-ready 模型");
+    if (response.preferred_model !== expectedPreferred) fail("preferred_model 必须指向首个可信来源模型");
     return { response, options, preferredModel: expectedPreferred };
   }
 

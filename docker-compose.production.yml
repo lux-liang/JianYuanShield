@@ -88,11 +88,15 @@ services:
         condition: service_healthy
     secrets:
       - jys_api_key
+      - jys_gateway_password
     environment:
       JYS_GATEWAY_UPSTREAM: http://api:8026
       JYS_GATEWAY_API_KEY_FILE: /run/secrets/jys_api_key
       JYS_GATEWAY_REQUIRE_API_KEY: "true"
       JYS_GATEWAY_STATIC_ROOT: /app/system/frontend
+      JYS_GATEWAY_USERNAME: ${JYS_GATEWAY_USERNAME:?Set JYS_GATEWAY_USERNAME}
+      JYS_GATEWAY_PASSWORD_FILE: /run/secrets/jys_gateway_password
+      JYS_GATEWAY_COOKIE_SECURE: "true"
     restart: unless-stopped
     init: true
     read_only: true
@@ -118,6 +122,8 @@ networks:
 secrets:
   jys_api_key:
     file: ${JYS_API_KEY_SECRET_FILE:?Set JYS_API_KEY_SECRET_FILE}
+  jys_gateway_password:
+    file: ${JYS_GATEWAY_PASSWORD_SECRET_FILE:?Set JYS_GATEWAY_PASSWORD_SECRET_FILE}
   jys_provenance_secret:
     file: ${JYS_PROVENANCE_SECRET_FILE:?Set JYS_PROVENANCE_SECRET_FILE}
   jys_evidence_private_key:

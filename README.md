@@ -259,6 +259,10 @@ SepMark 的身份聚类同步下界：期望归一化 margin 0.84338599、最差
 
 ### 本机 Web/API 联调
 
+先在被 Git 忽略的 `.env` 中设置 `JYS_GATEWAY_USERNAME` 和
+`JYS_GATEWAY_PASSWORD`，再启动服务。登录口令只保留在本机，建议将文件权限设为
+`600`。本机脚本可运行 `./scripts/dev.sh`；Docker Compose 会读取同一份 `.env`。
+
 ```bash
 docker compose config --quiet
 docker compose up --build
@@ -340,6 +344,8 @@ bash "$JYS_BUNDLE/deployment/offline_deploy.sh" restore \
 恢复流程依次完成全量验签、`docker load`、config digest 核验、CUDA 检查、Compose fail-closed 渲染和健康等待，仅在 `127.0.0.1:8027` 发布同源控制台。
 
 生产与离线配置见 [docker-compose.production.yml](docker-compose.production.yml)、[docker-compose.competition.yml](docker-compose.competition.yml) 和 [30 分钟答辩运行手册](docs/DEFENSE_RUNBOOK_30MIN.md)。
+生产 Compose 还需设置 `JYS_GATEWAY_USERNAME` 与 `JYS_GATEWAY_PASSWORD_SECRET_FILE`；
+后者指向仅供容器读取的登录口令文件，HTTPS 部署会给会话 Cookie 加上 `Secure` 标记。
 
 ## 安全与证据门禁
 

@@ -3,10 +3,12 @@ from __future__ import annotations
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import http.client
 import json
+import os
 from pathlib import Path
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 
 from system.gateway import (
     GatewayConfiguration,
@@ -107,6 +109,134 @@ class GatewayTests(unittest.TestCase):
         response_headers = {name.lower(): value for name, value in response.getheaders()}
         connection.close()
         return response.status, response_headers, payload
+
+    def enable_sessions(self, *, secure_cookie: bool = False) -> None:
+        self.gateway.shutdown()
+        self.gateway.server_close()
+        configuration = GatewayConfiguration(
+            static_root=self.root,
+            upstream_host="127.0.0.1",
+            upstream_port=self.upstream.server_address[1],
+            api_key="s" * 40,
+            session_username="demo-user",
+            session_password="right-password",
+            session_cookie_secure=secure_cookie,
+            max_body_bytes=1024,
+            upstream_timeout_seconds=5,
+        )
+        self.gateway = ThreadingHTTPServer(
+            ("127.0.0.1", 0),
+            make_gateway_handler(configuration),
+        )
+        self.gateway_thread = threading.Thread(
+            target=self.gateway.serve_forever,
+            daemon=True,
+        )
+        self.gateway_thread.start()
+
+    def login(self) -> tuple[str, str]:
+        status, headers, body = self.request(
+            "POST",
+            "/api/session/login",
+            body=json.dumps({
+                "username": "demo-user",
+                "password": "right-password",
+                "remember": False,
+            }).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+        )
+        self.assertEqual(status, 200)
+        self.assertIn("httponly", headers["set-cookie"].lower())
+        self.assertIn("samesite=lax", headers["set-cookie"].lower())
+        self.assertNotIn(b"right-password", body)
+        payload = json.loads(body)
+        self.assertEqual(payload["session"]["username"], "demo-user")
+        return headers["set-cookie"].split(";", 1)[0], payload["csrf"]
+
+    def test_session_login_unlocks_real_api_and_rejects_wrong_password(self) -> None:
+        self.enable_sessions()
+        status, _headers, _body = self.request("GET", "/api/session")
+        self.assertEqual(status, 401)
+        status, _headers, _body = self.request(
+            "POST",
+            "/api/session/login",
+            body=b'{"username":"demo-user","password":"wrong"}',
+            headers={"Content-Type": "application/json"},
+        )
+        self.assertEqual(status, 401)
+        cookie, csrf = self.login()
+        status, _headers, body = self.request("GET", "/api/session", headers={"Cookie": cookie})
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body)["csrf"], csrf)
+        status, _headers, _body = self.request("GET", "/api/modules")
+        self.assertEqual(status, 401)
+        status, _headers, _body = self.request("GET", "/api/modules", headers={"Cookie": cookie})
+        self.assertEqual(status, 200)
+        self.assertEqual(_UpstreamHandler.observed[-1]["path"], "/api/modules")
+
+    def test_session_requires_csrf_for_writes_and_logout_revokes_cookie(self) -> None:
+        self.enable_sessions()
+        cookie, csrf = self.login()
+        status, _headers, _body = self.request(
+            "POST", "/api/provenance/protect", body=b"payload", headers={"Cookie": cookie},
+        )
+        self.assertEqual(status, 403)
+        self.assertEqual(_UpstreamHandler.observed, [])
+        status, _headers, _body = self.request(
+            "POST", "/api/provenance/protect", body=b"payload",
+            headers={"Cookie": cookie, "X-JYS-CSRF": csrf},
+        )
+        self.assertEqual(status, 200)
+        status, headers, _body = self.request(
+            "POST", "/api/session/logout", body=b"{}",
+            headers={"Cookie": cookie, "X-JYS-CSRF": csrf},
+        )
+        self.assertEqual(status, 200)
+        self.assertIn("max-age=0", headers["set-cookie"].lower())
+        status, _headers, _body = self.request("GET", "/api/session", headers={"Cookie": cookie})
+        self.assertEqual(status, 401)
+
+    def test_session_endpoint_reports_missing_credentials(self) -> None:
+        status, _headers, _body = self.request("GET", "/api/session")
+        self.assertEqual(status, 503)
+
+    def test_session_password_file_configures_login(self) -> None:
+        password_file = self.root / "login-password"
+        password_file.write_text("file-password\n", encoding="utf-8")
+        with patch.dict(os.environ, {
+            "JYS_GATEWAY_STATIC_ROOT": str(self.root),
+            "JYS_GATEWAY_UPSTREAM": f"http://127.0.0.1:{self.upstream.server_address[1]}",
+            "JYS_GATEWAY_USERNAME": "demo-user",
+            "JYS_GATEWAY_PASSWORD": "",
+            "JYS_GATEWAY_PASSWORD_FILE": str(password_file),
+        }):
+            configuration = GatewayConfiguration.from_environment()
+        self.assertIsNotNone(configuration.sessions)
+        result = configuration.sessions.login(
+            "demo-user", "file-password", remember=False, client="127.0.0.1"
+        )
+        self.assertIsInstance(result, tuple)
+
+    def test_runtime_configuration_rejects_missing_login_credentials(self) -> None:
+        with patch.dict(os.environ, {
+            "JYS_GATEWAY_STATIC_ROOT": str(self.root),
+            "JYS_GATEWAY_UPSTREAM": f"http://127.0.0.1:{self.upstream.server_address[1]}",
+            "JYS_GATEWAY_USERNAME": "",
+            "JYS_GATEWAY_PASSWORD": "",
+            "JYS_GATEWAY_PASSWORD_FILE": "",
+        }):
+            with self.assertRaises(GatewayConfigurationError):
+                GatewayConfiguration.from_environment()
+
+    def test_secure_session_cookie_for_tls_deployment(self) -> None:
+        self.enable_sessions(secure_cookie=True)
+        status, headers, _body = self.request(
+            "POST", "/api/session/login",
+            body=b'{"username":"demo-user","password":"right-password","remember":true}',
+            headers={"Content-Type": "application/json"},
+        )
+        self.assertEqual(status, 200)
+        self.assertIn("secure", headers["set-cookie"].lower())
 
     def test_static_frontend_is_same_origin_and_hardened(self) -> None:
         status, headers, body = self.request("GET", "/")

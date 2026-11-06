@@ -19,6 +19,7 @@ class StableHashCacheTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "evidence.bin"
             path.write_bytes(b"fixed-evidence" * 1024)
+            path.chmod(0o444)
             expected = hashlib.sha256(path.read_bytes()).hexdigest()
             self.assertEqual(signing.sha256_file(path), expected)
             first = signing._sha256_stable_file_identity.cache_info()
