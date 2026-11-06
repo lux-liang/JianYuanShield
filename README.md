@@ -347,6 +347,13 @@ bash "$JYS_BUNDLE/deployment/offline_deploy.sh" restore \
 生产 Compose 还需设置 `JYS_GATEWAY_USERNAME` 与 `JYS_GATEWAY_PASSWORD_SECRET_FILE`；
 后者指向仅供容器读取的登录口令文件，HTTPS 部署会给会话 Cookie 加上 `Secure` 标记。
 
+公网边缘机的 Caddy 将 `/jianyuanshield/api/*` 和 `/jianyuanshield/artifacts/*`
+转发至仅监听 `127.0.0.1:18081` 的[会话网关](deployment/jys-edge-gateway.service)，
+网关再通过 H100 反向隧道的 `127.0.0.1:18080` 访问后端。配置示例见
+[边缘网关环境文件](deployment/edge-gateway.env.example)；登录口令放在仅供服务账号读取的
+`/etc/jys-gateway/password`，不写入仓库。隧道断开时登录仍可用，模型及业务 API 会返回
+上游不可用状态。
+
 ## 安全与证据门禁
 
 - MIME、magic、文件体积、像素数和批量上限联合验证；
